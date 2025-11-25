@@ -14,3 +14,6 @@ export { Renderer, RenderContext } from './renderer/renderer';
 export { CanvasRenderer } from './renderer/canvas';
 export { SVGRenderer } from './renderer/svg';
 export { colorToCSS, colorToHex } from './renderer/types';
+
+// Elements exports
+export * from './elements';
