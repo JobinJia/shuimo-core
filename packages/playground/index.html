@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shuimo Playground - 山水画生成器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #2c3e50;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: #7f8c8d;
+    }
+
+    .playground {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 20px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .controls {
+      background: #f8f9fa;
+      padding: 25px;
+      border-right: 1px solid #e9ecef;
+    }
+
+    .control-group {
+      margin-bottom: 25px;
+    }
+
+    .control-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #495057;
+      font-size: 0.9rem;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button.primary {
+      background: #007bff;
+      color: white;
+    }
+
+    button.primary:hover {
+      background: #0056b3;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    }
+
+    button.secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    button.secondary:hover {
+      background: #545b62;
+    }
+
+    .canvas-container {
+      padding: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 600px;
+    }
+
+    canvas {
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      background: white;
+    }
+
+    .info {
+      margin-top: 20px;
+      padding: 15px;
+      background: #e7f3ff;
+      border-left: 4px solid #007bff;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      color: #004085;
+    }
+
+    select, input[type="number"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .range-value {
+      display: inline-block;
+      margin-left: 10px;
+      color: #007bff;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>山水画生成器 Playground</h1>
+      <p class="subtitle">基于 @shuimo/core 的交互式测试平台</p>
+    </header>
+
+    <div class="playground">
+      <aside class="controls">
+        <div class="control-group">
+          <label>渲染引擎</label>
+          <select id="renderer-type">
+            <option value="canvas">Canvas (像素)</option>
+            <option value="svg">SVG (矢量)</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label>示例选择</label>
+          <button class="primary" id="demo-noise">Perlin 噪声</button>
+          <button class="primary" id="demo-bezier">贝塞尔曲线</button>
+          <button class="primary" id="demo-brush">笔刷效果</button>
+          <button class="primary" id="demo-landscape">简单山水</button>
+        </div>
+
+        <div class="control-group">
+          <label>操作</label>
+          <button class="secondary" id="clear">清除画布</button>
+          <button class="secondary" id="export">导出图片</button>
+        </div>
+
+        <div class="info">
+          <strong>提示：</strong><br>
+          点击上方按钮运行不同的示例，体验 @shuimo/core 的各种功能。
+        </div>
+      </aside>
+
+      <main class="canvas-container">
+        <canvas id="canvas" width="800" height="600"></canvas>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

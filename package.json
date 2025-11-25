@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @shuimo/core dev",
+    "playground": "pnpm --filter @shuimo/playground dev",
     "build": "pnpm --filter @shuimo/core build",
+    "build:all": "pnpm -r --filter \"./packages/**\" build",
     "test": "pnpm --filter @shuimo/core test",
     "lint": "eslint . --ext ts,tsx",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
@@ -20,6 +22,6 @@
   },
   "engines": {
     "node": ">=18.0.0",
-    "pnpm": ">=10.23.0"
+    "pnpm": ">=10.0.0"
   }
 }

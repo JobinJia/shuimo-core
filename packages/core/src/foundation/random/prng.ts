@@ -206,3 +206,52 @@ export function randomInt(min: number, max: number): number {
 export function randomRange(min: number, max: number): number {
   return getDefaultPRNG().randomRange(min, max);
 }
+
+/**
+ * Get random boolean using default PRNG
+ */
+export function randomBool(probability: number = 0.5): boolean {
+  return getDefaultPRNG().randomBool(probability);
+}
+
+/**
+ * Get random number with Gaussian distribution using default PRNG
+ */
+export function randomGaussian(mean: number = 0, stdDev: number = 1): number {
+  return getDefaultPRNG().randomGaussian(mean, stdDev);
+}
+
+/**
+ * Pick random element from array using default PRNG
+ */
+export function choice<T>(array: T[]): T {
+  return getDefaultPRNG().choice(array);
+}
+
+/**
+ * Weighted random choice using default PRNG
+ */
+export function weightedChoice<T>(items: T[], weights: number[]): T {
+  return getDefaultPRNG().weightedChoice(items, weights);
+}
+
+/**
+ * Shuffle array using default PRNG
+ */
+export function shuffle<T>(array: T[]): T[] {
+  return getDefaultPRNG().shuffle(array);
+}
+
+/**
+ * Generate random point in unit circle using default PRNG
+ */
+export function randomInCircle(): { x: number; y: number } {
+  return getDefaultPRNG().randomInCircle();
+}
+
+/**
+ * Generate random point on unit circle using default PRNG
+ */
+export function randomOnCircle(): { x: number; y: number } {
+  return getDefaultPRNG().randomOnCircle();
+}
