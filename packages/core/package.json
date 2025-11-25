@@ -1,0 +1,49 @@
+{
+  "name": "@shuimo/core",
+  "version": "0.1.0",
+  "description": "Core library for procedural Chinese landscape painting generation",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./foundation": {
+      "types": "./dist/foundation/index.d.ts",
+      "import": "./dist/foundation/index.js"
+    },
+    "./elements": {
+      "types": "./dist/elements/index.d.ts",
+      "import": "./dist/elements/index.js"
+    },
+    "./renderer": {
+      "types": "./dist/renderer/index.d.ts",
+      "import": "./dist/renderer/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.4",
+    "@types/uuid": "^9.0.7",
+    "@vitest/ui": "^1.0.4",
+    "jsdom": "^23.0.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.7",
+    "vite-plugin-dts": "^3.6.4",
+    "vitest": "^1.0.4"
+  }
+}
