@@ -69,9 +69,9 @@ export class SVGRenderer extends Renderer {
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     const transformedPoints = this.applyTransformToPoints(points);
 
-    let d = `M ${transformedPoints[0].x} ${transformedPoints[0].y}`;
+    let d = `M ${transformedPoints[0]!.x} ${transformedPoints[0]!.y}`;
     for (let i = 1; i < transformedPoints.length; i++) {
-      d += ` L ${transformedPoints[i].x} ${transformedPoints[i].y}`;
+      d += ` L ${transformedPoints[i]!.x} ${transformedPoints[i]!.y}`;
     }
 
     path.setAttribute('d', d);
@@ -125,9 +125,9 @@ export class SVGRenderer extends Renderer {
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     const transformedPoints = this.applyTransformToPoints(points);
 
-    let d = `M ${transformedPoints[0].x} ${transformedPoints[0].y}`;
+    let d = `M ${transformedPoints[0]!.x} ${transformedPoints[0]!.y}`;
     for (let i = 1; i < transformedPoints.length; i++) {
-      d += ` L ${transformedPoints[i].x} ${transformedPoints[i].y}`;
+      d += ` L ${transformedPoints[i]!.x} ${transformedPoints[i]!.y}`;
     }
 
     path.setAttribute('d', d);

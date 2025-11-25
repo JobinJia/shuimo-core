@@ -97,7 +97,7 @@ export class BlumBlumShubPRNG implements IPRNG {
    * Pick random element from array
    */
   choice<T>(array: T[]): T {
-    return array[this.randomInt(0, array.length - 1)];
+    return array[this.randomInt(0, array.length - 1)]!;
   }
 
   /**
@@ -118,14 +118,14 @@ export class BlumBlumShubPRNG implements IPRNG {
 
     // Find corresponding item
     for (let i = 0; i < items.length; i++) {
-      random -= weights[i];
+      random -= weights[i]!;
       if (random <= 0) {
-        return items[i];
+        return items[i]!;
       }
     }
 
     // Fallback (should never reach here)
-    return items[items.length - 1];
+    return items[items.length - 1]!;
   }
 
   /**
@@ -135,7 +135,7 @@ export class BlumBlumShubPRNG implements IPRNG {
     const result = [...array];
     for (let i = result.length - 1; i > 0; i--) {
       const j = this.randomInt(0, i);
-      [result[i], result[j]] = [result[j], result[i]];
+      [result[i]!, result[j]!] = [result[j]!, result[i]!];
     }
     return result;
   }

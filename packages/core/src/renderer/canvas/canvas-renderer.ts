@@ -65,11 +65,11 @@ export class CanvasRenderer extends Renderer {
     this.applyStyle(style);
 
     this.ctx.beginPath();
-    const first = this.applyTransform(points[0]);
+    const first = this.applyTransform(points[0]!);
     this.ctx.moveTo(first.x, first.y);
 
     for (let i = 1; i < points.length; i++) {
-      const point = this.applyTransform(points[i]);
+      const point = this.applyTransform(points[i]!);
       this.ctx.lineTo(point.x, point.y);
     }
 
@@ -83,11 +83,11 @@ export class CanvasRenderer extends Renderer {
     this.applyStyle(style);
 
     this.ctx.beginPath();
-    const first = this.applyTransform(points[0]);
+    const first = this.applyTransform(points[0]!);
     this.ctx.moveTo(first.x, first.y);
 
     for (let i = 1; i < points.length; i++) {
-      const point = this.applyTransform(points[i]);
+      const point = this.applyTransform(points[i]!);
       this.ctx.lineTo(point.x, point.y);
     }
 
@@ -132,10 +132,10 @@ export class CanvasRenderer extends Renderer {
 
     // Simple brush stroke implementation
     this.ctx.beginPath();
-    this.ctx.moveTo(transformedPoints[0].x, transformedPoints[0].y);
+    this.ctx.moveTo(transformedPoints[0]!.x, transformedPoints[0]!.y);
 
     for (let i = 1; i < transformedPoints.length; i++) {
-      const point = transformedPoints[i];
+      const point = transformedPoints[i]!;
       this.ctx.lineTo(point.x, point.y);
     }
 

@@ -54,8 +54,8 @@ export class PerlinNoise implements INoise {
     // Double the permutation table to avoid overflow
     this.p = new Array(512);
     for (let i = 0; i < 256; i++) {
-      this.p[i] = this.permutation[i];
-      this.p[i + 256] = this.permutation[i];
+      this.p[i] = this.permutation[i]!;
+      this.p[i + 256] = this.permutation[i]!;
     }
   }
 
@@ -69,9 +69,9 @@ export class PerlinNoise implements INoise {
       // LCG random
       random = (random * 16807) % 2147483647;
       const j = Math.abs(random) % (i + 1);
-      [this.permutation[i], this.permutation[j]] = [
-        this.permutation[j],
-        this.permutation[i]
+      [this.permutation[i]!, this.permutation[j]!] = [
+        this.permutation[j]!,
+        this.permutation[i]!
       ];
     }
   }
@@ -127,8 +127,8 @@ export class PerlinNoise implements INoise {
 
     const u = this.fade(x);
 
-    const a = this.p[X];
-    const b = this.p[X + 1];
+    const a = this.p[X]!;
+    const b = this.p[X + 1]!;
 
     return this.lerp(this.grad1(a, x), this.grad1(b, x - 1), u);
   }
@@ -150,10 +150,10 @@ export class PerlinNoise implements INoise {
     const v = this.fade(y);
 
     // Hash coordinates of the 4 cube corners
-    const aa = this.p[this.p[X] + Y];
-    const ab = this.p[this.p[X] + Y + 1];
-    const ba = this.p[this.p[X + 1] + Y];
-    const bb = this.p[this.p[X + 1] + Y + 1];
+    const aa = this.p[this.p[X]! + Y]!;
+    const ab = this.p[this.p[X]! + Y + 1]!;
+    const ba = this.p[this.p[X + 1]! + Y]!;
+    const bb = this.p[this.p[X + 1]! + Y + 1]!;
 
     // Blend results from 4 corners
     return this.lerp(
@@ -183,14 +183,14 @@ export class PerlinNoise implements INoise {
     const w = this.fade(z);
 
     // Hash coordinates of the 8 cube corners
-    const aaa = this.p[this.p[this.p[X] + Y] + Z];
-    const aba = this.p[this.p[this.p[X] + Y + 1] + Z];
-    const aab = this.p[this.p[this.p[X] + Y] + Z + 1];
-    const abb = this.p[this.p[this.p[X] + Y + 1] + Z + 1];
-    const baa = this.p[this.p[this.p[X + 1] + Y] + Z];
-    const bba = this.p[this.p[this.p[X + 1] + Y + 1] + Z];
-    const bab = this.p[this.p[this.p[X + 1] + Y] + Z + 1];
-    const bbb = this.p[this.p[this.p[X + 1] + Y + 1] + Z + 1];
+    const aaa = this.p[this.p[this.p[X]! + Y]! + Z]!;
+    const aba = this.p[this.p[this.p[X]! + Y + 1]! + Z]!;
+    const aab = this.p[this.p[this.p[X]! + Y]! + Z + 1]!;
+    const abb = this.p[this.p[this.p[X]! + Y + 1]! + Z + 1]!;
+    const baa = this.p[this.p[this.p[X + 1]! + Y]! + Z]!;
+    const bba = this.p[this.p[this.p[X + 1]! + Y + 1]! + Z]!;
+    const bab = this.p[this.p[this.p[X + 1]! + Y]! + Z + 1]!;
+    const bbb = this.p[this.p[this.p[X + 1]! + Y + 1]! + Z + 1]!;
 
     // Blend results from 8 corners
     return this.lerp(

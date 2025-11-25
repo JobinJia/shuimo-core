@@ -8,7 +8,6 @@
  */
 
 import type { Vec2 } from '../types';
-import { Vector2 } from './vector';
 
 /**
  * Evaluate a quadratic Bézier curve at parameter t
@@ -140,17 +139,17 @@ export function catmullRomSpline(
 ): Vec2[] {
   if (points.length < 2) return [...points];
   if (points.length === 2) {
-    return cubicBezierPoints(points[0], points[0], points[1], points[1], segments);
+    return cubicBezierPoints(points[0]!, points[0]!, points[1]!, points[1]!, segments);
   }
 
   const result: Vec2[] = [];
   const alpha = (1 - tension) / 2;
 
   for (let i = 0; i < points.length - 1; i++) {
-    const p0 = i > 0 ? points[i - 1] : points[i];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = i < points.length - 2 ? points[i + 2] : points[i + 1];
+    const p0 = i > 0 ? points[i - 1]! : points[i]!;
+    const p1 = points[i]!;
+    const p2 = points[i + 1]!;
+    const p3 = i < points.length - 2 ? points[i + 2]! : points[i + 1]!;
 
     // Calculate control points
     const cp1 = {
@@ -191,11 +190,11 @@ export function simplifyPath(points: Vec2[], epsilon: number): Vec2[] {
   // Find point with maximum distance from line segment
   let maxDist = 0;
   let maxIndex = 0;
-  const start = points[0];
-  const end = points[points.length - 1];
+  const start = points[0]!;
+  const end = points[points.length - 1]!;
 
   for (let i = 1; i < points.length - 1; i++) {
-    const dist = perpendicularDistance(points[i], start, end);
+    const dist = perpendicularDistance(points[i]!, start, end);
     if (dist > maxDist) {
       maxDist = dist;
       maxIndex = i;
