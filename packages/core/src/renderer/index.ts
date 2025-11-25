@@ -4,5 +4,7 @@
  * Exports rendering engines and utilities
  */
 
-// This module will be populated in later phases
-export {};
+export * from './renderer';
+export * from './types';
+export * from './canvas';
+export * from './svg';
