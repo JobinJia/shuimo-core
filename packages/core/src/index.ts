@@ -1,34 +1,23 @@
 /**
- * shuimo-core
+ * Shuimo Core - Traditional Chinese Landscape Painting Library
  *
- * A TypeScript library for procedural Chinese landscape painting generation
+ * This library provides tools for generating traditional Chinese landscape paintings
+ * using generative algorithms and SVG rendering.
  *
  * @packageDocumentation
  */
 
-// Foundation exports
+// Foundation layer - Basic building blocks
 export * from './foundation';
 
-// Renderer exports (excluding types that conflict with foundation)
-export { Renderer, RenderContext } from './renderer/renderer';
-export { CanvasRenderer } from './renderer/canvas';
-export { SVGRenderer } from './renderer/svg';
-export { colorToCSS, colorToHex, hsvToRgb, rgbToHsv, lerpHue } from './renderer/types';
+// Utils - Helper functions
+export * from './utils';
 
-// Chunk renderer exports
-export {
-  Chunk,
-  ChunkManager,
-  ChunkRenderer,
-  type IChunk,
-  type ChunkGeneratorFn,
-  type ChunkRendererOptions,
-  type Viewport,
-  type ChunkManagerState,
-} from './renderer/chunk';
+// Drawing primitives
+export * from './drawing';
 
-// Elements exports
+// Elements - High-level drawing components
 export * from './elements';
 
-// Scene exports
-export * from './scene';
+// Composition - Scene management and planning
+export * from './composition';

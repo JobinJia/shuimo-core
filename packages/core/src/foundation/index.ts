@@ -1,10 +1,4 @@
-/**
- * Foundation module
- *
- * Exports all core types and fundamental utilities
- */
-
-export * from './types';
-export * from './math';
+// Foundation layer exports
 export * from './random';
 export * from './noise';
+export * from './geometry';

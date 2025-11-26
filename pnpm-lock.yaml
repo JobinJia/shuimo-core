@@ -23,6 +23,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@shuimo/shanshui':
+        specifier: workspace:*
+        version: link:../shanshui
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
@@ -64,6 +67,12 @@ importers:
       vite:
         specifier: ^7.2.4
         version: 7.2.4(@types/node@20.19.25)
+
+  packages/shanshui:
+    devDependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
 
 packages:
 
