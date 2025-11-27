@@ -12,7 +12,8 @@
   "dependencies": {
     "@shuimo/core": "workspace:*",
     "@vitejs/plugin-vue": "^6.0.2",
-    "vue": "^3.5.25"
+    "vue": "^3.5.25",
+    "vue-router": "^4.6.3"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
