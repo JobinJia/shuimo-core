@@ -34,7 +34,6 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@shuimo/shanshui": "workspace:*",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
