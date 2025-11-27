@@ -184,13 +184,34 @@ export class SceneManager {
   }
 
   /**
+   * Remove chunks that are far from the viewport to prevent memory leaks
+   */
+  private cleanupDistantChunks(xmin: number, xmax: number): void {
+    const maxDistance = this.state.cwid * 10; // Keep chunks within 10 chunk widths (~5120px)
+    const beforeCount = this.state.chunks.length;
+
+    this.state.chunks = this.state.chunks.filter(chunk => {
+      return chunk.x > xmin - maxDistance && chunk.x < xmax + maxDistance;
+    });
+
+    const removed = beforeCount - this.state.chunks.length;
+    if (removed > 0) {
+      console.log(`Cleaned up ${removed} distant chunks (${beforeCount} -> ${this.state.chunks.length})`);
+    }
+  }
+
+  /**
    * Render visible chunks for a given x range
    */
   chunkRender(xmin: number, xmax: number): void {
     this.state.canv = '';
 
+    // Only render chunks that are actually visible (with minimal margin)
+    // Reduce margin from cwid (512) to smaller value to limit DOM nodes
+    const margin = 100;
+
     for (let i = 0; i < this.state.chunks.length; i++) {
-      if (xmin - this.state.cwid < this.state.chunks[i].x && this.state.chunks[i].x < xmax + this.state.cwid) {
+      if (xmin - margin < this.state.chunks[i].x && this.state.chunks[i].x < xmax + margin) {
         this.state.canv += this.state.chunks[i].canv;
       }
     }
@@ -208,12 +229,11 @@ export class SceneManager {
    * Check if scene needs updating
    */
   needUpdate(): boolean {
+    // Only update if viewport is approaching the edge of loaded chunks
+    if (this.state.xmin < this.state.cursx && this.state.cursx < this.state.xmax - this.state.windx) {
+      return false;
+    }
     return true;
-    // Original logic (disabled):
-    // if (this.state.xmin < this.state.cursx && this.state.cursx < this.state.xmax - this.state.windx) {
-    //   return false;
-    // }
-    // return true;
   }
 
   /**
@@ -221,6 +241,7 @@ export class SceneManager {
    */
   update(): void {
     this.chunkLoader(this.state.cursx, this.state.cursx + this.state.windx);
+    this.cleanupDistantChunks(this.state.cursx, this.state.cursx + this.state.windx);
     this.chunkRender(this.state.cursx, this.state.cursx + this.state.windx);
   }
 
@@ -232,6 +253,14 @@ export class SceneManager {
     if (this.needUpdate()) {
       this.update();
     }
+  }
+
+  /**
+   * Set viewport position without triggering update
+   * Used for smooth scrolling animation
+   */
+  setViewportX(x: number): void {
+    this.state.cursx = x;
   }
 
   /**

@@ -87,10 +87,10 @@ export class Man {
     const plist = ptlist.map((v) => [-v[0], v[1]]);
     const ang = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]) - Math.PI / 2;
     const scl = Math.sqrt((p1[0] - p0[0]) ** 2 + (p1[1] - p0[1]) ** 2);
-    const qlist = plist.map((v) => {
+    const qlist: Polygon = plist.map((v) => {
       const d = Math.sqrt(v[0] ** 2 + v[1] ** 2);
       const a = Math.atan2(v[1], v[0]);
-      return [p0[0] + d * scl * Math.cos(ang + a), p0[1] + d * scl * Math.sin(ang + a)];
+      return [p0[0] + d * scl * Math.cos(ang + a), p0[1] + d * scl * Math.sin(ang + a)] as [number, number];
     });
     return qlist;
   }
@@ -110,10 +110,10 @@ export class Man {
 
     let canv = '';
     const seed = Math.random();
-    const f = fli ? (x: Polygon) => this.flipper(x) : (x: Polygon) => x;
+    const f = fli ? (x: Polygon) => Man.flipper(x) : (x: Polygon) => x;
 
     canv += poly(
-      this.tranpoly(
+      Man.tranpoly(
         p0,
         p1,
         f([
@@ -133,7 +133,7 @@ export class Man {
     for (let i = 0; i < 10; i++) {
       qlist1.push([-0.3 - noise.noise(i * 0.2, seed) * i * 0.1, 0.5 - i * 0.3]);
     }
-    canv += poly(this.tranpoly(p0, p1, f(qlist1)), {
+    canv += poly(Man.tranpoly(p0, p1, f(qlist1)), {
       str: 'rgba(100,100,100,0.8)',
       wid: 1,
     });
@@ -148,10 +148,10 @@ export class Man {
     const fli = options.fli ?? false;
 
     let canv = '';
-    const f = fli ? (x: Polygon) => this.flipper(x) : (x: Polygon) => x;
+    const f = fli ? (x: Polygon) => Man.flipper(x) : (x: Polygon) => x;
 
     canv += poly(
-      this.tranpoly(
+      Man.tranpoly(
         p0,
         p1,
         f([
@@ -181,7 +181,7 @@ export class Man {
 
     let canv = '';
     const seed = Math.random();
-    const f = fli ? (x: Polygon) => this.flipper(x) : (x: Polygon) => x;
+    const f = fli ? (x: Polygon) => Man.flipper(x) : (x: Polygon) => x;
 
     const qlist1: Polygon = [];
     const l = 12;
@@ -191,7 +191,7 @@ export class Man {
         0 + i * 0.3,
       ]);
     }
-    canv += poly(this.tranpoly(p0, p1, f(qlist1)), {
+    canv += poly(Man.tranpoly(p0, p1, f(qlist1)), {
       str: 'rgba(100,100,100,0.5)',
       wid: 1,
     });
@@ -236,7 +236,7 @@ export class Man {
       0: { 1: { 2: {}, 5: { 6: {} }, 7: { 8: {} } }, 3: { 4: {} } },
     };
 
-    const toGlobal = (v: number[]): number[] => [(fli ? -1 : 1) * v[0] + xoff, v[1] + yoff];
+    const toGlobal = (v: number[]): [number, number] => [(fli ? -1 : 1) * v[0] + xoff, v[1] + yoff];
 
     // Get parent chain for a body part
     function gpar(sct: any, ind: number): number[] | false {
@@ -277,19 +277,20 @@ export class Man {
     }
 
     // Calculate all joint positions
-    const pts: number[][] = [];
+    const pts: Polygon = [];
     for (let i = 0; i < ang.length; i++) {
-      pts.push(gpos(sct, i));
+      const pos = gpos(sct, i);
+      pts.push([pos[0], pos[1]] as [number, number]);
     }
 
     // Adjust yoff so feet touch ground
     yoff -= pts[4][1];
 
     // Function to draw clothing/body parts
-    const cloth = (plist: number[][], fun: (x: number) => number): string => {
+    const cloth = (plist: Polygon, fun: (x: number) => number): string => {
       let canv = '';
       const tlist = bezmh(plist, 2);
-      const [tlist1, tlist2] = this.expand(tlist, fun);
+      const [tlist1, tlist2] = Man.expand(tlist, fun);
       canv += poly(tlist1.concat(tlist2.reverse()).map(toGlobal), {
         fil: 'white',
       });
@@ -316,14 +317,14 @@ export class Man {
     canv += ite(toGlobal(pts[8]), toGlobal(pts[6]), { fli: fli });
 
     // Draw body parts
-    canv += cloth([pts[1], pts[7], pts[8]], fsleeve); // Left sleeve
-    canv += cloth([pts[1], pts[0], pts[3], pts[4]], fbody); // Body
-    canv += cloth([pts[1], pts[5], pts[6]], fsleeve); // Right sleeve
-    canv += cloth([pts[1], pts[2]], fhead); // Head
+    canv += cloth([pts[1], pts[7], pts[8]] as Polygon, fsleeve); // Left sleeve
+    canv += cloth([pts[1], pts[0], pts[3], pts[4]] as Polygon, fbody); // Body
+    canv += cloth([pts[1], pts[5], pts[6]] as Polygon, fsleeve); // Right sleeve
+    canv += cloth([pts[1], pts[2]] as Polygon, fhead); // Head
 
     // Draw hair
-    const hlist = bezmh([pts[1], pts[2]], 2);
-    const [hlist1, hlist2] = this.expand(hlist, fhead);
+    const hlist = bezmh([pts[1], pts[2]] as Polygon, 2);
+    const [hlist1, hlist2] = Man.expand(hlist, fhead);
     hlist1.splice(0, Math.floor(hlist1.length * 0.1));
     hlist2.splice(0, Math.floor(hlist2.length * 0.95));
     canv += poly(hlist1.concat(hlist2.reverse()).map(toGlobal), {

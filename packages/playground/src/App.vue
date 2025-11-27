@@ -58,60 +58,66 @@
       </div>
     </div>
 
-    <!-- Source Code Link -->
-    <a
-      href="https://github.com/LingDong-/shan-shui-inf"
-      target="_blank"
-      class="source-btn"
-      title="Fork me on Github!"
-    >
-      &lt;/&gt;
-    </a>
+    <!-- Table layout like original shanshui.html -->
+    <table class="main-table">
+      <tr>
+        <!-- Left scroll button -->
+        <td>
+          <div
+            class="scroll-btn scroll-btn-left"
+            @click="scrollLeft"
+            @mouseenter="hoveredBtn = 'left'"
+            @mouseleave="hoveredBtn = null"
+            :class="{ active: hoveredBtn === 'left' }"
+          >
+            <div class="scroll-btn-text">
+              <span>‹</span>
+            </div>
+          </div>
+        </td>
 
-    <!-- Main Canvas Area -->
-    <div class="canvas-container">
-      <!-- Left scroll button -->
-      <div
-        class="scroll-btn scroll-btn-left"
-        @click="scrollLeft"
-        @mouseenter="hoveredBtn = 'left'"
-        @mouseleave="hoveredBtn = null"
-        :class="{ active: hoveredBtn === 'left' }"
-      >
-        <span>‹</span>
-      </div>
+        <!-- SVG Canvas -->
+        <td>
+          <div ref="canvasContainer" class="svg-canvas" :style="canvasStyle"></div>
+        </td>
 
-      <!-- SVG Canvas -->
-      <div ref="canvasContainer" class="svg-canvas" :style="canvasStyle"></div>
-
-      <!-- Right scroll button -->
-      <div
-        class="scroll-btn scroll-btn-right"
-        @click="scrollRight"
-        @mouseenter="hoveredBtn = 'right'"
-        @mouseleave="hoveredBtn = null"
-        :class="{ active: hoveredBtn === 'right' }"
-      >
-        <span>›</span>
-      </div>
-    </div>
+        <!-- Right scroll button -->
+        <td>
+          <div
+            class="scroll-btn scroll-btn-right"
+            @click="scrollRight"
+            @mouseenter="hoveredBtn = 'right'"
+            @mouseleave="hoveredBtn = null"
+            :class="{ active: hoveredBtn === 'right' }"
+          >
+            <div class="scroll-btn-text">
+              <span>›</span>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </table>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { generateShanshui } from './shanshui';
+import { generateShanshui, getSceneStats } from './shanshui';
 
 // State
 const showSettings = ref(false);
 const seedInput = ref(String(Date.now()));
 const scrollStep = ref(200);
-const autoScroll = ref(false);
+const autoScroll = ref(true); // Auto-scroll enabled by default
 const hoveredBtn = ref<'left' | 'right' | null>(null);
 const canvasContainer = ref<HTMLDivElement | null>(null);
-const currentX = ref(0);
 const svgContent = ref('');
-let autoScrollTimer: number | null = null;
+
+// Scroll state
+const chunkPreloadDistance = 512;
+let currentX = 0; // Current viewBox x position
+let targetX = 0; // Target x position for smooth scrolling
+let animationFrameId: number | null = null;
 
 // Computed
 const canvasStyle = computed(() => ({
@@ -126,18 +132,17 @@ function toggleSettings() {
 function regenerateWithSeed() {
   const seed = seedInput.value || String(Date.now());
   seedInput.value = seed;
-  currentX.value = 0;
+  currentX = 0;
+  targetX = 0;
   renderScene();
 }
 
 function scrollLeft() {
-  currentX.value -= scrollStep.value;
-  renderScene();
+  xcroll(-scrollStep.value);
 }
 
 function scrollRight() {
-  currentX.value += scrollStep.value;
-  renderScene();
+  xcroll(scrollStep.value);
 }
 
 function toggleAutoScroll() {
@@ -148,27 +153,86 @@ function toggleAutoScroll() {
   }
 }
 
+// Smooth auto-scroll animation
 function startAutoScroll() {
-  if (autoScrollTimer) return;
-  autoScrollTimer = window.setInterval(() => {
-    scrollRight();
-  }, 2000);
+  if (animationFrameId !== null) return; // Already running
+
+  const animate = () => {
+    if (!autoScroll.value) {
+      animationFrameId = null;
+      return;
+    }
+
+    // Increment target position (slower than original's 1px per ms)
+    targetX += 0.5; // 0.5px per frame at 60fps ≈ 30px/sec
+
+    // Smooth interpolation toward target
+    const smoothing = 0.1;
+    currentX += (targetX - currentX) * smoothing;
+
+    // Update view
+    updateView();
+
+    // Continue animation
+    animationFrameId = requestAnimationFrame(animate);
+  };
+
+  animationFrameId = requestAnimationFrame(animate);
 }
 
 function stopAutoScroll() {
-  if (autoScrollTimer) {
-    clearInterval(autoScrollTimer);
-    autoScrollTimer = null;
+  if (animationFrameId !== null) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
   }
 }
 
-function renderScene() {
+// Manual scroll (instant jump)
+function xcroll(v: number) {
+  currentX += v;
+  targetX = currentX; // Snap target to current
+  updateView();
+}
+
+// Update the view - checks if chunks need loading
+function updateView() {
+  const stats = getSceneStats();
+  const needsUpdate =
+    stats.chunkCount === 0 ||
+    currentX < stats.xmin + chunkPreloadDistance ||
+    currentX + 3000 > stats.xmax - chunkPreloadDistance;
+
+  if (needsUpdate) {
+    update();
+  } else {
+    viewUpdate();
+  }
+}
+
+function viewUpdate() {
+  const svg = canvasContainer.value?.querySelector('svg');
+  if (svg) {
+    const zoom = 1.142;
+    const viewBox = `${currentX} 0 ${3000 / zoom} ${800 / zoom}`;
+    svg.setAttribute('viewBox', viewBox);
+  }
+}
+
+function update() {
   if (!canvasContainer.value) return;
 
   const seed = parseInt(seedInput.value) || Date.now();
-  const svg = generateShanshui(currentX.value, seed);
+  const svg = generateShanshui(Math.floor(currentX), seed);
+
   svgContent.value = svg;
   canvasContainer.value.innerHTML = svg;
+
+  const stats = getSceneStats();
+  console.log('update - chunks:', stats.chunkCount, 'xmin:', stats.xmin, 'xmax:', stats.xmax);
+}
+
+function renderScene() {
+  update();
 }
 
 function downloadSVG() {
@@ -211,6 +275,11 @@ function generateBackgroundTexture(): string {
 onMounted(() => {
   seedInput.value = String(Date.now());
   renderScene();
+
+  // Start auto-scroll by default
+  if (autoScroll.value) {
+    startAutoScroll();
+  }
 });
 
 onUnmounted(() => {
@@ -222,10 +291,14 @@ onUnmounted(() => {
 .shanshui-app {
   margin: 0;
   padding: 0;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
   position: relative;
+}
+
+/* Main table layout (like original shanshui.html) */
+.main-table {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  border-collapse: collapse;
+  width: auto;
 }
 
 /* Settings Panel */
@@ -353,52 +426,38 @@ onUnmounted(() => {
   background-color: rgba(0, 0, 0, 0.1);
 }
 
-/* Canvas Container */
-.canvas-container {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  position: relative;
-}
-
+/* SVG Canvas */
 .svg-canvas {
-  flex: 1;
-  height: 100%;
+  width: 3000px; /* Fixed width like original */
+  height: 800px;
   background-repeat: repeat;
   background-size: 256px 256px;
-  overflow: hidden;
 }
 
 /* Scroll Buttons */
 .scroll-btn {
   width: 32px;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  text-align: center;
   color: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(0, 0, 0, 0.4);
-  background-color: rgba(255, 255, 255, 0.0);
+  display: table;
   cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  background-color: rgba(0, 0, 0, 0);
+  height: 800px;
   user-select: none;
-  transition: background-color 0.2s;
 }
 
 .scroll-btn.active {
   background-color: rgba(0, 0, 0, 0.1);
 }
 
+.scroll-btn-text {
+  vertical-align: middle;
+  display: table-cell;
+}
+
 .scroll-btn span {
   font-size: 32px;
   line-height: 1;
-}
-
-.scroll-btn-left {
-  border-right: none;
-}
-
-.scroll-btn-right {
-  border-left: none;
 }
 </style>
