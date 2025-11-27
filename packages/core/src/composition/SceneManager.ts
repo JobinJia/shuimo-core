@@ -44,6 +44,7 @@ export interface SceneState {
  */
 export class SceneManager {
   private state: SceneState;
+  private contentDirty: boolean = true; // Track if content (chunks) changed
 
   constructor(windx: number = 3000, windy: number = 800, cwid: number = 512) {
     this.state = {
@@ -243,6 +244,7 @@ export class SceneManager {
     this.chunkLoader(this.state.cursx, this.state.cursx + this.state.windx);
     this.cleanupDistantChunks(this.state.cursx, this.state.cursx + this.state.windx);
     this.chunkRender(this.state.cursx, this.state.cursx + this.state.windx);
+    this.contentDirty = true; // Mark content as changed
   }
 
   /**
@@ -275,5 +277,19 @@ export class SceneManager {
    */
   getSVG(): string {
     return `<svg id='SVG' xmlns='http://www.w3.org/2000/svg' width='${this.state.windx}' height='${this.state.windy}' style='mix-blend-mode:multiply;' viewBox='${this.calcViewBox()}'><g id='G' transform='translate(0,0)'>${this.state.canv}</g></svg>`;
+  }
+
+  /**
+   * Check if content has changed (new chunks loaded)
+   */
+  isContentDirty(): boolean {
+    return this.contentDirty;
+  }
+
+  /**
+   * Mark content as clean (used after rendering)
+   */
+  markContentClean(): void {
+    this.contentDirty = false;
   }
 }

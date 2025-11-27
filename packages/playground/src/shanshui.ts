@@ -31,15 +31,19 @@ export function initScene(seed: number, windx: number = 3000, windy: number = 80
 /**
  * Generate shanshui SVG for a given viewport position
  * This triggers chunk loading and rendering when needed
+ * Returns { svg: string, contentChanged: boolean } - contentChanged indicates if new chunks were generated
  */
-export function generateShanshui(currentX: number, seed: number): string {
+export function generateShanshui(currentX: number, seed: number): { svg: string; contentChanged: boolean } {
   // Re-initialize if seed changed
   if (!sceneManager || seed !== currentSeed) {
     initScene(seed);
+    const svg = sceneManager!.getSVG();
+    sceneManager!.markContentClean();
+    return { svg, contentChanged: true };
   }
 
   if (!sceneManager) {
-    return '';
+    return { svg: '', contentChanged: false };
   }
 
   // Set viewport position and update if needed
@@ -47,11 +51,23 @@ export function generateShanshui(currentX: number, seed: number): string {
   const delta = currentX - state.cursx;
 
   if (delta !== 0) {
-    sceneManager.scroll(delta);
+    sceneManager.setViewportX(currentX);
+
+    // Check if we need to load new chunks
+    if (sceneManager.needUpdate()) {
+      sceneManager.update();
+    }
   }
 
-  // Get the rendered SVG
-  return sceneManager.getSVG();
+  // Check if content actually changed (new chunks were generated)
+  const contentChanged = sceneManager.isContentDirty();
+  const svg = sceneManager.getSVG();
+
+  if (contentChanged) {
+    sceneManager.markContentClean();
+  }
+
+  return { svg, contentChanged };
 }
 
 

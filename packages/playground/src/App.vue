@@ -118,6 +118,9 @@ const chunkPreloadDistance = 512;
 let currentX = 0; // Current viewBox x position
 let targetX = 0; // Target x position for smooth scrolling
 let animationFrameId: number | null = null;
+let cachedSvgElement: SVGElement | null = null; // Cache SVG element reference
+let lastUpdateCheckTime = 0; // Timestamp of last update check
+const updateCheckInterval = 100; // Check for updates every 100ms (10fps) instead of 60fps
 
 // Computed
 const canvasStyle = computed(() => ({
@@ -157,7 +160,7 @@ function toggleAutoScroll() {
 function startAutoScroll() {
   if (animationFrameId !== null) return; // Already running
 
-  const animate = () => {
+  const animate = (timestamp: number) => {
     if (!autoScroll.value) {
       animationFrameId = null;
       return;
@@ -170,8 +173,14 @@ function startAutoScroll() {
     const smoothing = 0.1;
     currentX += (targetX - currentX) * smoothing;
 
-    // Update view
-    updateView();
+    // Always update viewBox for smooth scrolling (cheap operation)
+    viewUpdate();
+
+    // Throttle heavy chunk loading checks (expensive operation)
+    if (timestamp - lastUpdateCheckTime >= updateCheckInterval) {
+      checkAndUpdateChunks();
+      lastUpdateCheckTime = timestamp;
+    }
 
     // Continue animation
     animationFrameId = requestAnimationFrame(animate);
@@ -194,8 +203,8 @@ function xcroll(v: number) {
   updateView();
 }
 
-// Update the view - checks if chunks need loading
-function updateView() {
+// Check if chunks need loading and update if necessary
+function checkAndUpdateChunks() {
   const stats = getSceneStats();
   const needsUpdate =
     stats.chunkCount === 0 ||
@@ -204,17 +213,25 @@ function updateView() {
 
   if (needsUpdate) {
     update();
-  } else {
-    viewUpdate();
   }
 }
 
+// Update the view - for manual scrolling (instant)
+function updateView() {
+  viewUpdate();
+  checkAndUpdateChunks();
+}
+
 function viewUpdate() {
-  const svg = canvasContainer.value?.querySelector('svg');
-  if (svg) {
+  // Use cached SVG element to avoid repeated DOM queries
+  if (!cachedSvgElement && canvasContainer.value) {
+    cachedSvgElement = canvasContainer.value.querySelector('svg');
+  }
+
+  if (cachedSvgElement) {
     const zoom = 1.142;
     const viewBox = `${currentX} 0 ${3000 / zoom} ${800 / zoom}`;
-    svg.setAttribute('viewBox', viewBox);
+    cachedSvgElement.setAttribute('viewBox', viewBox);
   }
 }
 
@@ -222,13 +239,19 @@ function update() {
   if (!canvasContainer.value) return;
 
   const seed = parseInt(seedInput.value) || Date.now();
-  const svg = generateShanshui(Math.floor(currentX), seed);
+  const result = generateShanshui(Math.floor(currentX), seed);
 
-  svgContent.value = svg;
-  canvasContainer.value.innerHTML = svg;
+  // Only update DOM if new chunks were actually generated
+  if (result.contentChanged) {
+    svgContent.value = result.svg;
+    canvasContainer.value.innerHTML = result.svg;
 
-  const stats = getSceneStats();
-  console.log('update - chunks:', stats.chunkCount, 'xmin:', stats.xmin, 'xmax:', stats.xmax);
+    // Clear cached SVG element since we just replaced the DOM
+    cachedSvgElement = null;
+
+    const stats = getSceneStats();
+    console.log('✨ DOM updated - chunks:', stats.chunkCount, 'xmin:', stats.xmin, 'xmax:', stats.xmax);
+  }
 }
 
 function renderScene() {
