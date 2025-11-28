@@ -102,7 +102,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { generateShanshui, getSceneStats } from './shanshui';
+import { generateShanshui, getSceneStats } from '../shanshui';
 
 // State
 const showSettings = ref(false);

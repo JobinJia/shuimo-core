@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import Shanshui from './Shanshui.vue';
-import Font from './Font.vue';
+import Shanshui from '../demos/Shanshui.vue';
+import Font from '../demos/Font.vue';
 
 const routes = [
   {
