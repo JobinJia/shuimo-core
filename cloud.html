@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Ink Cloud</title>
+    <style>
+        body {
+            margin: 0;
+            background: #eee;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        canvas {
+            background: #f7f7f7;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="c" width="900" height="700"></canvas>
+
+    <script>
+        // 生成 2D 噪声（不用 Perlin，完全够用）
+        function generateNoise(w, h) {
+            const img = new ImageData(w, h);
+            for (let i = 0; i < w * h * 4; i += 4) {
+                const v = Math.random() * 255;
+                img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+                img.data[i + 3] = 255;
+            }
+            return img;
+        }
+
+        // 将噪声做“阈值 + 亮度拉伸”得到云形
+        function processNoise(noise, w, h) {
+            const img = new ImageData(w, h);
+            for (let i = 0; i < noise.data.length; i += 4) {
+                let v = noise.data[i];
+
+                // 阈值控制：只保留亮度区域的“云”
+                if (v < 140) v = 0;
+
+                // 亮度映射，使云更柔
+                v = (v - 140) * 2;
+                if (v < 0) v = 0;
+                if (v > 255) v = 255;
+
+                img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+                img.data[i + 3] = 255;
+            }
+            return img;
+        }
+
+        const canvas = document.getElementById("c");
+        const ctx = canvas.getContext("2d");
+
+        const w = canvas.width;
+        const h = canvas.height;
+
+        // 生成基础噪声
+        const baseNoise = generateNoise(w, h);
+        const noiseCanvas = document.createElement("canvas");
+        noiseCanvas.width = w;
+        noiseCanvas.height = h;
+        noiseCanvas.getContext("2d").putImageData(baseNoise, 0, 0);
+
+        // 处理噪声为云形
+        const cloudData = processNoise(baseNoise, w, h);
+        const cloudCanvas = document.createElement("canvas");
+        cloudCanvas.width = w;
+        cloudCanvas.height = h;
+        cloudCanvas.getContext("2d").putImageData(cloudData, 0, 0);
+
+        // 多层叠加 + 模糊产生“云卷云舒”
+        for (let i = 0; i < 5; i++) {
+            ctx.globalAlpha = 0.28;
+            ctx.filter = `blur(${6 + i * 4}px)`;
+
+            const dx = -50 + Math.random() * 100;
+            const dy = -80 + Math.random() * 160;
+
+            ctx.drawImage(cloudCanvas, dx, dy, w + 100, h + 160);
+        }
+
+        ctx.filter = "none";
+        ctx.globalAlpha = 1;
+
+    </script>
+</body>
+
+</html>

@@ -8,8 +8,8 @@ export default jobjob(
       '**/*.md',
       'test-*.html',
       'verify-*.js',
+      '**/reference-code/**',
       'packages/playground/public/reference-code/**',
-      'reference-code/**',
     ],
   },
 )

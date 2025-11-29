@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Font from '../demos/Font.vue'
+import Stamp from '../demos/Stamp.vue'
+import StampPlayground from '../demos/StampPlayground.vue'
 import Shanshui from '../demos/Shanshui.vue'
+import ShanShuiElements from '../demos/ShanShuiElements.vue'
 import CloudDemo from '../demos/CloudDemo.vue'
 import Flower from '../Flower.vue'
 import FlowerCanvasTest from '../FlowerCanvasTest.vue'
@@ -18,14 +20,24 @@ const routes = [
     component: Shanshui,
   },
   {
+    path: '/shanshui-elements',
+    name: 'ShanShuiElements',
+    component: ShanShuiElements,
+  },
+  {
     path: '/cloud',
     name: 'CloudDemo',
     component: CloudDemo,
   },
   {
-    path: '/font',
-    name: 'Font',
-    component: Font,
+    path: '/stamp',
+    name: 'Stamp',
+    component: Stamp,
+  },
+  {
+    path: '/stamp-playground',
+    name: 'StampPlayground',
+    component: StampPlayground,
   },
   {
     path: '/flower',

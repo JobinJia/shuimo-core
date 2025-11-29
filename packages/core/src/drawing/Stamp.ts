@@ -402,6 +402,22 @@ export function generateStampPath(options: StampOptions): StampResult {
     seed = Date.now()
   } = options;
 
+  // Early return if no valid text
+  if (!text || text.length === 0 || text.every(t => !t || t.trim().length === 0)) {
+    const defaultSize = 100;
+    return {
+      path: `M 0 0 L ${defaultSize} 0 L ${defaultSize} ${defaultSize} L 0 ${defaultSize} Z`,
+      bounds: {
+        left: 0,
+        right: defaultSize,
+        top: 0,
+        bottom: defaultSize,
+        width: defaultSize,
+        height: defaultSize
+      }
+    };
+  }
+
   // Reverse text array for right-to-left reading order
   // User provides ['风雪', '落梅听'], we display as ['落梅听', '风雪'] (right to left)
   const displayText = [...text].reverse();
@@ -638,6 +654,11 @@ export function generateStamp(options: StampOptions): string {
     paddingY = 3,
     seed = Date.now()
   } = options;
+
+  // Early return if no valid text
+  if (!text || text.length === 0 || text.every(t => !t || t.trim().length === 0)) {
+    return '<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"></svg>';
+  }
 
   // Set default colors based on stamp type
   const stampColor = color;
