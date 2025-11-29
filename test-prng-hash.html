@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test PRNG Hash Consistency</title>
+</head>
+<body>
+  <h1>Test PRNG Hash Consistency</h1>
+  <div id="output"></div>
+
+  <script>
+    // Original hash function (from reference-code)
+    function originalHash(x) {
+      let y = window.btoa(JSON.stringify(x));
+      let z = 0;
+      for (let i = 0; i < y.length; i++) {
+        z += y.charCodeAt(i) * 128 ** i;
+      }
+      return z;
+    }
+
+    // Test seeds
+    const testSeeds = [
+      '12345',
+      '1733151234567-abc',
+      'test-seed',
+      '999',
+      Date.now().toString()
+    ];
+
+    let output = '<h2>Original Implementation Hash Results:</h2><pre>';
+
+    testSeeds.forEach(seed => {
+      const hashValue = originalHash(seed);
+      output += `Seed: "${seed}" -> Hash: ${hashValue}\n`;
+    });
+
+    output += '</pre>';
+
+    output += '<p>Copy these values and compare with the SVG implementation console output.</p>';
+    output += '<p>Open browser console to see if both produce same hash values.</p>';
+
+    document.getElementById('output').innerHTML = output;
+
+    // Also log to console for easy comparison
+    console.log('=== Original Hash Function Test ===');
+    testSeeds.forEach(seed => {
+      const hashValue = originalHash(seed);
+      console.log(`["int seed", ${hashValue}] for seed: "${seed}"`);
+    });
+  </script>
+</body>
+</html>

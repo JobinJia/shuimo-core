@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flower Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        #container {
+            border: 2px solid #ccc;
+            min-height: 600px;
+            background: white;
+        }
+        #info {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h2>Flower Generation Test</h2>
+        <button onclick="testGenerate()">Generate Flower</button>
+        <input type="text" id="seed" placeholder="Enter seed" value="12345">
+        <div id="status">Not generated yet</div>
+    </div>
+    <div id="container"></div>
+
+    <script type="module">
+        import { generateFlower } from './packages/core/src/drawing/Flower.ts';
+
+        window.testGenerate = function() {
+            const container = document.getElementById('container');
+            const seedInput = document.getElementById('seed');
+            const status = document.getElementById('status');
+
+            container.innerHTML = '';
+            status.textContent = 'Generating...';
+
+            try {
+                const seed = seedInput.value || Date.now().toString();
+                console.log('Generating flower with seed:', seed);
+
+                const svg = generateFlower({
+                    seed: seed,
+                    type: 'woody',
+                    width: 600,
+                    height: 600
+                });
+
+                console.log('SVG generated:', svg);
+                console.log('SVG HTML:', svg.outerHTML.substring(0, 200));
+                console.log('SVG children count:', svg.children.length);
+
+                container.appendChild(svg);
+                status.textContent = `Generated with seed: ${seed}, children: ${svg.children.length}`;
+            } catch (error) {
+                console.error('Error:', error);
+                status.textContent = `Error: ${error.message}`;
+                container.innerHTML = `<pre style="color: red">${error.stack}</pre>`;
+            }
+        };
+
+        // Auto-generate on load
+        setTimeout(() => window.testGenerate(), 100);
+    </script>
+</body>
+</html>

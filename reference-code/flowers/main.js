@@ -4,37 +4,57 @@
 
 // index arrays with .x, .y, .z and negative indices
 Object.defineProperty(Array.prototype, 'x', {
-  get() { return this[0] },
-  set(n) { this[0] = n },
+  get() {
+    return this[0]
+  },
+  set(n) {
+    this[0] = n
+  },
 })
 Object.defineProperty(Array.prototype, 'y', {
-  get() { return this[1] },
-  set(n) { this[1] = n },
+  get() {
+    return this[1]
+  },
+  set(n) {
+    this[1] = n
+  },
 })
 Object.defineProperty(Array.prototype, 'z', {
-  get() { return this[2] },
-  set(n) { this[2] = n },
+  get() {
+    return this[2]
+  },
+  set(n) {
+    this[2] = n
+  },
 })
 for (let i = 1; i < 4; i++) {
   function f(i) {
     Object.defineProperty(Array.prototype, `-${i}`, {
-      get() { return this[this.length - i] },
-      set(n) { this[this.length - i] = n },
+      get() {
+        return this[this.length - i]
+      },
+      set(n) {
+        this[this.length - i] = n
+      },
     })
   }
   f(i)
 }
 
 // math constants
-let rad2deg = 180 / Math.PI
-let deg2rad = Math.PI / 180
-let PI = Math.PI
-let sin = Math.sin
-let cos = Math.cos
-let abs = Math.abs
-let pow = Math.pow
-function rad(x) { return x * deg2rad }
-function deg(x) { return x * rad2deg }
+const rad2deg = 180 / Math.PI
+const deg2rad = Math.PI / 180
+const PI = Math.PI
+const sin = Math.sin
+const cos = Math.cos
+const abs = Math.abs
+const pow = Math.pow
+function rad(x) {
+  return x * deg2rad
+}
+function deg(x) {
+  return x * rad2deg
+}
 
 // seedable pseudo random number generator
 var Prng = new function () {
@@ -43,29 +63,39 @@ var Prng = new function () {
   this.q = 999983
   this.m = this.p * this.q
   this.hash = function (x) {
-    let y = window.btoa(JSON.stringify(x)); let z = 0
+    const y = window.btoa(JSON.stringify(x)); let z = 0
     for (let i = 0; i < y.length; i++) {
       z += y.charCodeAt(i) * 128 ** i
     }
     return z
   }
   this.seed = function (x) {
-    if (x == undefined) { x = (new Date()).getTime() }
+    if (x == undefined) {
+      x = (new Date()).getTime()
+    }
     let y = 0; let z = 0
-    function redo() { y = (Prng.hash(x) + z) % Prng.m; z += 1 }
-    while (y % Prng.p == 0 || y % Prng.q == 0 || y == 0 || y == 1) { redo() }
+    function redo() {
+      y = (Prng.hash(x) + z) % Prng.m; z += 1
+    }
+    while (y % Prng.p == 0 || y % Prng.q == 0 || y == 0 || y == 1) {
+      redo()
+    }
     Prng.s = y
     console.log(['int seed', Prng.s])
-    for (let i = 0; i < 10; i++) { Prng.next() }
+    for (let i = 0; i < 10; i++) {
+      Prng.next()
+    }
   }
   this.next = function () {
     Prng.s = (Prng.s * Prng.s) % Prng.m
     return Prng.s / Prng.m
   }
   this.test = function (f) {
-    let F = f || function () { return Prng.next() }
-    let t0 = (new Date()).getTime()
-    let chart = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    const F = f || function () {
+      return Prng.next()
+    }
+    const t0 = (new Date()).getTime()
+    const chart = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     for (let i = 0; i < 10000000; i++) {
       chart[Math.floor(F() * 10)] += 1
     }
@@ -75,36 +105,45 @@ var Prng = new function () {
   }
 }()
 Math.oldRandom = Math.random
-Math.random = function () { return Prng.next() }
-Math.seed = function (x) { return Prng.seed(x) }
+Math.random = function () {
+  return Prng.next()
+}
+Math.seed = function (x) {
+  return Prng.seed(x)
+}
 
 // parse url arguments
 function parseArgs(key2f) {
   let par = window.location.href.split('?')[1]
-  if (par == undefined) { return }
+  if (par == undefined) {
+    return
+  }
   par = par.split('&')
   for (let i = 0; i < par.length; i++) {
-    let e = par[i].split('=')
+    const e = par[i].split('=')
     try {
       key2f[e[0]](e[1])
-    }
-    catch (e) {
+    } catch (e) {
       console.log(e)
     }
   }
 }
 SEED = (`${(new Date()).getTime()}`)
-parseArgs({ seed(x) { SEED = (x == '' ? SEED : x) } })
+parseArgs({ seed(x) {
+  SEED = (x == '' ? SEED : x)
+} })
 Math.seed(SEED)
 console.log(SEED)
 
 // perlin noise adapted from p5.js
-let Noise = new function () {
-  let PERLIN_YWRAPB = 4; let PERLIN_YWRAP = 1 << PERLIN_YWRAPB
-  let PERLIN_ZWRAPB = 8; let PERLIN_ZWRAP = 1 << PERLIN_ZWRAPB
-  let PERLIN_SIZE = 4095
+const Noise = new function () {
+  const PERLIN_YWRAPB = 4; const PERLIN_YWRAP = 1 << PERLIN_YWRAPB
+  const PERLIN_ZWRAPB = 8; const PERLIN_ZWRAP = 1 << PERLIN_ZWRAPB
+  const PERLIN_SIZE = 4095
   let perlin_octaves = 4; let perlin_amp_falloff = 0.5
-  let scaled_cosine = function (i) { return 0.5 * (1.0 - Math.cos(i * Math.PI)) }
+  const scaled_cosine = function (i) {
+    return 0.5 * (1.0 - Math.cos(i * Math.PI))
+  }
   let perlin
   this.noise = function (x, y, z) {
     y = y || 0; z = z || 0
@@ -114,7 +153,13 @@ let Noise = new function () {
         perlin[i] = Math.random()
       }
     }
-    if (x < 0) { x = -x } if (y < 0) { y = -y } if (z < 0) { z = -z }
+    if (x < 0) {
+      x = -x
+    } if (y < 0) {
+      y = -y
+    } if (z < 0) {
+      z = -z
+    }
     let xi = Math.floor(x); let yi = Math.floor(y); let zi = Math.floor(z)
     let xf = x - xi; let yf = y - yi; let zf = z - zi
     let rxf, ryf
@@ -138,30 +183,46 @@ let Noise = new function () {
       r += n1 * ampl
       ampl *= perlin_amp_falloff
       xi <<= 1; xf *= 2; yi <<= 1; yf *= 2; zi <<= 1; zf *= 2
-      if (xf >= 1.0) { xi++; xf-- }
-      if (yf >= 1.0) { yi++; yf-- }
-      if (zf >= 1.0) { zi++; zf-- }
+      if (xf >= 1.0) {
+        xi++; xf--
+      }
+      if (yf >= 1.0) {
+        yi++; yf--
+      }
+      if (zf >= 1.0) {
+        zi++; zf--
+      }
     }
     return r
   }
   this.noiseDetail = function (lod, falloff) {
-    if (lod > 0) { perlin_octaves = lod }
-    if (falloff > 0) { perlin_amp_falloff = falloff }
+    if (lod > 0) {
+      perlin_octaves = lod
+    }
+    if (falloff > 0) {
+      perlin_amp_falloff = falloff
+    }
   }
   this.noiseSeed = function (seed) {
-    let lcg = (function () {
-      let m = 4294967296; let a = 1664525; let c = 1013904223; let seed; let z
+    const lcg = (function () {
+      const m = 4294967296; const a = 1664525; const c = 1013904223; let seed; let z
       return {
         setSeed(val) {
           z = seed = (val == null ? Math.random() * m : val) >>> 0
         },
-        getSeed() { return seed },
-        rand() { z = (a * z + c) % m; return z / m },
+        getSeed() {
+          return seed
+        },
+        rand() {
+          z = (a * z + c) % m; return z / m
+        },
       }
     }())
     lcg.setSeed(seed)
     perlin = Array.from({ length: PERLIN_SIZE + 1 })
-    for (let i = 0; i < PERLIN_SIZE + 1; i++) { perlin[i] = lcg.rand() }
+    for (let i = 0; i < PERLIN_SIZE + 1; i++) {
+      perlin[i] = lcg.rand()
+    }
   }
 }()
 // distance between 2 coordinates in 2D
@@ -182,18 +243,19 @@ function normRand(m, M) {
 }
 // weighted randomness
 function wtrand(func) {
-  let x = Math.random()
-  let y = Math.random()
+  const x = Math.random()
+  const y = Math.random()
   if (y < func(x)) {
     return x
-  }
-  else {
+  } else {
     return wtrand(func)
   }
 }
 // gaussian randomness
 function randGaussian() {
-  return wtrand((x) => { return Math.E ** (-24 * (x - 0.5) ** 2) }) * 2 - 1
+  return wtrand((x) => {
+    return Math.E ** (-24 * (x - 0.5) ** 2)
+  }) * 2 - 1
 }
 // sigmoid curve
 function sigmoid(x, k) {
@@ -205,7 +267,7 @@ function bean(x) {
   return (0.25 - (x - 0.5) ** 2) ** 0.5 * (2.6 + 2.4 * x ** 1.5) * 0.54
 }
 // interpolate between square and circle
-let squircle = function (r, a) {
+function squircle(r, a) {
   return function (th) {
     while (th > PI / 2) {
       th -= PI / 2
@@ -218,7 +280,7 @@ let squircle = function (r, a) {
 }
 // mid-point of an array of points
 function midPt() {
-  let plist = (arguments.length == 1)
+  const plist = (arguments.length == 1)
     ? arguments[0]
     : Array.apply(null, arguments)
   return plist.reduce((acc, v) => {
@@ -231,18 +293,24 @@ function bezmh(P, w) {
   if (P.length == 2) {
     P = [P[0], midPt(P[0], P[1]), P[1]]
   }
-  let plist = []
+  const plist = []
   for (let j = 0; j < P.length - 2; j++) {
     var p0; var p1; var p2
-    if (j == 0) { p0 = P[j] }
-    else { p0 = midPt(P[j], P[j + 1]) }
+    if (j == 0) {
+      p0 = P[j]
+    } else {
+      p0 = midPt(P[j], P[j + 1])
+    }
     p1 = P[j + 1]
-    if (j == P.length - 3) { p2 = P[j + 2] }
-    else { p2 = midPt(P[j + 1], P[j + 2]) }
-    let pl = 20
+    if (j == P.length - 3) {
+      p2 = P[j + 2]
+    } else {
+      p2 = midPt(P[j + 1], P[j + 2])
+    }
+    const pl = 20
     for (let i = 0; i < pl + (j == P.length - 3); i += 1) {
-      let t = i / pl
-      let u = ((1 - t) ** 2 + 2 * t * (1 - t) * w + t * t)
+      const t = i / pl
+      const u = ((1 - t) ** 2 + 2 * t * (1 - t) * w + t * t)
       plist.push([
         ((1 - t) ** 2 * p0[0] + 2 * t * (1 - t) * p1[0] * w + t * t * p2[0]) / u,
         ((1 - t) ** 2 * p0[1] + 2 * t * (1 - t) * p1[1] * w + t * t * p2[1]) / u,
@@ -260,10 +328,10 @@ v3 = new function () {
   this.zero = [0, 0, 0]
 
   this.rotvec = function (vec, axis, th) {
-    let [l, m, n] = axis
-    let [x, y, z] = vec
-    let [costh, sinth] = [Math.cos(th), Math.sin(th)]
-    let mat = {}
+    const [l, m, n] = axis
+    const [x, y, z] = vec
+    const [costh, sinth] = [Math.cos(th), Math.sin(th)]
+    const mat = {}
     mat[11] = l * l * (1 - costh) + costh
     mat[12] = m * l * (1 - costh) - n * sinth
     mat[13] = n * l * (1 - costh) + m * sinth
@@ -282,9 +350,15 @@ v3 = new function () {
     ]
   }
   this.roteuler = function (vec, rot) {
-    if (rot.z != 0) { vec = v3.rotvec(vec, v3.forward, rot.z) }
-    if (rot.x != 0) { vec = v3.rotvec(vec, v3.right, rot.x) }
-    if (rot.y != 0) { vec = v3.rotvec(vec, v3.up, rot.y) }
+    if (rot.z != 0) {
+      vec = v3.rotvec(vec, v3.forward, rot.z)
+    }
+    if (rot.x != 0) {
+      vec = v3.rotvec(vec, v3.right, rot.x)
+    }
+    if (rot.y != 0) {
+      vec = v3.rotvec(vec, v3.up, rot.y)
+    }
     return vec
   }
 
@@ -324,16 +398,16 @@ v3 = new function () {
     return Math.acos(v3.angcos(u, v))
   }
   this.toeuler = function (v0) {
-    let ep = 5
+    const ep = 5
     let ma = 2 * PI
     let mr = [0, 0, 0]
     let cnt = 0
     for (let x = -180; x < 180; x += ep) {
       for (let y = -90; y < 90; y += ep) {
         cnt++
-        let r = [rad(x), rad(y), 0]
-        let v = v3.roteuler([0, 0, 1], r)
-        let a = v3.ang(v0, v)
+        const r = [rad(x), rad(y), 0]
+        const v = v3.roteuler([0, 0, 1], r)
+        const a = v3.ang(v0, v)
         if (a < rad(ep)) {
           return r
         }
@@ -363,23 +437,23 @@ function rgba(r, g, b, a) {
 }
 // hsv to css color string
 function hsv(h, s, v, a) {
-  let c = v * s
-  let x = c * (1 - abs((h / 60) % 2 - 1))
-  let m = v - c
-  let [rv, gv, bv] = ([[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]])[Math.floor(h / 60)]
-  let [r, g, b] = [(rv + m) * 255, (gv + m) * 255, (bv + m) * 255]
+  const c = v * s
+  const x = c * (1 - abs((h / 60) % 2 - 1))
+  const m = v - c
+  const [rv, gv, bv] = ([[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]])[Math.floor(h / 60)]
+  const [r, g, b] = [(rv + m) * 255, (gv + m) * 255, (bv + m) * 255]
   return rgba(r, g, b, a)
 }
 // polygon for HTML canvas
 function polygon(args) {
   var args = (args != undefined) ? args : {}
-  let ctx = (args.ctx != undefined) ? args.ctx : CTX
-  let xof = (args.xof != undefined) ? args.xof : 0
-  let yof = (args.yof != undefined) ? args.yof : 0
-  let pts = (args.pts != undefined) ? args.pts : []
-  let col = (args.col != undefined) ? args.col : 'black'
-  let fil = (args.fil != undefined) ? args.fil : true
-  let str = (args.str != undefined) ? args.str : !fil
+  const ctx = (args.ctx != undefined) ? args.ctx : CTX
+  const xof = (args.xof != undefined) ? args.xof : 0
+  const yof = (args.yof != undefined) ? args.yof : 0
+  const pts = (args.pts != undefined) ? args.pts : []
+  const col = (args.col != undefined) ? args.col : 'black'
+  const fil = (args.fil != undefined) ? args.fil : true
+  const str = (args.str != undefined) ? args.str : !fil
 
   ctx.beginPath()
   if (pts.length > 0) {
@@ -399,7 +473,7 @@ function polygon(args) {
 }
 // lerp hue wrapping around 360 degs
 function lerpHue(h0, h1, p) {
-  let methods = [
+  const methods = [
     [abs(h1 - h0), mapval(p, 0, 1, h0, h1)],
     [abs(h1 + 360 - h0), mapval(p, 0, 1, h0, h1 + 360)],
     [abs(h1 - 360 - h0), mapval(p, 0, 1, h0, h1 - 360)],
@@ -409,31 +483,33 @@ function lerpHue(h0, h1, p) {
 }
 // get rotation at given index of a poly-line
 function grot(P, ind) {
-  let d = v3.subtract(P[ind], P[ind - 1])
+  const d = v3.subtract(P[ind], P[ind - 1])
   return v3.toeuler(d)
 }
 // generate 2d tube shape from list of points
 function tubify(args) {
   var args = (args != undefined) ? args : {}
-  let pts = (args.pts != undefined) ? args.pts : []
-  let wid = (args.wid != undefined) ? args.wid : x => (10)
+  const pts = (args.pts != undefined) ? args.pts : []
+  const wid = (args.wid != undefined) ? args.wid : x => (10)
   vtxlist0 = []
   vtxlist1 = []
   vtxlist = []
   for (let i = 1; i < pts.length - 1; i++) {
-    let w = wid(i / pts.length)
+    const w = wid(i / pts.length)
     var a1 = Math.atan2(pts[i][1] - pts[i - 1][1], pts[i][0] - pts[i - 1][0])
-    let a2 = Math.atan2(pts[i][1] - pts[i + 1][1], pts[i][0] - pts[i + 1][0])
+    const a2 = Math.atan2(pts[i][1] - pts[i + 1][1], pts[i][0] - pts[i + 1][0])
     let a = (a1 + a2) / 2
-    if (a < a2) { a += PI }
+    if (a < a2) {
+      a += PI
+    }
     vtxlist0.push([pts[i][0] + w * cos(a), (pts[i][1] + w * sin(a))])
     vtxlist1.push([pts[i][0] - w * cos(a), (pts[i][1] - w * sin(a))])
   }
-  let l = pts.length - 1
-  let a0 = Math.atan2(pts[1][1] - pts[0][1], pts[1][0] - pts[0][0]) - Math.PI / 2
+  const l = pts.length - 1
+  const a0 = Math.atan2(pts[1][1] - pts[0][1], pts[1][0] - pts[0][0]) - Math.PI / 2
   var a1 = Math.atan2(pts[l][1] - pts[l - 1][1], pts[l][0] - pts[l - 1][0]) - Math.PI / 2
-  let w0 = wid(0)
-  let w1 = wid(1)
+  const w0 = wid(0)
+  const w1 = wid(1)
   vtxlist0.unshift([pts[0][0] + w0 * Math.cos(a0), (pts[0][1] + w0 * Math.sin(a0))])
   vtxlist1.unshift([pts[0][0] - w0 * Math.cos(a0), (pts[0][1] - w0 * Math.sin(a0))])
   vtxlist0.push([pts[l][0] + w1 * Math.cos(a1), (pts[l][1] + w1 * Math.sin(a1))])
@@ -443,16 +519,16 @@ function tubify(args) {
 // line work with weight function
 function stroke(args) {
   var args = (args != undefined) ? args : {}
-  let pts = (args.pts != undefined) ? args.pts : []
-  let ctx = (args.ctx != undefined) ? args.ctx : CTX
-  let xof = (args.xof != undefined) ? args.xof : 0
-  let yof = (args.yof != undefined) ? args.yof : 0
-  let col = (args.col != undefined) ? args.col : 'black'
-  let wid = (args.wid != undefined)
+  const pts = (args.pts != undefined) ? args.pts : []
+  const ctx = (args.ctx != undefined) ? args.ctx : CTX
+  const xof = (args.xof != undefined) ? args.xof : 0
+  const yof = (args.yof != undefined) ? args.yof : 0
+  const col = (args.col != undefined) ? args.col : 'black'
+  const wid = (args.wid != undefined)
     ? args.wid
     : x => (1 * sin(x * PI) * mapval(Noise.noise(x * 10), 0, 1, 0.5, 1))
 
-  let [vtxlist0, vtxlist1] = tubify({ pts, wid })
+  const [vtxlist0, vtxlist1] = tubify({ pts, wid })
 
   polygon({ pts: vtxlist0.concat(vtxlist1.reverse()), ctx, fil: true, col, xof, yof })
   return [vtxlist0, vtxlist1]
@@ -460,15 +536,15 @@ function stroke(args) {
 // generate paper texture
 function paper(args) {
   var args = (args != undefined) ? args : {}
-  let col = (args.col != undefined) ? args.col : [0.98, 0.91, 0.74]
-  let tex = (args.tex != undefined) ? args.tex : 20
-  let spr = (args.spr != undefined) ? args.spr : 1
+  const col = (args.col != undefined) ? args.col : [0.98, 0.91, 0.74]
+  const tex = (args.tex != undefined) ? args.tex : 20
+  const spr = (args.spr != undefined) ? args.spr : 1
 
-  let canvas = document.createElement('canvas')
+  const canvas = document.createElement('canvas')
   canvas.width = 512
   canvas.height = 512
-  let ctx = canvas.getContext('2d')
-  let reso = 512
+  const ctx = canvas.getContext('2d')
+  const reso = 512
   for (let i = 0; i < reso / 2 + 1; i++) {
     for (let j = 0; j < reso / 2 + 1; j++) {
       let c = (255 - Noise.noise(i * 0.1, j * 0.1) * tex * 0.5)
@@ -494,56 +570,55 @@ function paper(args) {
 // generate leaf-like structure
 function leaf(args) {
   var args = (args != undefined) ? args : {}
-  let ctx = (args.ctx != undefined) ? args.ctx : CTX
-  let xof = (args.xof != undefined) ? args.xof : 0
-  let yof = (args.yof != undefined) ? args.yof : 0
-  let rot = (args.rot != undefined) ? args.rot : [PI / 2, 0, 0]
-  let len = (args.len != undefined) ? args.len : 500
-  let seg = (args.seg != undefined) ? args.seg : 40
-  let wid = (args.wid != undefined) ? args.wid : x => (sin(x * PI) * 20)
-  let vei = (args.vei != undefined) ? args.vei : [1, 3]
-  let flo = (args.flo != undefined) ? args.flo : false
-  let col = (args.col != undefined)
+  const ctx = (args.ctx != undefined) ? args.ctx : CTX
+  const xof = (args.xof != undefined) ? args.xof : 0
+  const yof = (args.yof != undefined) ? args.yof : 0
+  const rot = (args.rot != undefined) ? args.rot : [PI / 2, 0, 0]
+  const len = (args.len != undefined) ? args.len : 500
+  const seg = (args.seg != undefined) ? args.seg : 40
+  const wid = (args.wid != undefined) ? args.wid : x => (sin(x * PI) * 20)
+  const vei = (args.vei != undefined) ? args.vei : [1, 3]
+  const flo = (args.flo != undefined) ? args.flo : false
+  const col = (args.col != undefined)
     ? args.col
     : { min: [90, 0.2, 0.3, 1], max: [90, 0.1, 0.9, 1] }
-  let cof = (args.cof != undefined) ? args.cof : x => (x)
-  let ben = (args.ben != undefined)
+  const cof = (args.cof != undefined) ? args.cof : x => (x)
+  const ben = (args.ben != undefined)
     ? args.ben
     : x => ([normRand(-10, 10), 0, normRand(-5, 5)])
 
   let disp = v3.zero
   let crot = v3.zero
-  let P = [disp]
-  let ROT = [crot]
-  let L = [disp]
-  let R = [disp]
+  const P = [disp]
+  const ROT = [crot]
+  const L = [disp]
+  const R = [disp]
 
-  let orient = v => (v3.roteuler(v, rot))
+  const orient = v => (v3.roteuler(v, rot))
 
   for (var i = 0; i < seg; i++) {
     var p = i / (seg - 1)
     crot = v3.add(crot, v3.scale(ben(p), 1 / seg))
     disp = v3.add(disp, orient(v3.roteuler([0, 0, len / seg], crot)))
-    let w = wid(p)
-    let l = v3.add(disp, orient(v3.roteuler([-w, 0, 0], crot)))
-    let r = v3.add(disp, orient(v3.roteuler([w, 0, 0], crot)))
+    const w = wid(p)
+    const l = v3.add(disp, orient(v3.roteuler([-w, 0, 0], crot)))
+    const r = v3.add(disp, orient(v3.roteuler([w, 0, 0], crot)))
 
     if (i > 0) {
-      let v0 = v3.subtract(disp, L[-1])
-      let v1 = v3.subtract(l, disp)
-      let v2 = v3.cross(v0, v1)
+      const v0 = v3.subtract(disp, L[-1])
+      const v1 = v3.subtract(l, disp)
+      const v2 = v3.cross(v0, v1)
       if (!flo) {
         var lt = mapval(abs(v3.ang(v2, [0, -1, 0])), 0, PI, 1, 0)
-      }
-      else {
+      } else {
         var lt = p * normRand(0.95, 1)
       }
       lt = cof(lt) || 0
 
-      let h = lerpHue(col.min[0], col.max[0], lt)
-      let s = mapval(lt, 0, 1, col.min[1], col.max[1])
-      let v = mapval(lt, 0, 1, col.min[2], col.max[2])
-      let a = mapval(lt, 0, 1, col.min[3], col.max[3])
+      const h = lerpHue(col.min[0], col.max[0], lt)
+      const s = mapval(lt, 0, 1, col.min[1], col.max[1])
+      const v = mapval(lt, 0, 1, col.min[2], col.max[2])
+      const a = mapval(lt, 0, 1, col.min[3], col.max[3])
 
       polygon({ ctx, pts: [l, L[-1], P[-1], disp], xof, yof, fil: true, str: true, col: hsv(h, s, v, a) })
       polygon({ ctx, pts: [r, R[-1], P[-1], disp], xof, yof, fil: true, str: true, col: hsv(h, s, v, a) })
@@ -558,18 +633,17 @@ function leaf(args) {
       for (let j = 0; j < vei[1]; j++) {
         var p = j / vei[1]
 
-        let p0 = v3.lerp(L[i - 1], P[i - 1], p)
-        let p1 = v3.lerp(L[i], P[i], p)
+        const p0 = v3.lerp(L[i - 1], P[i - 1], p)
+        const p1 = v3.lerp(L[i], P[i], p)
 
-        let q0 = v3.lerp(R[i - 1], P[i - 1], p)
-        let q1 = v3.lerp(R[i], P[i], p)
+        const q0 = v3.lerp(R[i - 1], P[i - 1], p)
+        const q1 = v3.lerp(R[i], P[i], p)
         polygon({ ctx, pts: [p0, p1], xof, yof, fil: false, col: hsv(0, 0, 0, normRand(0.4, 0.9)) })
         polygon({ ctx, pts: [q0, q1], xof, yof, fil: false, col: hsv(0, 0, 0, normRand(0.4, 0.9)) })
       }
     }
     stroke({ ctx, pts: P, xof, yof, col: rgba(0, 0, 0, 0.3) })
-  }
-  else if (vei[0] == 2) {
+  } else if (vei[0] == 2) {
     for (var i = 1; i < P.length - vei[1]; i += vei[2]) {
       polygon({ ctx, pts: [P[i], L[i + vei[1]]], xof, yof, fil: false, col: hsv(0, 0, 0, normRand(0.4, 0.9)) })
       polygon({ ctx, pts: [P[i], R[i + vei[1]]], xof, yof, fil: false, col: hsv(0, 0, 0, normRand(0.4, 0.9)) })
@@ -585,26 +659,26 @@ function leaf(args) {
 // generate stem-like structure
 function stem(args) {
   var args = (args != undefined) ? args : {}
-  let ctx = (args.ctx != undefined) ? args.ctx : CTX
-  let xof = (args.xof != undefined) ? args.xof : 0
-  let yof = (args.yof != undefined) ? args.yof : 0
-  let rot = (args.rot != undefined) ? args.rot : [PI / 2, 0, 0]
-  let len = (args.len != undefined) ? args.len : 400
-  let seg = (args.seg != undefined) ? args.seg : 40
-  let wid = (args.wid != undefined) ? args.wid : x => (6)
-  let col = (args.col != undefined)
+  const ctx = (args.ctx != undefined) ? args.ctx : CTX
+  const xof = (args.xof != undefined) ? args.xof : 0
+  const yof = (args.yof != undefined) ? args.yof : 0
+  const rot = (args.rot != undefined) ? args.rot : [PI / 2, 0, 0]
+  const len = (args.len != undefined) ? args.len : 400
+  const seg = (args.seg != undefined) ? args.seg : 40
+  const wid = (args.wid != undefined) ? args.wid : x => (6)
+  const col = (args.col != undefined)
     ? args.col
     : { min: [250, 0.2, 0.4, 1], max: [250, 0.3, 0.6, 1] }
-  let ben = (args.ben != undefined)
+  const ben = (args.ben != undefined)
     ? args.ben
     : x => ([normRand(-10, 10), 0, normRand(-5, 5)])
 
   let disp = v3.zero
   let crot = v3.zero
-  let P = [disp]
-  let ROT = [crot]
+  const P = [disp]
+  const ROT = [crot]
 
-  let orient = v => (v3.roteuler(v, rot))
+  const orient = v => (v3.roteuler(v, rot))
 
   for (var i = 0; i < seg; i++) {
     var p = i / (seg - 1)
@@ -613,25 +687,25 @@ function stem(args) {
     ROT.push(crot)
     P.push(disp)
   }
-  let [L, R] = tubify({ pts: P, wid })
-  let wseg = 4
+  const [L, R] = tubify({ pts: P, wid })
+  const wseg = 4
   for (var i = 1; i < P.length; i++) {
     for (let j = 1; j < wseg; j++) {
-      let m = (j - 1) / (wseg - 1)
-      let n = j / (wseg - 1)
+      const m = (j - 1) / (wseg - 1)
+      const n = j / (wseg - 1)
       var p = i / (P.length - 1)
 
-      let p0 = v3.lerp(L[i - 1], R[i - 1], m)
-      let p1 = v3.lerp(L[i], R[i], m)
+      const p0 = v3.lerp(L[i - 1], R[i - 1], m)
+      const p1 = v3.lerp(L[i], R[i], m)
 
-      let p2 = v3.lerp(L[i - 1], R[i - 1], n)
-      let p3 = v3.lerp(L[i], R[i], n)
+      const p2 = v3.lerp(L[i - 1], R[i - 1], n)
+      const p3 = v3.lerp(L[i], R[i], n)
 
-      let lt = n / p
-      let h = lerpHue(col.min[0], col.max[0], lt) * mapval(Noise.noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1)
-      let s = mapval(lt, 0, 1, col.max[1], col.min[1]) * mapval(Noise.noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1)
-      let v = mapval(lt, 0, 1, col.min[2], col.max[2]) * mapval(Noise.noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1)
-      let a = mapval(lt, 0, 1, col.min[3], col.max[3])
+      const lt = n / p
+      const h = lerpHue(col.min[0], col.max[0], lt) * mapval(Noise.noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1)
+      const s = mapval(lt, 0, 1, col.max[1], col.min[1]) * mapval(Noise.noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1)
+      const v = mapval(lt, 0, 1, col.min[2], col.max[2]) * mapval(Noise.noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1)
+      const a = mapval(lt, 0, 1, col.min[3], col.max[3])
 
       polygon({ ctx, pts: [p0, p1, p3, p2], xof, yof, fil: true, str: true, col: hsv(h, s, v, a) })
     }
@@ -644,21 +718,21 @@ function stem(args) {
 // generate fractal-like branches
 function branch(args) {
   var args = (args != undefined) ? args : {}
-  let ctx = (args.ctx != undefined) ? args.ctx : CTX
-  let xof = (args.xof != undefined) ? args.xof : 0
-  let yof = (args.yof != undefined) ? args.yof : 0
-  let rot = (args.rot != undefined) ? args.rot : [PI / 2, 0, 0]
-  let len = (args.len != undefined) ? args.len : 400
-  let seg = (args.seg != undefined) ? args.seg : 40
-  let wid = (args.wid != undefined) ? args.wid : 1
-  let twi = (args.twi != undefined) ? args.twi : 5
-  let col = (args.col != undefined)
+  const ctx = (args.ctx != undefined) ? args.ctx : CTX
+  const xof = (args.xof != undefined) ? args.xof : 0
+  const yof = (args.yof != undefined) ? args.yof : 0
+  const rot = (args.rot != undefined) ? args.rot : [PI / 2, 0, 0]
+  const len = (args.len != undefined) ? args.len : 400
+  const seg = (args.seg != undefined) ? args.seg : 40
+  const wid = (args.wid != undefined) ? args.wid : 1
+  const twi = (args.twi != undefined) ? args.twi : 5
+  const col = (args.col != undefined)
     ? args.col
     : { min: [50, 0.2, 0.8, 1], max: [50, 0.2, 0.8, 1] }
-  let dep = (args.dep != undefined) ? args.dep : 3
-  let frk = (args.frk != undefined) ? args.frk : 4
+  const dep = (args.dep != undefined) ? args.dep : 3
+  const frk = (args.frk != undefined) ? args.frk : 4
 
-  let jnt = []
+  const jnt = []
   for (var i = 0; i < twi; i++) {
     jnt.push([Math.floor(Math.random() * seg), normRand(-1, 1)])
   }
@@ -667,7 +741,7 @@ function branch(args) {
     let m = seg
     let j = 0
     for (let i = 0; i < jnt.length; i++) {
-      let n = Math.abs(x * seg - jnt[i][0])
+      const n = Math.abs(x * seg - jnt[i][0])
       if (n < m) {
         m = n
         j = i
@@ -676,35 +750,33 @@ function branch(args) {
     return [m, jnt[j][1]]
   }
 
-  let wfun = function (x) {
-    let [m, j] = jntdist(x)
+  const wfun = function (x) {
+    const [m, j] = jntdist(x)
     if (m < 1) {
       return wid * (3 + 5 * (1 - x))
-    }
-    else {
+    } else {
       return wid * (2 + 7 * (1 - x) * mapval(Noise.noise(x * 10), 0, 1, 0.5, 1))
     }
   }
 
-  let bfun = function (x) {
-    let [m, j] = jntdist(x)
+  const bfun = function (x) {
+    const [m, j] = jntdist(x)
     if (m < 1) {
       return [0, j * 20, 0]
-    }
-    else {
+    } else {
       return [0, normRand(-5, 5), 0]
     }
   }
 
-  let P = stem({ ctx, xof, yof, rot, len, seg, wid: wfun, col, ben: bfun })
+  const P = stem({ ctx, xof, yof, rot, len, seg, wid: wfun, col, ben: bfun })
 
   let child = []
   if (dep > 0 && wid > 0.1) {
     for (var i = 0; i < frk * Math.random(); i++) {
-      let ind = Math.floor(normRand(1, P.length))
+      const ind = Math.floor(normRand(1, P.length))
 
-      let r = grot(P, ind)
-      let L = branch({ ctx, xof: xof + P[ind].x, yof: yof + P[ind].y, rot: [r[0] + normRand(-1, 1) * PI / 6, r[1] + normRand(-1, 1) * PI / 6, r[2] + normRand(-1, 1) * PI / 6], seg, len: len * normRand(0.4, 0.6), wid: wid * normRand(0.4, 0.7), twi: twi * 0.7, dep: dep - 1 })
+      const r = grot(P, ind)
+      const L = branch({ ctx, xof: xof + P[ind].x, yof: yof + P[ind].y, rot: [r[0] + normRand(-1, 1) * PI / 6, r[1] + normRand(-1, 1) * PI / 6, r[2] + normRand(-1, 1) * PI / 6], seg, len: len * normRand(0.4, 0.6), wid: wid * normRand(0.4, 0.7), twi: twi * 0.7, dep: dep - 1 })
       // child = child.concat(L.map((v)=>([v[0],[v[1].x+P[ind].x,v[1].y+P[ind].y,v[1].z]])))
       child = child.concat(L)
     }
@@ -714,9 +786,9 @@ function branch(args) {
 
 // vizualize parameters into HTML table & canvas
 function vizParams(PAR) {
-  let div = document.createElement('div')
+  const div = document.createElement('div')
   let viz = ''
-  let tabstyle = 'style=\'border: 1px solid grey\''
+  const tabstyle = 'style=\'border: 1px solid grey\''
   viz += `<table><tr><td ${tabstyle}>Summary</td></tr><tr><td ${tabstyle}><table><tr>`
   let cnt = 0
   for (var k in PAR) {
@@ -732,10 +804,9 @@ function vizParams(PAR) {
   function fmt(a) {
     if (typeof (a) == 'number') {
       return a.toFixed(3)
-    }
-    else if (typeof (a) == 'object') {
+    } else if (typeof (a) == 'object') {
       let r = '<table><tr>'
-      for (let k in a) {
+      for (const k in a) {
         r += `<td ${tabstyle}>${fmt(a[k])}</td>`
       }
       return `${r}</tr></table>`
@@ -765,10 +836,10 @@ function vizParams(PAR) {
   }
   viz += '</tr></table>'
   viz += `</td></tr><tr><td align='left' ${tabstyle}></td></tr></table>`
-  let graphs = document.createElement('div')
+  const graphs = document.createElement('div')
   for (var k in PAR) {
     if (typeof (PAR[k]) == 'function') {
-      let lay = Layer.empty(100)
+      const lay = Layer.empty(100)
       lay.fillStyle = 'silver'
       for (var i = 0; i < 100; i++) {
         lay.fillRect(i, 100 - 100 * PAR[k](i / 100, 0.5), 2, 2)
@@ -786,12 +857,12 @@ function vizParams(PAR) {
 
 // generate random parameters
 function genParams() {
-  let randint = (x, y) => (Math.floor(normRand(x, y)))
+  const randint = (x, y) => (Math.floor(normRand(x, y)))
 
-  let PAR = {}
+  const PAR = {}
 
-  let flowerShapeMask = x => (sin(PI * x) ** 0.2)
-  let leafShapeMask = x => (sin(PI * x) ** 0.5)
+  const flowerShapeMask = x => (sin(PI * x) ** 0.2)
+  const leafShapeMask = x => (sin(PI * x) ** 0.5)
 
   PAR.flowerChance = randChoice([normRand(0, 0.08), normRand(0, 0.03)])
   PAR.leafChance = randChoice([0, normRand(0, 0.1), normRand(0, 0.1)])
@@ -801,34 +872,34 @@ function genParams() {
     [2, randint(3, 7), randint(3, 8)],
   ])
 
-  let flowerShapeNoiseSeed = Math.random() * PI
-  let flowerJaggedness = normRand(0.5, 8)
+  const flowerShapeNoiseSeed = Math.random() * PI
+  const flowerJaggedness = normRand(0.5, 8)
   PAR.flowerShape = x => (Noise.noise(x * flowerJaggedness, flowerShapeNoiseSeed) * flowerShapeMask(x))
 
-  let leafShapeNoiseSeed = Math.random() * PI
-  let leafJaggedness = normRand(0.1, 40)
-  let leafPointyness = normRand(0.5, 1.5)
+  const leafShapeNoiseSeed = Math.random() * PI
+  const leafJaggedness = normRand(0.1, 40)
+  const leafPointyness = normRand(0.5, 1.5)
   PAR.leafShape = randChoice([
     x => (Noise.noise(x * leafJaggedness, flowerShapeNoiseSeed) * leafShapeMask(x)),
     x => (sin(PI * x) ** leafPointyness),
   ])
 
-  let flowerHue0 = (normRand(0, 180) - 130 + 360) % 360
-  let flowerHue1 = Math.floor((flowerHue0 + normRand(-70, 70) + 360) % 360)
-  let flowerValue0 = Math.min(1, normRand(0.5, 1.3))
-  let flowerValue1 = Math.min(1, normRand(0.5, 1.3))
-  let flowerSaturation0 = normRand(0, 1.1 - flowerValue0)
-  let flowerSaturation1 = normRand(0, 1.1 - flowerValue1)
+  const flowerHue0 = (normRand(0, 180) - 130 + 360) % 360
+  const flowerHue1 = Math.floor((flowerHue0 + normRand(-70, 70) + 360) % 360)
+  const flowerValue0 = Math.min(1, normRand(0.5, 1.3))
+  const flowerValue1 = Math.min(1, normRand(0.5, 1.3))
+  const flowerSaturation0 = normRand(0, 1.1 - flowerValue0)
+  const flowerSaturation1 = normRand(0, 1.1 - flowerValue1)
 
   PAR.flowerColor = { min: [flowerHue0, flowerSaturation0, flowerValue0, normRand(0.8, 1)], max: [flowerHue1, flowerSaturation1, flowerValue1, normRand(0.5, 1)] }
   PAR.leafColor = { min: [normRand(10, 200), normRand(0.05, 0.4), normRand(0.3, 0.7), normRand(0.8, 1)], max: [normRand(10, 200), normRand(0.05, 0.4), normRand(0.3, 0.7), normRand(0.8, 1)] }
 
-  let curveCoeff0 = [normRand(-0.5, 0.5), normRand(5, 10)]
-  let curveCoeff1 = [Math.random() * PI, normRand(1, 5)]
+  const curveCoeff0 = [normRand(-0.5, 0.5), normRand(5, 10)]
+  const curveCoeff1 = [Math.random() * PI, normRand(1, 5)]
 
-  let curveCoeff2 = [Math.random() * PI, normRand(5, 15)]
-  let curveCoeff3 = [Math.random() * PI, normRand(1, 5)]
-  let curveCoeff4 = [Math.random() * 0.5, normRand(0.8, 1.2)]
+  const curveCoeff2 = [Math.random() * PI, normRand(5, 15)]
+  const curveCoeff3 = [Math.random() * PI, normRand(1, 5)]
+  const curveCoeff4 = [Math.random() * 0.5, normRand(0.8, 1.2)]
 
   PAR.flowerOpenCurve = randChoice([
     (x, op) => (
@@ -868,7 +939,7 @@ function genParams() {
   PAR.innerLength = Math.min(normRand(0, 20), PAR.flowerLength * 0.8)
   PAR.innerWidth = Math.min(randChoice([0, normRand(1, 8)]), PAR.flowerWidth * 0.8)
   PAR.innerShape = x => (sin(PI * x) ** 1)
-  let innerHue = normRand(0, 60)
+  const innerHue = normRand(0, 60)
   PAR.innerColor = { min: [innerHue, normRand(0.1, 0.7), normRand(0.5, 0.9), normRand(0.8, 1)], max: [innerHue, normRand(0.1, 0.7), normRand(0.5, 0.9), normRand(0.5, 1)] }
 
   PAR.branchWidth = normRand(0.4, 1.3)
@@ -876,9 +947,9 @@ function genParams() {
   PAR.branchDepth = randChoice([3, 4])
   PAR.branchFork = randChoice([4, 5, 6, 7])
 
-  let branchHue = normRand(30, 60)
-  let branchSaturation = normRand(0.05, 0.3)
-  let branchValue = normRand(0.7, 0.9)
+  const branchHue = normRand(30, 60)
+  const branchSaturation = normRand(0.05, 0.3)
+  const branchValue = normRand(0.7, 0.9)
   PAR.branchColor = { min: [branchHue, branchSaturation, branchValue, 1], max: [branchHue, branchSaturation, branchValue, 1] }
 
   console.log(PAR)
@@ -890,16 +961,16 @@ function genParams() {
 // generate a woody plant
 function woody(args) {
   var args = (args != undefined) ? args : {}
-  let ctx = (args.ctx != undefined) ? args.ctx : CTX
-  let xof = (args.xof != undefined) ? args.xof : 0
-  let yof = (args.yof != undefined) ? args.yof : 0
-  let PAR = (args.PAR != undefined) ? args.PAR : genParams()
+  const ctx = (args.ctx != undefined) ? args.ctx : CTX
+  const xof = (args.xof != undefined) ? args.xof : 0
+  const yof = (args.yof != undefined) ? args.yof : 0
+  const PAR = (args.PAR != undefined) ? args.PAR : genParams()
 
-  let cwid = 1200
-  let lay0 = Layer.empty(cwid)
-  let lay1 = Layer.empty(cwid)
+  const cwid = 1200
+  const lay0 = Layer.empty(cwid)
+  const lay1 = Layer.empty(cwid)
 
-  let PL = branch({
+  const PL = branch({
     ctx: lay0,
     xof: cwid * 0.5,
     yof: cwid * 0.7,
@@ -922,9 +993,9 @@ function woody(args) {
         }
 
         if (Math.random() < PAR.flowerChance) {
-          let hr = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * 0]
+          const hr = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * 0]
 
-          let P_ = stem({ ctx: lay0, xof: PL[i][1][j].x, yof: PL[i][1][j].y, rot: hr, len: PAR.pedicelLength, col: { min: [50, 1, 0.9, 1], max: [50, 1, 0.9, 1] }, wid: x => (sin(x * PI) * x * 2 + 1), ben: x => ([
+          const P_ = stem({ ctx: lay0, xof: PL[i][1][j].x, yof: PL[i][1][j].y, rot: hr, len: PAR.pedicelLength, col: { min: [50, 1, 0.9, 1], max: [50, 1, 0.9, 1] }, wid: x => (sin(x * PI) * x * 2 + 1), ben: x => ([
             0,
             0,
             0,
@@ -932,8 +1003,8 @@ function woody(args) {
 
           var op = Math.random()
 
-          let r = grot(P_, -1)
-          let hhr = r
+          const r = grot(P_, -1)
+          const hhr = r
           for (let k = 0; k < PAR.flowerPetal; k++) {
             leaf({ ctx: lay1, flo: true, xof: PL[i][1][j].x + P_[-1].x, yof: PL[i][1][j].y + P_[-1].y, rot: [hhr[0], hhr[1], hhr[2] + k / PAR.flowerPetal * PI * 2], len: PAR.flowerLength * normRand(0.7, 1.3), wid: x => (PAR.flowerShape(x) * PAR.flowerWidth), vei: [0], col: PAR.flowerColor, cof: PAR.flowerColorCurve, ben: x => ([
               PAR.flowerOpenCurve(x, op),
@@ -954,16 +1025,16 @@ function woody(args) {
   Layer.filter(lay0, Filter.fade)
   Layer.filter(lay0, Filter.wispy)
   Layer.filter(lay1, Filter.wispy)
-  let b1 = Layer.bound(lay0)
-  let b2 = Layer.bound(lay1)
-  let bd = {
+  const b1 = Layer.bound(lay0)
+  const b2 = Layer.bound(lay1)
+  const bd = {
     xmin: Math.min(b1.xmin, b2.xmin),
     xmax: Math.max(b1.xmax, b2.xmax),
     ymin: Math.min(b1.ymin, b2.ymin),
     ymax: Math.max(b1.ymax, b2.ymax),
   }
-  let xref = xof - (bd.xmin + bd.xmax) / 2
-  let yref = yof - bd.ymax
+  const xref = xof - (bd.xmin + bd.xmax) / 2
+  const yref = yof - bd.ymax
   Layer.blit(ctx, lay0, { ble: 'multiply', xof: xref, yof: yref })
   Layer.blit(ctx, lay1, { ble: 'normal', xof: xref, yof: yref })
 }
@@ -971,21 +1042,21 @@ function woody(args) {
 // generate a herbaceous plant
 function herbal(args) {
   var args = (args != undefined) ? args : {}
-  let ctx = (args.ctx != undefined) ? args.ctx : CTX
-  let xof = (args.xof != undefined) ? args.xof : 0
-  let yof = (args.yof != undefined) ? args.yof : 0
-  let PAR = (args.PAR != undefined) ? args.PAR : genParams()
+  const ctx = (args.ctx != undefined) ? args.ctx : CTX
+  const xof = (args.xof != undefined) ? args.xof : 0
+  const yof = (args.yof != undefined) ? args.yof : 0
+  const PAR = (args.PAR != undefined) ? args.PAR : genParams()
 
-  let cwid = 1200
-  let lay0 = Layer.empty(cwid)
-  let lay1 = Layer.empty(cwid)
+  const cwid = 1200
+  const lay0 = Layer.empty(cwid)
+  const lay1 = Layer.empty(cwid)
 
-  let x0 = cwid * 0.5
-  let y0 = cwid * 0.7
+  const x0 = cwid * 0.5
+  const y0 = cwid * 0.7
 
   for (var i = 0; i < PAR.stemCount; i++) {
-    let r = [PI / 2, 0, normRand(-1, 1) * PI]
-    let P = stem({ ctx: lay0, xof: x0, yof: y0, len: PAR.stemLength * normRand(0.7, 1.3), rot: r, wid: x => (PAR.stemWidth
+    const r = [PI / 2, 0, normRand(-1, 1) * PI]
+    const P = stem({ ctx: lay0, xof: x0, yof: y0, len: PAR.stemLength * normRand(0.7, 1.3), rot: r, wid: x => (PAR.stemWidth
       * (sin(x * PI / 2 + PI / 2) ** 0.5 * Noise.noise(x * 10) * 0.5 + 0.5)), ben: x => ([
       mapval(Noise.noise(x * 1, i), 0, 1, -1, 1) * x * PAR.stemBend,
       0,
@@ -1004,19 +1075,19 @@ function herbal(args) {
       }
     }
 
-    let hr = grot(P, -1)
+    const hr = grot(P, -1)
     if (PAR.sheathLength != 0) {
       stem({ ctx: lay0, xof: x0 + P[-1].x, yof: y0 + P[-1].y, rot: hr, len: PAR.sheathLength, col: { min: [60, 0.3, 0.9, 1], max: [60, 0.3, 0.9, 1] }, wid: x => PAR.sheathWidth * (sin(x * PI) ** 2 - x * 0.5 + 0.5), ben: x => ([0, 0, 0]
       ) })
     }
     for (var j = 0; j < Math.max(1, PAR.shootCount * normRand(0.5, 1.5)); j++) {
-      let P_ = stem({ ctx: lay0, xof: x0 + P[-1].x, yof: y0 + P[-1].y, rot: hr, len: PAR.shootLength * normRand(0.5, 1.5), col: { min: [70, 0.2, 0.9, 1], max: [70, 0.2, 0.9, 1] }, wid: x => (2), ben: x => ([
+      const P_ = stem({ ctx: lay0, xof: x0 + P[-1].x, yof: y0 + P[-1].y, rot: hr, len: PAR.shootLength * normRand(0.5, 1.5), col: { min: [70, 0.2, 0.9, 1], max: [70, 0.2, 0.9, 1] }, wid: x => (2), ben: x => ([
         mapval(Noise.noise(x * 1, j), 0, 1, -1, 1) * x * 10,
         0,
         mapval(Noise.noise(x * 1, j + PI), 0, 1, -1, 1) * x * 10,
       ]) })
       var op = Math.random()
-      let hhr = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * PI]
+      const hhr = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * PI]
       for (let k = 0; k < PAR.flowerPetal; k++) {
         leaf({ ctx: lay1, flo: true, xof: x0 + P[-1].x + P_[-1].x, yof: y0 + P[-1].y + P_[-1].y, rot: [hhr[0], hhr[1], hhr[2] + k / PAR.flowerPetal * PI * 2], len: PAR.flowerLength * normRand(0.7, 1.3) * 1.5, wid: x => (1.5 * PAR.flowerShape(x) * PAR.flowerWidth), vei: [0], col: PAR.flowerColor, cof: PAR.flowerColorCurve, ben: x => ([
           PAR.flowerOpenCurve(x, op),
@@ -1044,28 +1115,28 @@ function herbal(args) {
   Layer.filter(lay0, Filter.fade)
   Layer.filter(lay0, Filter.wispy)
   Layer.filter(lay1, Filter.wispy)
-  let b1 = Layer.bound(lay0)
-  let b2 = Layer.bound(lay1)
-  let bd = {
+  const b1 = Layer.bound(lay0)
+  const b2 = Layer.bound(lay1)
+  const bd = {
     xmin: Math.min(b1.xmin, b2.xmin),
     xmax: Math.max(b1.xmax, b2.xmax),
     ymin: Math.min(b1.ymin, b2.ymin),
     ymax: Math.max(b1.ymax, b2.ymax),
   }
-  let xref = xof - (bd.xmin + bd.xmax) / 2
-  let yref = yof - bd.ymax
+  const xref = xof - (bd.xmin + bd.xmax) / 2
+  const yref = yof - bd.ymax
   Layer.blit(ctx, lay0, { ble: 'multiply', xof: xref, yof: yref })
   Layer.blit(ctx, lay1, { ble: 'normal', xof: xref, yof: yref })
 }
 // collection of image filters
 var Filter = new function () {
   this.wispy = function (x, y, r, g, b, a) {
-    let n = Noise.noise(x * 0.2, y * 0.2)
-    let m = Noise.noise(x * 0.5, y * 0.5, 2)
+    const n = Noise.noise(x * 0.2, y * 0.2)
+    const m = Noise.noise(x * 0.5, y * 0.5, 2)
     return [r, g * mapval(m, 0, 1, 0.95, 1), b * mapval(m, 0, 1, 0.9, 1), a * mapval(n, 0, 1, 0.5, 1)]
   }
   this.fade = function (x, y, r, g, b, a) {
-    let n = Noise.noise(x * 0.01, y * 0.01)
+    const n = Noise.noise(x * 0.01, y * 0.01)
     return [r, g, b, a * Math.min(Math.max(mapval(n, 0, 1, 0, 1), 0), 1)]
   }
 }()
@@ -1075,7 +1146,7 @@ var Layer = new function () {
   this.empty = function (w, h) {
     w = (w != undefined) ? w : 600
     h = (h != undefined) ? h : w
-    let canvas = document.createElement('canvas')
+    const canvas = document.createElement('canvas')
     canvas.width = w
     canvas.height = h
     context = canvas.getContext('2d')
@@ -1083,20 +1154,20 @@ var Layer = new function () {
   }
   this.blit = function (ctx0, ctx1, args) {
     var args = (args != undefined) ? args : {}
-    let ble = (args.ble != undefined) ? args.ble : 'normal'
-    let xof = (args.xof != undefined) ? args.xof : 0
-    let yof = (args.yof != undefined) ? args.yof : 0
+    const ble = (args.ble != undefined) ? args.ble : 'normal'
+    const xof = (args.xof != undefined) ? args.xof : 0
+    const yof = (args.yof != undefined) ? args.yof : 0
     ctx0.globalCompositeOperation = ble
     ctx0.drawImage(ctx1.canvas, xof, yof)
   }
   this.filter = function (ctx, f) {
-    let imgd = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height)
-    let pix = imgd.data
+    const imgd = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height)
+    const pix = imgd.data
     for (let i = 0, n = pix.length; i < n; i += 4) {
-      let [r, g, b, a] = pix.slice(i, i + 4)
-      let x = (i / 4) % (ctx.canvas.width)
-      let y = Math.floor((i / 4) / (ctx.canvas.width))
-      let [r1, g1, b1, a1] = f(x, y, r, g, b, a)
+      const [r, g, b, a] = pix.slice(i, i + 4)
+      const x = (i / 4) % (ctx.canvas.width)
+      const y = Math.floor((i / 4) / (ctx.canvas.width))
+      const [r1, g1, b1, a1] = f(x, y, r, g, b, a)
       pix[i] = r1
       pix[i + 1] = g1
       pix[i + 2] = b1
@@ -1105,18 +1176,18 @@ var Layer = new function () {
     ctx.putImageData(imgd, 0, 0)
   }
   this.border = function (ctx, f) {
-    let imgd = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height)
-    let pix = imgd.data
+    const imgd = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height)
+    const pix = imgd.data
     for (let i = 0, n = pix.length; i < n; i += 4) {
-      let [r, g, b, a] = pix.slice(i, i + 4)
-      let x = (i / 4) % (ctx.canvas.width)
-      let y = Math.floor((i / 4) / (ctx.canvas.width))
+      const [r, g, b, a] = pix.slice(i, i + 4)
+      const x = (i / 4) % (ctx.canvas.width)
+      const y = Math.floor((i / 4) / (ctx.canvas.width))
 
-      let nx = (x / ctx.canvas.width - 0.5) * 2
-      let ny = (y / ctx.canvas.height - 0.5) * 2
-      let theta = Math.atan2(ny, nx)
-      let r_ = distance([nx, ny], [0, 0])
-      let rr_ = f(theta)
+      const nx = (x / ctx.canvas.width - 0.5) * 2
+      const ny = (y / ctx.canvas.height - 0.5) * 2
+      const theta = Math.atan2(ny, nx)
+      const r_ = distance([nx, ny], [0, 0])
+      const rr_ = f(theta)
 
       if (r_ > rr_) {
         pix[i] = 0
@@ -1133,17 +1204,25 @@ var Layer = new function () {
     let xmax = 0
     let ymin = ctx.canvas.height
     let ymax = 0
-    let imgd = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height)
-    let pix = imgd.data
+    const imgd = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height)
+    const pix = imgd.data
     for (let i = 0, n = pix.length; i < n; i += 4) {
-      let [r, g, b, a] = pix.slice(i, i + 4)
-      let x = (i / 4) % (ctx.canvas.width)
-      let y = Math.floor((i / 4) / (ctx.canvas.width))
+      const [r, g, b, a] = pix.slice(i, i + 4)
+      const x = (i / 4) % (ctx.canvas.width)
+      const y = Math.floor((i / 4) / (ctx.canvas.width))
       if (a > 0.001) {
-        if (x < xmin) { xmin = x }
-        if (x > xmax) { xmax = x }
-        if (y < ymin) { ymin = y }
-        if (y > ymax) { ymax = y }
+        if (x < xmin) {
+          xmin = x
+        }
+        if (x > xmax) {
+          xmax = x
+        }
+        if (y < ymin) {
+          ymin = y
+        }
+        if (y > ymax) {
+          ymax = y
+        }
       }
     }
     return { xmin, xmax, ymin, ymax }
@@ -1158,10 +1237,10 @@ PAPER_COL1 = [0.98, 0.91, 0.74]
 
 // download generated image
 function makeDownload() {
-  let down = document.createElement('a')
+  const down = document.createElement('a')
   down.innerHTML = '[Download]'
   down.addEventListener('click', function () {
-    let ctx = Layer.empty()
+    const ctx = Layer.empty()
     for (let i = 0; i < ctx.canvas.width; i += 512) {
       for (let j = 0; j < ctx.canvas.height; j += 512) {
         ctx.drawImage(BGCANV, i, j)
@@ -1179,8 +1258,8 @@ function makeDownload() {
 // toggle visibility of sub menus
 function toggle(x, disp) {
   disp = (disp != undefined) ? disp : 'block'
-  let alle = ['summary', 'settings', 'share']
-  let d = document.getElementById(x).style.display
+  const alle = ['summary', 'settings', 'share']
+  const d = document.getElementById(x).style.display
   for (let i = 0; i < alle.length; i++) {
     document.getElementById(alle[i]).style.display = 'none'
   }
@@ -1194,7 +1273,7 @@ function makeBG() {
   setTimeout(_makeBG, 10)
   function _makeBG() {
     BGCANV = paper({ col: PAPER_COL0, tex: 10, spr: 0 })
-    let img = BGCANV.toDataURL('image/png')
+    const img = BGCANV.toDataURL('image/png')
     document.body.style.backgroundImage = `url(${img})`
   }
 }
@@ -1205,7 +1284,7 @@ function generate() {
   CTX.fillStyle = 'white'
   CTX.fillRect(0, 0, CTX.canvas.width, CTX.canvas.height)
   // document.body.appendChild(CTX.canvas)
-  let ppr = paper({ col: PAPER_COL1 })
+  const ppr = paper({ col: PAPER_COL1 })
   for (let i = 0; i < CTX.canvas.width; i += 512) {
     for (let j = 0; j < CTX.canvas.height; j += 512) {
       CTX.drawImage(ppr, i, j)
@@ -1213,8 +1292,7 @@ function generate() {
   }
   if (Math.random() <= 0.5) {
     woody({ ctx: CTX, xof: 300, yof: 550 })
-  }
-  else {
+  } else {
     herbal({ ctx: CTX, xof: 300, yof: 600 })
   }
   Layer.border(CTX, squircle(0.98, 3))
@@ -1222,7 +1300,7 @@ function generate() {
 
 // reload page with given seed
 function reloadWSeed(s) {
-  let u = window.location.href.split('?')[0]
+  const u = window.location.href.split('?')[0]
   window.location.href = `${u}?seed=${s}`
 }
 

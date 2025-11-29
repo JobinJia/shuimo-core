@@ -1,4 +1,4 @@
-import { Polygon } from '../../foundation/geometry';
+import { Polygon, Point } from '../../foundation/geometry';
 import { noise } from '../../foundation/noise';
 import { randChoice, normRand, wtrand } from '../../utils/random';
 import { stroke } from '../../drawing/Stroke';
@@ -33,10 +33,10 @@ export interface BoxOptions {
   wei?: number;
   /** Decoration function */
   dec?: (params: {
-    pul: number[];
-    pur: number[];
-    pdl: number[];
-    pdr: number[];
+    pul: Point;
+    pur: Point;
+    pdl: Point;
+    pdr: Point;
   }) => Polygon[];
 }
 
@@ -391,10 +391,10 @@ export class Arch {
   private static deco(
     style: number,
     params: {
-      pul?: number[];
-      pur?: number[];
-      pdl?: number[];
-      pdr?: number[];
+      pul?: Point;
+      pur?: Point;
+      pdl?: Point;
+      pdr?: Point;
       hsp?: [number, number];
       vsp?: [number, number];
     } = {}
@@ -757,7 +757,7 @@ export class Arch {
     const sid = options.sid ?? 4;
     const wei = options.wei ?? 3;
 
-    const ptlist: [number[], number[]][] = [];
+    const ptlist: Point[][] = [];
     const polist: Polygon = [[0, -hei]];
     let canv = '';
 
@@ -1063,26 +1063,26 @@ export class Arch {
     const wid = options.wid ?? 20;
 
     let canv = '';
-    const toGlobal = (v: number[]): number[] => [v[0] + xoff, v[1] + yoff];
+    const toGlobal = (v: Point): Point => [v[0] + xoff, v[1] + yoff];
 
-    const quickstroke = (pl: number[][] | number[][][]): string =>
-      stroke(div(pl as any, 5).map(toGlobal), {
+    const quickstroke = (pl: Polygon): string =>
+      stroke(div(pl, 5).map(toGlobal), {
         wid: 1,
         fun: (x: number) => 0.5,
         col: 'rgba(100,100,100,0.4)',
       });
 
-    const p00: number[] = [-wid * 0.05, -hei];
-    const p01: number[] = [wid * 0.05, -hei];
+    const p00: Point = [-wid * 0.05, -hei];
+    const p01: Point = [wid * 0.05, -hei];
 
-    const p10: number[] = [-wid * 0.1, -hei * 0.9];
-    const p11: number[] = [wid * 0.1, -hei * 0.9];
+    const p10: Point = [-wid * 0.1, -hei * 0.9];
+    const p11: Point = [wid * 0.1, -hei * 0.9];
 
-    const p20: number[] = [-wid * 0.2, -hei * 0.5];
-    const p21: number[] = [wid * 0.2, -hei * 0.5];
+    const p20: Point = [-wid * 0.2, -hei * 0.5];
+    const p21: Point = [wid * 0.2, -hei * 0.5];
 
-    const p30: number[] = [-wid * 0.5, 0];
-    const p31: number[] = [wid * 0.5, 0];
+    const p30: Point = [-wid * 0.5, 0];
+    const p31: Point = [wid * 0.5, 0];
 
     const bch: [number, number][] = [
       [0.7, -0.85],

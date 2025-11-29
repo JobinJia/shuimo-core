@@ -1,34 +1,34 @@
 {
   "name": "@shuimo/core",
+  "type": "module",
   "version": "0.1.0",
   "description": "Core library for procedural Chinese landscape painting generation",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
     },
     "./foundation": {
-      "types": "./dist/foundation/index.d.ts",
-      "import": "./dist/foundation/index.js"
+      "types": "./dist/foundation.d.mts",
+      "import": "./dist/foundation.mjs"
     },
     "./elements": {
-      "types": "./dist/elements/index.d.ts",
-      "import": "./dist/elements/index.js"
+      "types": "./dist/elements.d.mts",
+      "import": "./dist/elements.mjs"
     },
-    "./renderer": {
-      "types": "./dist/renderer/index.d.ts",
-      "import": "./dist/renderer/index.js"
+    "./drawing": {
+      "types": "./dist/drawing.d.mts",
+      "import": "./dist/drawing.mjs"
     }
   },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "files": [
     "dist"
   ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc --noEmit && tsdown",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage"
@@ -39,11 +39,12 @@
   "devDependencies": {
     "@types/node": "^20.19.25",
     "@types/uuid": "^10.0.0",
-    "@vitest/ui": "^4.0.13",
+    "@vitest/ui": "^4.0.14",
     "jsdom": "^27.2.0",
+    "tsdown": "0.17.0-beta.1",
     "typescript": "^5.9.3",
     "vite": "^7.2.4",
     "vite-plugin-dts": "^4.5.4",
-    "vitest": "^4.0.13"
+    "vitest": "^4.0.14"
   }
 }

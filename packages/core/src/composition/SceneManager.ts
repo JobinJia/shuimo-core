@@ -11,8 +11,8 @@ export interface Chunk {
   x: number;
   /** Y position */
   y: number;
-  /** Rendered SVG content */
-  canv: string;
+  /** Rendered SVG content or polygon data */
+  canv: string | [import('../foundation/geometry').Polygon[]];
 }
 
 export interface SceneState {
@@ -72,8 +72,8 @@ export class SceneManager {
    * Add a chunk to the scene in sorted order by y-coordinate
    */
   private addChunk(nch: Chunk): void {
-    // Handle NaN values
-    if (nch.canv.includes('NaN')) {
+    // Handle NaN values (only for string canv)
+    if (typeof nch.canv === 'string' && nch.canv.includes('NaN')) {
       console.log('gotcha:');
       console.log(nch.tag);
       nch.canv = nch.canv.replace(/NaN/g, '-1000');

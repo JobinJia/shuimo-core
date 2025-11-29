@@ -1,1 +1,1 @@
-export { PRNG, prng, overrideMathRandom } from './PRNG';
+export { PRNG, prng, overrideMathRandom } from './prng';

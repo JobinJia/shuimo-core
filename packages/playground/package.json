@@ -1,12 +1,13 @@
 {
   "name": "@shuimo/playground",
+  "type": "module",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "description": "Interactive playground for testing @shuimo/core library",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
+    "build:check": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {

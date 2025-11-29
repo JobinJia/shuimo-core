@@ -14,7 +14,6 @@ export {
   Mount,
   type MountainOptions,
   type FlatMountOptions,
-  type FlatDecOptions,
   type DistMountOptions,
   type RockOptions,
 } from './Mount';

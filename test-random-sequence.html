@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Random Sequence Consistency</title>
+  <style>
+    body { font-family: monospace; padding: 20px; }
+    .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .panel { border: 2px solid #333; padding: 10px; }
+    h2 { background: #333; color: white; padding: 10px; margin: -10px -10px 10px; }
+    pre { background: #f5f5f5; padding: 10px; max-height: 400px; overflow-y: auto; font-size: 11px; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 5px; }
+    input { padding: 5px; width: 300px; }
+  </style>
+</head>
+<body>
+  <h1>Random Sequence Consistency Test</h1>
+
+  <div>
+    <label>Seed: <input id="seedInput" type="text" value="test-123"></label>
+    <button onclick="testSequence()">Test Random Sequence</button>
+  </div>
+
+  <div class="container">
+    <div class="panel">
+      <h2>Original Implementation</h2>
+      <pre id="original-output"></pre>
+    </div>
+    <div class="panel">
+      <h2>SVG Implementation (Manual Check)</h2>
+      <pre id="svg-instructions">
+Instructions:
+1. Open browser console
+2. Copy this code and run:
+
+import { FlowerPRNG } from '/packages/core/src/drawing/flower/FlowerPRNG.ts';
+const prng = new FlowerPRNG();
+prng.seed('test-123'); // use same seed
+const seq = [];
+for(let i=0; i<20; i++) {
+  seq.push(prng.next());
+}
+console.log('SVG First 20:', seq);
+
+3. Compare with Original output (left panel)
+      </pre>
+    </div>
+  </div>
+
+  <script src="/reference-code/flowers/main.js"></script>
+  <script>
+    function testSequence() {
+      const seed = document.getElementById('seedInput').value;
+
+      // Test Original
+      Math.seed(seed);
+
+      const sequence = [];
+      for (let i = 0; i < 20; i++) {
+        sequence.push(Math.random());
+      }
+
+      let output = `Seed: "${seed}"\n\n`;
+      output += `First 20 random numbers:\n`;
+      sequence.forEach((num, i) => {
+        output += `${i + 1}: ${num}\n`;
+      });
+
+      document.getElementById('original-output').textContent = output;
+
+      // Log to console for easy comparison
+      console.log('=== Original Implementation ===');
+      console.log('Seed:', seed);
+      console.log('First 20:', sequence);
+    }
+
+    // Auto-run
+    window.addEventListener('load', () => setTimeout(testSequence, 100));
+  </script>
+</body>
+</html>

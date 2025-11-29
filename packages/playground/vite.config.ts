@@ -1,20 +1,22 @@
-import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
-import path from 'path';
+import path from 'node:path'
+import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [vue()],
   resolve: {
     alias: {
-      '@shuimo/core': path.resolve(__dirname, '../core/src/index.ts')
-    }
+      '@shuimo/core': mode === 'production'
+        ? path.resolve(__dirname, '../core/dist/index.mjs')
+        : path.resolve(__dirname, '../core/src/index.ts'),
+    },
   },
   server: {
     port: 3000,
-    open: true
+    open: true,
   },
   build: {
     outDir: 'dist',
-    sourcemap: true
-  }
-});
+    sourcemap: true,
+  },
+}))
