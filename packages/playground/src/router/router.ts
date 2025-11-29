@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Font from '../demos/Font.vue'
 import Shanshui from '../demos/Shanshui.vue'
+import CloudDemo from '../demos/CloudDemo.vue'
 import Flower from '../Flower.vue'
 import FlowerCanvasTest from '../FlowerCanvasTest.vue'
 import FlowerCompare from '../FlowerCompare.vue'
@@ -15,6 +16,11 @@ const routes = [
     path: '/shanshui',
     name: 'Shanshui',
     component: Shanshui,
+  },
+  {
+    path: '/cloud',
+    name: 'CloudDemo',
+    component: CloudDemo,
   },
   {
     path: '/font',

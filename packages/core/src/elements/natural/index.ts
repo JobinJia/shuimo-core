@@ -17,3 +17,4 @@ export {
   type DistMountOptions,
   type RockOptions,
 } from './Mount';
+export { Cloud, cloud, type CloudOptions } from './Cloud';
