@@ -347,7 +347,9 @@ function generateCirclePath(
 }
 
 /**
- * Generate ellipse shape path (non-standard ellipse with irregular ratio)
+ * Generate capsule/stadium shape path (looks like ellipse but wraps text better)
+ * - Horizontal: top/bottom straight lines + left/right semicircles
+ * - Vertical: left/right straight lines + top/bottom semicircles
  */
 function generateEllipsePath(
   width: number,
@@ -358,25 +360,123 @@ function generateEllipsePath(
   random: () => number,
   applyNoise: (x: number, y: number, edgeProgress: number) => { x: number; y: number }
 ): string {
-  const radiusX = width / 2;
-  const radiusY = height / 2;
-  const centerX = radiusX;
-  const centerY = radiusY;
   let path = '';
+  const pointsPerEdge = Math.floor(borderPoints / 4);
 
-  // Generate points around the ellipse
-  for (let i = 0; i < borderPoints; i++) {
-    const angle = (i / borderPoints) * Math.PI * 2;
-    const x = centerX + Math.cos(angle) * radiusX;
-    const y = centerY + Math.sin(angle) * radiusY;
+  if (width > height) {
+    // Horizontal capsule: straight top/bottom + curved left/right
+    // Reduce curvature by half
+    const radius = height / 2;
+    const curveRadius = radius * 0.5; // Half the curvature
+    const straightLength = width - radius * 2; // Length of straight portion
 
-    // Apply noise with full strength throughout
-    const edgeProgress = 1.0;
-    const point = applyNoise(x, y, edgeProgress);
+    // Start at top-left
+    const startX = curveRadius;
+    const startY = 0;
+    const start = applyNoise(startX, startY, 0);
+    path = `M ${start.x.toFixed(2)} ${start.y.toFixed(2)}`;
 
-    if (i === 0) {
-      path = `M ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
-    } else {
+    // Top edge (straight line)
+    for (let i = 1; i < pointsPerEdge; i++) {
+      const t = i / pointsPerEdge;
+      const edgeProgress = Math.sin(t * Math.PI);
+      const x = curveRadius + t * straightLength;
+      const y = 0;
+      const point = applyNoise(x, y, edgeProgress);
+      path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+    }
+
+    // Right curve (top to bottom) - reduced curvature
+    const rightCenterX = width - curveRadius;
+    const rightCenterY = radius;
+    for (let i = 0; i < pointsPerEdge; i++) {
+      const t = i / pointsPerEdge;
+      const angle = -Math.PI / 2 + t * Math.PI; // -90° to 90°
+      const edgeProgress = Math.sin(t * Math.PI);
+      const x = rightCenterX + Math.cos(angle) * curveRadius;
+      const y = rightCenterY + Math.sin(angle) * radius;
+      const point = applyNoise(x, y, edgeProgress);
+      path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+    }
+
+    // Bottom edge (straight line, right to left)
+    for (let i = 1; i < pointsPerEdge; i++) {
+      const t = i / pointsPerEdge;
+      const edgeProgress = Math.sin(t * Math.PI);
+      const x = (width - curveRadius) - t * straightLength;
+      const y = height;
+      const point = applyNoise(x, y, edgeProgress);
+      path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+    }
+
+    // Left curve (bottom to top) - reduced curvature
+    const leftCenterX = curveRadius;
+    const leftCenterY = radius;
+    for (let i = 0; i < pointsPerEdge; i++) {
+      const t = i / pointsPerEdge;
+      const angle = Math.PI / 2 + t * Math.PI; // 90° to 270°
+      const edgeProgress = Math.sin(t * Math.PI);
+      const x = leftCenterX + Math.cos(angle) * curveRadius;
+      const y = leftCenterY + Math.sin(angle) * radius;
+      const point = applyNoise(x, y, edgeProgress);
+      path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+    }
+  } else {
+    // Vertical capsule: straight left/right + curved top/bottom
+    // Reduce curvature by half (same logic as horizontal)
+    const radius = width / 2;
+    const curveRadius = radius * 0.5; // Half the curvature for top/bottom arcs
+    const straightLength = height - curveRadius * 2; // Length of straight portion
+
+    // Start at top-left corner
+    const startX = 0;
+    const startY = curveRadius;
+    const start = applyNoise(startX, startY, 0);
+    path = `M ${start.x.toFixed(2)} ${start.y.toFixed(2)}`;
+
+    // Top curve (left to right) - reduced curvature
+    const topCenterX = radius;
+    const topCenterY = curveRadius;
+    for (let i = 0; i < pointsPerEdge; i++) {
+      const t = i / pointsPerEdge;
+      const angle = Math.PI + t * Math.PI; // 180° to 360°
+      const edgeProgress = Math.sin(t * Math.PI);
+      const x = topCenterX + Math.cos(angle) * radius;
+      const y = topCenterY + Math.sin(angle) * curveRadius;
+      const point = applyNoise(x, y, edgeProgress);
+      path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+    }
+
+    // Right edge (straight line, top to bottom)
+    for (let i = 1; i < pointsPerEdge; i++) {
+      const t = i / pointsPerEdge;
+      const edgeProgress = Math.sin(t * Math.PI);
+      const x = width;
+      const y = curveRadius + t * straightLength;
+      const point = applyNoise(x, y, edgeProgress);
+      path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+    }
+
+    // Bottom curve (right to left) - reduced curvature
+    const bottomCenterX = radius;
+    const bottomCenterY = height - curveRadius;
+    for (let i = 0; i < pointsPerEdge; i++) {
+      const t = i / pointsPerEdge;
+      const angle = 0 + t * Math.PI; // 0° to 180°
+      const edgeProgress = Math.sin(t * Math.PI);
+      const x = bottomCenterX + Math.cos(angle) * radius;
+      const y = bottomCenterY + Math.sin(angle) * curveRadius;
+      const point = applyNoise(x, y, edgeProgress);
+      path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+    }
+
+    // Left edge (straight line, bottom to top)
+    for (let i = 1; i < pointsPerEdge; i++) {
+      const t = i / pointsPerEdge;
+      const edgeProgress = Math.sin(t * Math.PI);
+      const x = 0;
+      const y = (height - curveRadius) - t * straightLength;
+      const point = applyNoise(x, y, edgeProgress);
       path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
     }
   }
@@ -528,15 +628,34 @@ export function generateStampPath(options: StampOptions): StampResult {
       height: diameter
     };
   } else if (shape === 'ellipse') {
-    // Ellipse: use text bounds to create non-standard ellipse
-    // Need extra padding for ellipse because text needs to fit within the curved shape
+    // Ellipse: non-standard ellipse design
+    // - Short axis direction: tightly wraps text (just padding)
+    // - Long axis direction: adds curvature for ellipse effect
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
-    // Use larger padding multiplier for ellipse to ensure text fits within the curve
-    const ellipsePaddingX = paddingX * 2.5;
-    const ellipsePaddingY = paddingY * 2.5;
-    const width = textWidth + ellipsePaddingX * 2;
-    const height = textHeight + ellipsePaddingY * 2;
+
+    const aspectRatio = textWidth / textHeight;
+    let width: number;
+    let height: number;
+
+    if (aspectRatio > 1) {
+      // Horizontal layout: text is wider than tall
+      // Height: tight fit (just padding)
+      // Width: add extra space for curvature based on short side (height)
+      height = textHeight + paddingY * 2;
+      width = textWidth + paddingX * 2 + height * 0.2;
+    } else {
+      // Vertical layout: text is taller than wide
+      // Width: tight fit (just padding)
+      // Height: add extra space for curvature
+      // Use textHeight (not width) as base for consistent spacing
+      const baseHeight = textHeight + paddingY * 2;
+      width = textWidth + paddingX * 2;
+      // Calculate curve spacing based on the short side dimension
+      const shortSide = Math.min(width, baseHeight);
+      height = baseHeight + shortSide * 0.2;
+    }
+
     path = generateEllipsePath(width, height, noiseAmount, borderPoints, noise, random, applyNoise);
     bounds = {
       left: 0,
