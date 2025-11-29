@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
 import { generateFlowerCanvas } from '@shuimo/core'
+import { onMounted, ref } from 'vue'
 
 const canvasContainer = ref<HTMLDivElement>()
 const currentSeed = ref('')
@@ -20,21 +20,17 @@ function generate(seed?: string) {
   currentSeed.value = finalSeed
 
   try {
-    console.time('Generate Flower')
     const canvas = generateFlowerCanvas({
       seed: finalSeed,
       type: 'random',
       width: 600,
       height: 600,
     })
-    console.timeEnd('Generate Flower')
 
     canvasContainer.value.appendChild(canvas)
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Failed to generate flower:', error)
-  }
-  finally {
+  } finally {
     isGenerating.value = false
   }
 }
@@ -50,21 +46,17 @@ function generateWoody() {
   currentSeed.value = seed
 
   try {
-    console.time('Generate Woody Flower')
     const canvas = generateFlowerCanvas({
       seed,
       type: 'woody',
       width: 600,
       height: 600,
     })
-    console.timeEnd('Generate Woody Flower')
 
     canvasContainer.value.appendChild(canvas)
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Failed to generate woody flower:', error)
-  }
-  finally {
+  } finally {
     isGenerating.value = false
   }
 }
@@ -80,21 +72,17 @@ function generateHerbal() {
   currentSeed.value = seed
 
   try {
-    console.time('Generate Herbal Flower')
     const canvas = generateFlowerCanvas({
       seed,
       type: 'herbal',
       width: 600,
       height: 600,
     })
-    console.timeEnd('Generate Herbal Flower')
 
     canvasContainer.value.appendChild(canvas)
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Failed to generate herbal flower:', error)
-  }
-  finally {
+  } finally {
     isGenerating.value = false
   }
 }
@@ -113,13 +101,13 @@ onMounted(() => {
     <h1>Flower Canvas Test</h1>
 
     <div class="controls">
-      <button @click="generate()" :disabled="isGenerating">
+      <button :disabled="isGenerating" @click="generate()">
         🔄 Random
       </button>
-      <button @click="generateWoody()" :disabled="isGenerating">
+      <button :disabled="isGenerating" @click="generateWoody()">
         🌳 Woody
       </button>
-      <button @click="generateHerbal()" :disabled="isGenerating">
+      <button :disabled="isGenerating" @click="generateHerbal()">
         🌿 Herbal
       </button>
       <div class="seed-control">
@@ -128,14 +116,14 @@ onMounted(() => {
           placeholder="Enter seed"
           :disabled="isGenerating"
         >
-        <button @click="regenerateWithSeed()" :disabled="isGenerating">
+        <button :disabled="isGenerating" @click="regenerateWithSeed()">
           ♻️ Regenerate
         </button>
       </div>
     </div>
 
     <div class="canvas-wrapper">
-      <div ref="canvasContainer" class="canvas-container"></div>
+      <div ref="canvasContainer" class="canvas-container" />
     </div>
   </div>
 </template>

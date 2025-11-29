@@ -1,21 +1,21 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
-import { generateStamp } from '@shuimo/core';
+import { generateStamp } from '@shuimo/core'
+import { onMounted, ref } from 'vue'
 
-const yinStampSvg = ref('');
-const yangStampSvg = ref('');
+const yinStampSvg = ref('')
+const yangStampSvg = ref('')
 
-const squareYinStampSvg = ref('');
-const squareYangStampSvg = ref('');
+const squareYinStampSvg = ref('')
+const squareYangStampSvg = ref('')
 
-const rectangleYinStampSvg = ref('');
-const rectangleYangStampSvg = ref('');
+const rectangleYinStampSvg = ref('')
+const rectangleYangStampSvg = ref('')
 
-const circleYinStampSvg = ref('');
-const circleYangStampSvg = ref('');
+const circleYinStampSvg = ref('')
+const circleYangStampSvg = ref('')
 
-const ellipseYinStampSvg = ref('');
-const ellipseYangStampSvg = ref('');
+const ellipseYinStampSvg = ref('')
+const ellipseYangStampSvg = ref('')
 
 onMounted(() => {
   // 阴章 - 红底白字 (默认自动形状)
@@ -29,8 +29,8 @@ onMounted(() => {
     paddingY: 5,
     noiseAmount: 12,
     borderPoints: 24,
-    seed: 12345
-  });
+    seed: 12345,
+  })
 
   // 阳章 - 白底红字红边框 (默认自动形状)
   yangStampSvg.value = generateStamp({
@@ -43,8 +43,8 @@ onMounted(() => {
     paddingY: 5,
     noiseAmount: 12,
     borderPoints: 24,
-    seed: 54321
-  });
+    seed: 54321,
+  })
 
   // 正方形印章 - 阴章
   squareYinStampSvg.value = generateStamp({
@@ -58,8 +58,8 @@ onMounted(() => {
     paddingY: 5,
     noiseAmount: 12,
     borderPoints: 24,
-    seed: 11111
-  });
+    seed: 11111,
+  })
 
   // 正方形印章 - 阳章
   squareYangStampSvg.value = generateStamp({
@@ -73,8 +73,8 @@ onMounted(() => {
     paddingY: 5,
     noiseAmount: 12,
     borderPoints: 24,
-    seed: 11112
-  });
+    seed: 11112,
+  })
 
   // 长方形印章 - 阴章
   rectangleYinStampSvg.value = generateStamp({
@@ -88,8 +88,8 @@ onMounted(() => {
     paddingY: 5,
     noiseAmount: 12,
     borderPoints: 24,
-    seed: 22221
-  });
+    seed: 22221,
+  })
 
   // 长方形印章 - 阳章
   rectangleYangStampSvg.value = generateStamp({
@@ -103,8 +103,8 @@ onMounted(() => {
     paddingY: 5,
     noiseAmount: 12,
     borderPoints: 24,
-    seed: 22222
-  });
+    seed: 22222,
+  })
 
   // 圆形印章 - 阴章
   circleYinStampSvg.value = generateStamp({
@@ -118,8 +118,8 @@ onMounted(() => {
     paddingY: 5,
     noiseAmount: 12,
     borderPoints: 32,
-    seed: 33333
-  });
+    seed: 33333,
+  })
 
   // 圆形印章 - 阳章
   circleYangStampSvg.value = generateStamp({
@@ -133,8 +133,8 @@ onMounted(() => {
     paddingY: 5,
     noiseAmount: 12,
     borderPoints: 32,
-    seed: 33334
-  });
+    seed: 33334,
+  })
 
   // 椭圆形印章 - 阴章
   ellipseYinStampSvg.value = generateStamp({
@@ -148,8 +148,8 @@ onMounted(() => {
     paddingY: 5,
     noiseAmount: 12,
     borderPoints: 32,
-    seed: 44443
-  });
+    seed: 44443,
+  })
 
   // 椭圆形印章 - 阳章
   ellipseYangStampSvg.value = generateStamp({
@@ -163,13 +163,14 @@ onMounted(() => {
     paddingY: 5,
     noiseAmount: 12,
     borderPoints: 32,
-    seed: 44444
-  });
-});
+    seed: 44444,
+  })
+})
 </script>
+
 <template>
-    <div style="padding: 5em;">
-         <!-- <svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <div style="padding: 5em;">
+    <!-- <svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <filter id="ink-bleed">
           <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
@@ -214,85 +215,126 @@ onMounted(() => {
 
     <!-- 印章演示区域 -->
     <div style="margin-top: 3em;">
-      <h2 style="font-family: '楷体', serif; color: #333; margin-bottom: 2em;">印章演示 Stamp Demo</h2>
+      <h2 style="font-family: '楷体', serif; color: #333; margin-bottom: 2em;">
+        印章演示 Stamp Demo
+      </h2>
 
       <!-- 所有印章展示 -->
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5em;">
-
         <!-- 自动形状 - 阴章 -->
         <div style="text-align: center;">
-          <div class="stamp-container" v-html="yinStampSvg"></div>
-          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">自动 - 阴章</p>
-          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">shape: 'auto'</p>
+          <div class="stamp-container" v-html="yinStampSvg" />
+          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">
+            自动 - 阴章
+          </p>
+          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">
+            shape: 'auto'
+          </p>
         </div>
 
         <!-- 自动形状 - 阳章 -->
         <div style="text-align: center;">
-          <div class="stamp-container" v-html="yangStampSvg"></div>
-          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">自动 - 阳章</p>
-          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">shape: 'auto'</p>
+          <div class="stamp-container" v-html="yangStampSvg" />
+          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">
+            自动 - 阳章
+          </p>
+          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">
+            shape: 'auto'
+          </p>
         </div>
 
         <!-- 正方形 - 阴章 -->
         <div style="text-align: center;">
-          <div class="stamp-container" v-html="squareYinStampSvg"></div>
-          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">正方形 - 阴章</p>
-          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">shape: 'square'</p>
+          <div class="stamp-container" v-html="squareYinStampSvg" />
+          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">
+            正方形 - 阴章
+          </p>
+          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">
+            shape: 'square'
+          </p>
         </div>
 
         <!-- 正方形 - 阳章 -->
         <div style="text-align: center;">
-          <div class="stamp-container" v-html="squareYangStampSvg"></div>
-          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">正方形 - 阳章</p>
-          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">shape: 'square'</p>
+          <div class="stamp-container" v-html="squareYangStampSvg" />
+          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">
+            正方形 - 阳章
+          </p>
+          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">
+            shape: 'square'
+          </p>
         </div>
 
         <!-- 长方形 - 阴章 -->
         <div style="text-align: center;">
-          <div class="stamp-container" v-html="rectangleYinStampSvg"></div>
-          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">长方形 - 阴章</p>
-          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">shape: 'rectangle'</p>
+          <div class="stamp-container" v-html="rectangleYinStampSvg" />
+          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">
+            长方形 - 阴章
+          </p>
+          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">
+            shape: 'rectangle'
+          </p>
         </div>
 
         <!-- 长方形 - 阳章 -->
         <div style="text-align: center;">
-          <div class="stamp-container" v-html="rectangleYangStampSvg"></div>
-          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">长方形 - 阳章</p>
-          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">shape: 'rectangle'</p>
+          <div class="stamp-container" v-html="rectangleYangStampSvg" />
+          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">
+            长方形 - 阳章
+          </p>
+          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">
+            shape: 'rectangle'
+          </p>
         </div>
 
         <!-- 圆形 - 阴章 -->
         <div style="text-align: center;">
-          <div class="stamp-container" v-html="circleYinStampSvg"></div>
-          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">圆形 - 阴章</p>
-          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">shape: 'circle'</p>
+          <div class="stamp-container" v-html="circleYinStampSvg" />
+          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">
+            圆形 - 阴章
+          </p>
+          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">
+            shape: 'circle'
+          </p>
         </div>
 
         <!-- 圆形 - 阳章 -->
         <div style="text-align: center;">
-          <div class="stamp-container" v-html="circleYangStampSvg"></div>
-          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">圆形 - 阳章</p>
-          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">shape: 'circle'</p>
+          <div class="stamp-container" v-html="circleYangStampSvg" />
+          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">
+            圆形 - 阳章
+          </p>
+          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">
+            shape: 'circle'
+          </p>
         </div>
 
         <!-- 椭圆形 - 阴章 -->
         <div style="text-align: center;">
-          <div class="stamp-container" v-html="ellipseYinStampSvg"></div>
-          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">椭圆形 - 阴章</p>
-          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">shape: 'ellipse'</p>
+          <div class="stamp-container" v-html="ellipseYinStampSvg" />
+          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">
+            椭圆形 - 阴章
+          </p>
+          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">
+            shape: 'ellipse'
+          </p>
         </div>
 
         <!-- 椭圆形 - 阳章 -->
         <div style="text-align: center;">
-          <div class="stamp-container" v-html="ellipseYangStampSvg"></div>
-          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">椭圆形 - 阳章</p>
-          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">shape: 'ellipse'</p>
+          <div class="stamp-container" v-html="ellipseYangStampSvg" />
+          <p style="margin-top: 0.8em; color: #888; font-size: 0.85em;">
+            椭圆形 - 阳章
+          </p>
+          <p style="margin-top: 0.3em; color: #aaa; font-size: 0.75em;">
+            shape: 'ellipse'
+          </p>
         </div>
-
       </div>
     </div>
-    </div>
+  </div>
 </template>
+
 <style scoped lang="css">
  @font-face {
         font-family: 'beishida';

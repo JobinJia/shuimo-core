@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
 import { generateFlower } from '@shuimo/core'
+import { onMounted, ref } from 'vue'
 
 const container = ref<HTMLDivElement>()
 const seedInput = ref('')
@@ -37,10 +37,7 @@ function generate() {
 
     // Add to container
     container.value.appendChild(canvas)
-
-    console.log(`Generated flower with seed: ${seed}, type: ${plantType.value}`)
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Failed to generate flower:', error)
     container.value.innerHTML = `<div style="color: red">Error generating flower: ${error}</div>`
   }

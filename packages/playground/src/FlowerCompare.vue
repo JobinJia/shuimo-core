@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
 import { generateFlower } from '@shuimo/core'
+import { ref } from 'vue'
 
 const svgContainer = ref<HTMLDivElement>()
 const originalIframe = ref<HTMLIFrameElement>()
@@ -15,8 +15,6 @@ function generateBoth() {
   const timestamp = Date.now()
   const randomStr = Math.random().toString(36).substring(2, 7)
   currentSeed.value = `${timestamp}-${randomStr}`
-
-  console.log('🌸 Generating both versions with seed:', currentSeed.value)
 
   // Generate both versions with the same seed
   generateOriginalVersion()
@@ -37,8 +35,7 @@ function generateOriginalVersion() {
     const baseUrl = '/reference-code/flowers/index.html'
     const url = `${baseUrl}?seed=${currentSeed.value}`
     originalIframe.value.src = url
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Original Canvas Error:', error)
   }
 }
@@ -53,8 +50,6 @@ function generateSVGVersion() {
   svgContainer.value.innerHTML = ''
 
   try {
-    console.log('🌸 SVG: Generating with seed:', currentSeed.value)
-
     // Generate flower with same seed as original
     const svg = generateFlower({
       seed: currentSeed.value,
@@ -65,8 +60,7 @@ function generateSVGVersion() {
     })
 
     svgContainer.value.appendChild(svg)
-  }
-  catch (error) {
+  } catch (error) {
     console.error('❌ SVG Error:', error)
     svgContainer.value.innerHTML = `<div style="color: red; padding: 20px;">
       <h3>SVG Error:</h3>
@@ -310,7 +304,6 @@ function generateSVGVersion() {
   text-align: center;
   flex-shrink: 0;
 }
-
 
 .iframe-container {
   flex: 1;

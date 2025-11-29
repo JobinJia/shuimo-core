@@ -8,7 +8,9 @@
     "dev": "vite",
     "build": "vite build",
     "build:check": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint --fix .",
+    "lint:check": "eslint ."
   },
   "dependencies": {
     "@shuimo/core": "workspace:*",
