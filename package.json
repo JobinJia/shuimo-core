@@ -13,12 +13,13 @@
     "playground": "pnpm --filter @shuimo/playground dev",
     "build": "pnpm --filter @shuimo/core build",
     "build:all": "pnpm -r --filter \"./packages/**\" build",
-    "build:playground": "pnpm run build && pnpm -r --filter @shuimo/playground build",
+    "build:playground": "pnpm run build && pnpm --filter @shuimo/playground build",
     "test": "pnpm --filter @shuimo/core test",
     "lint": "eslint .",
     "upgrade": "pnpm dlx taze -r -w major --install"
   },
   "devDependencies": {
     "@jobinjia/eslint-config": "1.0.1"
-  }
+  },
+  "packageManager": "pnpm@10.23.0"
 }
