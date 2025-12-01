@@ -3,18 +3,10 @@
 A TypeScript library for procedural Chinese landscape painting generation.
 
 ## Standing On The Shoulders Of Giants 
+
 [shanshui](https://github.com/LingDong-/shan-shui-inf)
+
 [flower](https://github.com/LingDong-/nonflowers)
-
-## Project Structure
-
-```
-shuimo-core/
-├── packages/
-│   └── core/              # Core library
-├── examples/              # Example projects
-└── docs/                  # Documentation
-```
 
 ## Development
 

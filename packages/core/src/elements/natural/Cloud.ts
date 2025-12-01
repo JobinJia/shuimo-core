@@ -49,8 +49,8 @@ export interface CloudOptions {
  */
 export class Cloud {
   /**
-   * Generate continuous fractal noise texture with domain warping
-   * Implements the GLSL shader technique from the reference
+   * Generate continuous fractal noise texture (simplified, high-performance version)
+   * Uses basic fractal noise without expensive domain warping
    */
   private static generateContinuousCloud(
     width: number,
@@ -64,126 +64,86 @@ export class Cloud {
     baseColor: string,
     seed: number,
   ): HTMLCanvasElement {
-    const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
-    const ctx = canvas.getContext('2d')!
+    // Performance optimization: render at lower resolution
+    const scale = 0.5 // 50% resolution for balance between quality and speed
+    const renderWidth = Math.floor(width * scale)
+    const renderHeight = Math.floor(height * scale)
+
+    const tempCanvas = document.createElement('canvas')
+    tempCanvas.width = renderWidth
+    tempCanvas.height = renderHeight
+    const tempCtx = tempCanvas.getContext('2d')!
 
     const [r, g, b] = baseColor.split(',').map(c => Number.parseInt(c.trim()))
 
     // Create ImageData for pixel-level manipulation
-    const imageData = ctx.createImageData(width, height)
+    const imageData = tempCtx.createImageData(renderWidth, renderHeight)
     const data = imageData.data
 
-    // Helper function: Domain warped FBM (matching the GLSL shader)
-    const fbmDomainWarped = (x: number, y: number, time: number = 0): { r: number; g: number; b: number; intensity: number } => {
-      // Normalize coordinates (matching shader: gl_FragCoord.xy/u_resolution.xy*3.)
-      const st_x = (x / width) * 3.0
-      const st_y = (y / height) * 3.0
+    // Create a single Perlin noise instance and reuse it
+    const perlin = new PerlinNoise()
+    perlin.noiseSeed(seed)
+    perlin.noiseDetail(octaves, 0.5) // Use built-in octave support
 
-      // First layer of FBM to create warping vector q
-      const q_x = fractalNoise(st_x + 0.00 * time, st_y, {
-        octaves,
-        frequency: 1.0,
-        seed: seed,
-      })
-      const q_y = fractalNoise(st_x + 1.0, st_y + 1.0, {
-        octaves,
-        frequency: 1.0,
-        seed: seed + 1,
-      })
+    // Calculate cloud bounds in render space
+    const cloudCenterX = centerX * scale
+    const cloudCenterY = centerY * scale
+    const cloudRadius = (size / 2) * scale
 
-      // Second layer: use q to warp coordinates for r
-      const r_x = fractalNoise(
-        st_x + 1.0 * q_x + 1.7 + 0.15 * time,
-        st_y + 1.0 * q_x + 9.2,
-        {
-          octaves,
-          frequency: 1.0,
-          seed: seed + 2,
+    // Render pixels with simple fractal noise
+    for (let y = 0; y < renderHeight; y++) {
+      for (let x = 0; x < renderWidth; x++) {
+        const index = (y * renderWidth + x) * 4
+
+        // Distance from cloud center (for soft falloff)
+        const dx = x - cloudCenterX
+        const dy = y - cloudCenterY
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        const distFactor = Math.max(0, 1 - dist / cloudRadius)
+
+        if (distFactor > 0.01) { // Skip pixels far from cloud
+          // Get fractal noise value using the reusable Perlin instance
+          const noiseValue = perlin.noise(x * frequency, y * frequency)
+
+          // Apply threshold and distance falloff
+          const density = Math.max(0, noiseValue - threshold) / (1 - threshold)
+          const finalDensity = density * distFactor
+
+          if (finalDensity > 0.02) {
+            // Calculate alpha (opacity)
+            const alpha = Math.floor(finalDensity * 180) // Max 180 for semi-transparency
+
+            // Set pixel color
+            data[index] = r
+            data[index + 1] = g
+            data[index + 2] = b
+            data[index + 3] = alpha
+          } else {
+            // Transparent pixel
+            data[index + 3] = 0
+          }
+        } else {
+          // Transparent pixel
+          data[index + 3] = 0
         }
-      )
-      const r_y = fractalNoise(
-        st_x + 1.0 * q_y + 8.3 + 0.126 * time,
-        st_y + 1.0 * q_y + 2.8,
-        {
-          octaves,
-          frequency: 1.0,
-          seed: seed + 3,
-        }
-      )
-
-      // Final layer: use r to warp coordinates for final value
-      const f = fractalNoise(st_x + r_x, st_y + r_y, {
-        octaves,
-        frequency: 1.0,
-        seed: seed + 4,
-      })
-
-      // Color mixing (from shader)
-      // color = mix(vec3(0.101961,0.619608,0.666667),
-      //             vec3(0.666667,0.666667,0.498039),
-      //             clamp((f*f)*4.0,0.0,1.0));
-      const baseColor1 = { r: 0.101961, g: 0.619608, b: 0.666667 }
-      const baseColor2 = { r: 0.666667, g: 0.666667, b: 0.498039 }
-      const darkColor = { r: 0, g: 0, b: 0.164706 }
-      const lightColor = { r: 0.666667, g: 1, b: 1 }
-
-      const mixAmount1 = Math.min(Math.max((f * f) * 4.0, 0.0), 1.0)
-      let color = {
-        r: baseColor1.r * (1 - mixAmount1) + baseColor2.r * mixAmount1,
-        g: baseColor1.g * (1 - mixAmount1) + baseColor2.g * mixAmount1,
-        b: baseColor1.b * (1 - mixAmount1) + baseColor2.b * mixAmount1,
-      }
-
-      // Mix with dark color based on length of q
-      const q_length = Math.sqrt(q_x * q_x + q_y * q_y)
-      const mixAmount2 = Math.min(Math.max(q_length, 0.0), 1.0)
-      color = {
-        r: color.r * (1 - mixAmount2) + darkColor.r * mixAmount2,
-        g: color.g * (1 - mixAmount2) + darkColor.g * mixAmount2,
-        b: color.b * (1 - mixAmount2) + darkColor.b * mixAmount2,
-      }
-
-      // Mix with light color based on r.x
-      const mixAmount3 = Math.min(Math.max(Math.abs(r_x), 0.0), 1.0)
-      color = {
-        r: color.r * (1 - mixAmount3) + lightColor.r * mixAmount3,
-        g: color.g * (1 - mixAmount3) + lightColor.g * mixAmount3,
-        b: color.b * (1 - mixAmount3) + lightColor.b * mixAmount3,
-      }
-
-      // Final intensity (from shader: (f*f*f+.6*f*f+.5*f))
-      const intensity = f * f * f + 0.6 * f * f + 0.5 * f
-
-      return { r: color.r, g: color.g, b: color.b, intensity }
-    }
-
-    // Render every pixel
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const index = (y * width + x) * 4
-
-        // Get domain-warped noise value and color
-        const result = fbmDomainWarped(x, y, 0)
-
-        // Apply intensity
-        const finalR = Math.floor(result.r * result.intensity * 255)
-        const finalG = Math.floor(result.g * result.intensity * 255)
-        const finalB = Math.floor(result.b * result.intensity * 255)
-
-        // Set pixel color
-        data[index] = finalR
-        data[index + 1] = finalG
-        data[index + 2] = finalB
-        data[index + 3] = 255 // Fully opaque
       }
     }
 
-    // Put the image data onto canvas
-    ctx.putImageData(imageData, 0, 0)
+    // Put the image data onto low-res canvas
+    tempCtx.putImageData(imageData, 0, 0)
 
-    return canvas
+    // Scale up to final resolution
+    const finalCanvas = document.createElement('canvas')
+    finalCanvas.width = width
+    finalCanvas.height = height
+    const finalCtx = finalCanvas.getContext('2d')!
+
+    // Use bilinear interpolation for smoother upscaling
+    finalCtx.imageSmoothingEnabled = true
+    finalCtx.imageSmoothingQuality = 'high'
+    finalCtx.drawImage(tempCanvas, 0, 0, renderWidth, renderHeight, 0, 0, width, height)
+
+    return finalCanvas
   }
 
   /**

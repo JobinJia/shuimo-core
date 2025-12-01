@@ -275,42 +275,44 @@ onUnmounted(() => {
 
     <!-- Table layout like original shanshui.html -->
     <table class="main-table">
-      <tr>
-        <!-- Left scroll button -->
-        <td>
-          <div
-            class="scroll-btn scroll-btn-left"
-            :class="{ active: hoveredBtn === 'left' }"
-            @click="scrollLeft"
-            @mouseenter="hoveredBtn = 'left'"
-            @mouseleave="hoveredBtn = null"
-          >
-            <div class="scroll-btn-text">
-              <span>‹</span>
+      <tbody>
+        <tr>
+          <!-- Left scroll button -->
+          <td>
+            <div
+              class="scroll-btn scroll-btn-left"
+              :class="{ active: hoveredBtn === 'left' }"
+              @click="scrollLeft"
+              @mouseenter="hoveredBtn = 'left'"
+              @mouseleave="hoveredBtn = null"
+            >
+              <div class="scroll-btn-text">
+                <span>‹</span>
+              </div>
             </div>
-          </div>
-        </td>
+          </td>
 
-        <!-- SVG Canvas -->
-        <td>
-          <div ref="canvasContainer" class="svg-canvas" :style="canvasStyle" />
-        </td>
+          <!-- SVG Canvas -->
+          <td>
+            <div ref="canvasContainer" class="svg-canvas" :style="canvasStyle" />
+          </td>
 
-        <!-- Right scroll button -->
-        <td>
-          <div
-            class="scroll-btn scroll-btn-right"
-            :class="{ active: hoveredBtn === 'right' }"
-            @click="scrollRight"
-            @mouseenter="hoveredBtn = 'right'"
-            @mouseleave="hoveredBtn = null"
-          >
-            <div class="scroll-btn-text">
-              <span>›</span>
+          <!-- Right scroll button -->
+          <td>
+            <div
+              class="scroll-btn scroll-btn-right"
+              :class="{ active: hoveredBtn === 'right' }"
+              @click="scrollRight"
+              @mouseenter="hoveredBtn = 'right'"
+              @mouseleave="hoveredBtn = null"
+            >
+              <div class="scroll-btn-text">
+                <span>›</span>
+              </div>
             </div>
-          </div>
-        </td>
-      </tr>
+          </td>
+        </tr>
+      </tbody>
     </table>
   </div>
 </template>

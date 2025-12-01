@@ -52,8 +52,6 @@ const menuItems = [
     name: 'Flower',
     children: [
       { path: '/flower-canvas', name: 'Canvas' },
-      { path: '/flower', name: 'Basic' },
-      { path: '/flower-compare', name: 'Compare' },
     ]
   },
   {
@@ -62,7 +60,6 @@ const menuItems = [
       { path: '/shanshui', name: 'Main' },
       { path: '/shanshui-elements', name: 'Elements' },
       { path: '/cloud', name: 'Cloud' },
-      { path: '/brush', name: 'Brush' },
     ]
   },
   {

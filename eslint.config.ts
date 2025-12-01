@@ -9,7 +9,7 @@ export default jobjob(
       'test-*.html',
       'verify-*.js',
       '**/reference-code/**',
-      'packages/playground/public/reference-code/**',
+      'playground/public/reference-code/**',
     ],
   },
 )

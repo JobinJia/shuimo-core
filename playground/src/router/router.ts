@@ -4,10 +4,7 @@ import StampPlayground from '../demos/StampPlayground.vue'
 import Shanshui from '../demos/Shanshui.vue'
 import ShanShuiElements from '../demos/ShanShuiElements.vue'
 import CloudDemo from '../demos/CloudDemo.vue'
-import BrushDemo from '../demos/BrushDemo.vue'
-import Flower from '../Flower.vue'
 import FlowerCanvasTest from '../FlowerCanvasTest.vue'
-import FlowerCompare from '../FlowerCompare.vue'
 
 const routes = [
   {
@@ -31,11 +28,6 @@ const routes = [
     component: CloudDemo,
   },
   {
-    path: '/brush',
-    name: 'BrushDemo',
-    component: BrushDemo,
-  },
-  {
     path: '/stamp',
     name: 'Stamp',
     component: Stamp,
@@ -44,16 +36,6 @@ const routes = [
     path: '/stamp-playground',
     name: 'StampPlayground',
     component: StampPlayground,
-  },
-  {
-    path: '/flower',
-    name: 'Flower',
-    component: Flower,
-  },
-  {
-    path: '/flower-compare',
-    name: 'FlowerCompare',
-    component: FlowerCompare,
   },
   {
     path: '/flower-canvas',
