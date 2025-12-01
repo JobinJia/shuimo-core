@@ -1,5 +1,5 @@
 import { PRNG } from '../../foundation/random'
-import { PerlinNoise } from '../../foundation/noise'
+import { PerlinNoise, fractalNoise } from '../../foundation/noise'
 
 export interface CloudOptions {
   /** Width of the canvas */
@@ -10,28 +10,272 @@ export interface CloudOptions {
   size?: number
   /** Color of the cloud in RGB format (e.g., "100,100,100") */
   color?: string
-  /** Number of ellipse-like segments forming the boundary (default: 3-5) */
-  numSegments?: number
-  /** Particle density multiplier (default: 1.0) */
-  density?: number
-  /** Radiation height (default: size * 0.8) */
-  radiationHeight?: number
-  /** Radiation angle in degrees (default: 90, straight up; 0-180) */
-  radiationAngle?: number
+  /** Number of octaves for fractal noise (default: 4) */
+  octaves?: number
+  /** Frequency scale for noise (default: 0.005) */
+  frequency?: number
+  /** Density threshold - lower values create more dense clouds (default: 0.3) */
+  threshold?: number
   /** Seed for random generation */
   seed?: number
+  /** Render mode: 'particles' (default) or 'continuous' (pixel-based texture) */
+  mode?: 'particles' | 'continuous'
+
+  // Legacy options (for boundary-based method, kept for backwards compatibility)
+  /** @deprecated Use octaves instead */
+  numSegments?: number
+  /** @deprecated Not used in fractal noise method */
+  density?: number
+  /** @deprecated Not used in fractal noise method */
+  radiationHeight?: number
+  /** @deprecated Not used in fractal noise method */
+  radiationAngle?: number
 }
 
 /**
  * Cloud - Generate Chinese ink wash style clouds
  *
- * New Implementation (Boundary-based with unidirectional radiation):
- * 1. Generate multiple irregular ellipse-like curves as cloud boundary
- * 2. Merge/overlap these curves to form organic cloud outline
- * 3. Radiate particles from boundary points in one direction (upward)
- * 4. Particles fade with distance, creating ink wash effect
+ * New Implementation (Fractal Noise / fBm based):
+ * 1. Generate fractal noise by combining multiple octaves of Perlin noise
+ * 2. Each octave has doubled frequency and halved amplitude
+ * 3. Use noise values as density/opacity for cloud particles
+ * 4. Create natural, billowy cloud formations similar to ink wash painting
+ *
+ * Technique: Fractional Brownian Motion (fBm)
+ * - Octave 1: frequency × 1, amplitude × 1.0
+ * - Octave 2: frequency × 2, amplitude × 0.5
+ * - Octave 3: frequency × 4, amplitude × 0.25
+ * - ... and so on
  */
 export class Cloud {
+  /**
+   * Generate continuous fractal noise texture with domain warping
+   * Implements the GLSL shader technique from the reference
+   */
+  private static generateContinuousCloud(
+    width: number,
+    height: number,
+    centerX: number,
+    centerY: number,
+    size: number,
+    octaves: number,
+    frequency: number,
+    threshold: number,
+    baseColor: string,
+    seed: number,
+  ): HTMLCanvasElement {
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')!
+
+    const [r, g, b] = baseColor.split(',').map(c => Number.parseInt(c.trim()))
+
+    // Create ImageData for pixel-level manipulation
+    const imageData = ctx.createImageData(width, height)
+    const data = imageData.data
+
+    // Helper function: Domain warped FBM (matching the GLSL shader)
+    const fbmDomainWarped = (x: number, y: number, time: number = 0): { r: number; g: number; b: number; intensity: number } => {
+      // Normalize coordinates (matching shader: gl_FragCoord.xy/u_resolution.xy*3.)
+      const st_x = (x / width) * 3.0
+      const st_y = (y / height) * 3.0
+
+      // First layer of FBM to create warping vector q
+      const q_x = fractalNoise(st_x + 0.00 * time, st_y, {
+        octaves,
+        frequency: 1.0,
+        seed: seed,
+      })
+      const q_y = fractalNoise(st_x + 1.0, st_y + 1.0, {
+        octaves,
+        frequency: 1.0,
+        seed: seed + 1,
+      })
+
+      // Second layer: use q to warp coordinates for r
+      const r_x = fractalNoise(
+        st_x + 1.0 * q_x + 1.7 + 0.15 * time,
+        st_y + 1.0 * q_x + 9.2,
+        {
+          octaves,
+          frequency: 1.0,
+          seed: seed + 2,
+        }
+      )
+      const r_y = fractalNoise(
+        st_x + 1.0 * q_y + 8.3 + 0.126 * time,
+        st_y + 1.0 * q_y + 2.8,
+        {
+          octaves,
+          frequency: 1.0,
+          seed: seed + 3,
+        }
+      )
+
+      // Final layer: use r to warp coordinates for final value
+      const f = fractalNoise(st_x + r_x, st_y + r_y, {
+        octaves,
+        frequency: 1.0,
+        seed: seed + 4,
+      })
+
+      // Color mixing (from shader)
+      // color = mix(vec3(0.101961,0.619608,0.666667),
+      //             vec3(0.666667,0.666667,0.498039),
+      //             clamp((f*f)*4.0,0.0,1.0));
+      const baseColor1 = { r: 0.101961, g: 0.619608, b: 0.666667 }
+      const baseColor2 = { r: 0.666667, g: 0.666667, b: 0.498039 }
+      const darkColor = { r: 0, g: 0, b: 0.164706 }
+      const lightColor = { r: 0.666667, g: 1, b: 1 }
+
+      const mixAmount1 = Math.min(Math.max((f * f) * 4.0, 0.0), 1.0)
+      let color = {
+        r: baseColor1.r * (1 - mixAmount1) + baseColor2.r * mixAmount1,
+        g: baseColor1.g * (1 - mixAmount1) + baseColor2.g * mixAmount1,
+        b: baseColor1.b * (1 - mixAmount1) + baseColor2.b * mixAmount1,
+      }
+
+      // Mix with dark color based on length of q
+      const q_length = Math.sqrt(q_x * q_x + q_y * q_y)
+      const mixAmount2 = Math.min(Math.max(q_length, 0.0), 1.0)
+      color = {
+        r: color.r * (1 - mixAmount2) + darkColor.r * mixAmount2,
+        g: color.g * (1 - mixAmount2) + darkColor.g * mixAmount2,
+        b: color.b * (1 - mixAmount2) + darkColor.b * mixAmount2,
+      }
+
+      // Mix with light color based on r.x
+      const mixAmount3 = Math.min(Math.max(Math.abs(r_x), 0.0), 1.0)
+      color = {
+        r: color.r * (1 - mixAmount3) + lightColor.r * mixAmount3,
+        g: color.g * (1 - mixAmount3) + lightColor.g * mixAmount3,
+        b: color.b * (1 - mixAmount3) + lightColor.b * mixAmount3,
+      }
+
+      // Final intensity (from shader: (f*f*f+.6*f*f+.5*f))
+      const intensity = f * f * f + 0.6 * f * f + 0.5 * f
+
+      return { r: color.r, g: color.g, b: color.b, intensity }
+    }
+
+    // Render every pixel
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const index = (y * width + x) * 4
+
+        // Get domain-warped noise value and color
+        const result = fbmDomainWarped(x, y, 0)
+
+        // Apply intensity
+        const finalR = Math.floor(result.r * result.intensity * 255)
+        const finalG = Math.floor(result.g * result.intensity * 255)
+        const finalB = Math.floor(result.b * result.intensity * 255)
+
+        // Set pixel color
+        data[index] = finalR
+        data[index + 1] = finalG
+        data[index + 2] = finalB
+        data[index + 3] = 255 // Fully opaque
+      }
+    }
+
+    // Put the image data onto canvas
+    ctx.putImageData(imageData, 0, 0)
+
+    return canvas
+  }
+
+  /**
+   * Generate fractal noise-based cloud with particles (original implementation)
+   */
+  private static generateFractalCloud(
+    width: number,
+    height: number,
+    centerX: number,
+    centerY: number,
+    size: number,
+    octaves: number,
+    frequency: number,
+    threshold: number,
+    baseColor: string,
+    seed: number,
+  ): HTMLCanvasElement {
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')!
+
+    const [r, g, b] = baseColor.split(',').map(c => Number.parseInt(c.trim()))
+    const rng = new PRNG()
+    rng.seed(seed)
+
+    // Calculate cloud bounding box
+    const cloudLeft = centerX - size / 2
+    const cloudTop = centerY - size / 2
+    const cloudRight = centerX + size / 2
+    const cloudBottom = centerY + size / 2
+
+    // Particle generation
+    const particles: Array<{ x: number; y: number; alpha: number; size: number }> = []
+
+    // Sample noise across the cloud region
+    const sampleStep = 3 // Sample every N pixels for performance
+    for (let y = cloudTop; y < cloudBottom; y += sampleStep) {
+      for (let x = cloudLeft; x < cloudRight; x += sampleStep) {
+        // Generate fractal noise value at this position
+        const noiseValue = fractalNoise(x, y, {
+          octaves,
+          frequency,
+          seed,
+        })
+
+        // Convert noise to density (0 = transparent, 1 = opaque)
+        // Apply threshold to create cloud shape
+        const density = Math.max(0, noiseValue - threshold) / (1 - threshold)
+
+        if (density > 0.05) { // Skip very transparent pixels
+          // Add some randomness to particle positions
+          const offsetX = (rng.next() - 0.5) * sampleStep * 1.5
+          const offsetY = (rng.next() - 0.5) * sampleStep * 1.5
+
+          // Calculate alpha with some variation
+          const alphaVariation = 0.8 + rng.next() * 0.4 // 0.8-1.2
+          const alpha = density * 0.4 * alphaVariation
+
+          // Particle size varies with density
+          const particleSize = 1 + density * 2.5 + rng.next()
+
+          particles.push({
+            x: x + offsetX,
+            y: y + offsetY,
+            alpha: Math.min(alpha, 1),
+            size: particleSize,
+          })
+        }
+      }
+    }
+
+    // Sort particles by alpha (draw transparent ones first)
+    particles.sort((a, b) => a.alpha - b.alpha)
+
+    // Enable shadow blur for soft edges
+    ctx.shadowBlur = 3
+    ctx.shadowColor = `rgba(${r},${g},${b},0.2)`
+
+    // Draw particles
+    for (const particle of particles) {
+      ctx.fillStyle = `rgba(${r},${g},${b},${particle.alpha})`
+      ctx.beginPath()
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
+    // Reset shadow
+    ctx.shadowBlur = 0
+
+    return canvas
+  }
   /**
    * Generate an irregular ellipse-like curve (one segment of cloud boundary)
    */
@@ -212,9 +456,57 @@ export class Cloud {
   }
 
   /**
-   * Generate boundary-based cloud with unidirectional particle radiation
+   * Generate cloud using fractal noise (fBm)
    */
   static generate(xoff: number, yoff: number, seed: number, options: CloudOptions = {}): HTMLCanvasElement {
+    const width = options.width ?? 800
+    const height = options.height ?? 600
+    const size = options.size ?? 300
+    const baseColor = options.color ?? '100,100,100'
+    const octaves = options.octaves ?? 4
+    const frequency = options.frequency ?? 0.005
+    const threshold = options.threshold ?? 0.3
+    const mode = options.mode ?? 'particles'
+
+    // Calculate center position
+    const centerX = width / 2 + xoff
+    const centerY = height / 2 + yoff
+
+    // Choose rendering method based on mode
+    if (mode === 'continuous') {
+      return this.generateContinuousCloud(
+        width,
+        height,
+        centerX,
+        centerY,
+        size,
+        octaves,
+        frequency,
+        threshold,
+        baseColor,
+        seed,
+      )
+    } else {
+      return this.generateFractalCloud(
+        width,
+        height,
+        centerX,
+        centerY,
+        size,
+        octaves,
+        frequency,
+        threshold,
+        baseColor,
+        seed,
+      )
+    }
+  }
+
+  /**
+   * Generate boundary-based cloud with unidirectional particle radiation
+   * @deprecated Legacy method - kept for backwards compatibility
+   */
+  static generateLegacy(xoff: number, yoff: number, seed: number, options: CloudOptions = {}): HTMLCanvasElement {
     const width = options.width ?? 800
     const height = options.height ?? 600
     const size = options.size ?? 300

@@ -13,6 +13,7 @@
     "playground": "pnpm --filter @shuimo/playground dev",
     "build": "pnpm --filter @shuimo/core build",
     "build:all": "pnpm -r --filter \"./packages/**\" build",
+    "build:playground": "pnpm -r --filter @shuimo/playground build",
     "test": "pnpm --filter @shuimo/core test",
     "lint": "eslint .",
     "upgrade": "pnpm dlx taze -r -w major --install"

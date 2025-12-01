@@ -6,12 +6,14 @@ const canvasContainer = ref<HTMLDivElement>()
 const seedInput = ref(String(Date.now()))
 const width = ref(800)
 const height = ref(600)
-const size = ref(300)
+const size = ref(400)
 const color = ref('100,100,100')
-const numSegments = ref(4)
-const density = ref(1.0)
-const radiationHeight = ref(240)
-const radiationAngle = ref(90)
+
+// Fractal noise parameters
+const octaves = ref(4)
+const frequency = ref(0.005)
+const threshold = ref(0.3)
+const mode = ref<'particles' | 'continuous'>('continuous')
 
 function generate() {
   if (!canvasContainer.value)
@@ -24,10 +26,10 @@ function generate() {
     height: height.value,
     size: size.value,
     color: color.value,
-    numSegments: numSegments.value,
-    density: density.value,
-    radiationHeight: radiationHeight.value,
-    radiationAngle: radiationAngle.value,
+    octaves: octaves.value,
+    frequency: frequency.value,
+    threshold: threshold.value,
+    mode: mode.value,
   })
 
   // Clear container and append canvas
@@ -48,9 +50,9 @@ onMounted(() => {
 <template>
   <div class="cloud-demo">
     <div class="header">
-      <h1>Cloud Generator</h1>
+      <h1>Fractal Cloud Generator</h1>
       <p class="subtitle">
-        Chinese ink wash style clouds with particle radiation
+        Chinese ink wash style clouds using fractal noise (fBm)
       </p>
     </div>
 
@@ -99,7 +101,7 @@ onMounted(() => {
             v-model.number="size"
             type="number"
             min="100"
-            max="600"
+            max="800"
           >
         </div>
 
@@ -115,68 +117,79 @@ onMounted(() => {
       </div>
 
       <div class="control-section">
-        <h3>Cloud Structure</h3>
+        <h3>Render Mode</h3>
 
         <div class="control-group">
-          <label for="segments-input">Ellipse Segments:</label>
+          <label>Mode:</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input
+                v-model="mode"
+                type="radio"
+                value="continuous"
+                @change="generate"
+              >
+              Continuous (像素纹理)
+            </label>
+            <label class="radio-label">
+              <input
+                v-model="mode"
+                type="radio"
+                value="particles"
+                @change="generate"
+              >
+              Particles (粒子效果)
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-section">
+        <h3>Fractal Noise Settings</h3>
+
+        <div class="control-group">
+          <label for="octaves-input">Octaves (Detail):</label>
           <input
-            id="segments-input"
-            v-model.number="numSegments"
+            id="octaves-input"
+            v-model.number="octaves"
             type="range"
             min="1"
             max="8"
             step="1"
           >
-          <span class="value">{{ numSegments }}</span>
+          <span class="value">{{ octaves }}</span>
         </div>
 
         <div class="control-group">
-          <label for="density-input">Density:</label>
+          <label for="frequency-input">Frequency (Scale):</label>
           <input
-            id="density-input"
-            v-model.number="density"
+            id="frequency-input"
+            v-model.number="frequency"
             type="range"
-            min="0.3"
-            max="2"
-            step="0.1"
+            min="0.001"
+            max="0.02"
+            step="0.001"
           >
-          <span class="value">{{ density.toFixed(1) }}</span>
-        </div>
-      </div>
-
-      <div class="control-section">
-        <h3>Radiation Settings</h3>
-
-        <div class="control-group">
-          <label for="radiation-height-input">Radiation Height:</label>
-          <input
-            id="radiation-height-input"
-            v-model.number="radiationHeight"
-            type="range"
-            min="50"
-            max="500"
-            step="10"
-          >
-          <span class="value">{{ radiationHeight }}px</span>
+          <span class="value">{{ frequency.toFixed(3) }}</span>
         </div>
 
         <div class="control-group">
-          <label for="radiation-angle-input">Radiation Angle:</label>
+          <label for="threshold-input">Threshold (Density):</label>
           <input
-            id="radiation-angle-input"
-            v-model.number="radiationAngle"
+            id="threshold-input"
+            v-model.number="threshold"
             type="range"
-            min="45"
-            max="135"
-            step="5"
+            min="0.1"
+            max="0.6"
+            step="0.05"
           >
-          <span class="value">{{ radiationAngle }}°</span>
+          <span class="value">{{ threshold.toFixed(2) }}</span>
         </div>
       </div>
 
       <div class="button-group">
         <button class="btn-primary" @click="generateNew">
-          Generate New Shape
+          Generate New Cloud
         </button>
         <button class="btn-secondary" @click="generate">
           Regenerate
@@ -189,38 +202,76 @@ onMounted(() => {
     </div>
 
     <div class="info">
-      <h2>Boundary-based Chinese Ink Wash Cloud</h2>
+      <h2>Fractal Noise Based Cloud (fBm)</h2>
       <p>
-        This implementation creates organic cloud formations using <strong>multiple overlapping ellipse curves</strong>
-        to form an irregular boundary, then radiates particles <strong>upward in one direction</strong> to create
-        the traditional Chinese ink wash (水墨) cloud effect.
+        This implementation creates realistic cloud formations using <strong>Fractional Brownian Motion (fBm)</strong>,
+        a technique that combines multiple octaves of Perlin noise at different frequencies and amplitudes.
+        This approach creates natural, billowy clouds similar to traditional Chinese ink wash (水墨) paintings.
       </p>
 
-      <h3>Algorithm Overview</h3>
+      <h3>Algorithm: Fractal Noise (fBm)</h3>
+      <p>
+        The core technique is to layer multiple noise functions with increasing frequency and decreasing amplitude:
+      </p>
       <ul>
-        <li><strong>Ellipse Boundary:</strong> 3-5 irregular ellipse curves with Perlin noise distortion</li>
-        <li><strong>Overlapping Segments:</strong> Multiple ellipses merge to create organic, non-circular cloud outline</li>
-        <li><strong>Unidirectional Radiation:</strong> Particles radiate from boundary points in one direction (default: upward)</li>
-        <li><strong>Layered Particles:</strong> 30 vertical layers with decreasing density (40% at max height)</li>
-        <li><strong>Gradient Falloff:</strong> Quadratic alpha decay combined with Perlin noise variation</li>
-        <li><strong>Size Variation:</strong> Particles range from 0.8-3.0px and shrink with distance</li>
+        <li><strong>Octave 1:</strong> frequency × 1, amplitude × 1.0 (large features)</li>
+        <li><strong>Octave 2:</strong> frequency × 2, amplitude × 0.5 (medium details)</li>
+        <li><strong>Octave 3:</strong> frequency × 4, amplitude × 0.25 (fine details)</li>
+        <li><strong>Octave 4+:</strong> frequency × 8, 16, 32..., amplitude × 0.125, 0.0625... (micro details)</li>
       </ul>
+      <p>
+        Each octave adds progressively finer detail while contributing less to the overall shape.
+        The final noise value determines the density/opacity of particles at each position.
+      </p>
+
+      <h3>Render Modes</h3>
+      <p>
+        Two rendering approaches are available:
+      </p>
+      <ul>
+        <li>
+          <strong>Continuous (像素纹理):</strong> Every pixel is sampled from fractal noise.
+          Creates smooth, continuous cloud textures similar to the reference image.
+          Best for realistic cloud formations.
+        </li>
+        <li>
+          <strong>Particles (粒子效果):</strong> Samples noise every few pixels and renders as overlapping particles.
+          Creates soft, ink-wash style clouds with organic edges.
+          Best for traditional Chinese painting effects.
+        </li>
+      </ul>
+
+      <h3>Implementation Steps (Continuous Mode)</h3>
+      <ol>
+        <li><strong>Pixel Sampling:</strong> For each pixel, calculate fractal noise value at that coordinate</li>
+        <li><strong>Apply Threshold:</strong> Values below threshold become transparent, creating cloud shape</li>
+        <li><strong>Map to Alpha:</strong> Noise density directly maps to pixel transparency (0-255)</li>
+        <li><strong>Render ImageData:</strong> Write RGBA values directly to canvas via putImageData</li>
+      </ol>
 
       <h3>Parameters Explained</h3>
       <ul>
-        <li><strong>Cloud Size:</strong> Approximate width of the cloud base</li>
-        <li><strong>Ellipse Segments:</strong> Number of overlapping ellipses forming the boundary (more = more irregular)</li>
-        <li><strong>Density:</strong> Particle count multiplier (higher = denser, darker cloud)</li>
-        <li><strong>Radiation Height:</strong> How far particles extend from the boundary</li>
-        <li><strong>Radiation Angle:</strong> Direction of particle radiation (90° = straight up, 45° = diagonal)</li>
+        <li><strong>Octaves:</strong> Number of noise layers (1-8). More octaves = more detail but slower rendering</li>
+        <li><strong>Frequency:</strong> Base noise scale (0.001-0.02). Lower = larger cloud features</li>
+        <li><strong>Threshold:</strong> Density cutoff (0.1-0.6). Lower = denser/larger clouds, higher = wispy clouds</li>
+        <li><strong>Cloud Size:</strong> Bounding box size for the cloud region</li>
       </ul>
 
-      <h3>Key Features</h3>
+      <h3>Why Fractal Noise?</h3>
       <ul>
-        <li>✅ <strong>Non-circular shapes</strong> from overlapping ellipses</li>
-        <li>✅ <strong>Clear boundary edge</strong> at the bottom with fade above</li>
-        <li>✅ <strong>Unidirectional radiation</strong> matching reference image</li>
-        <li>✅ <strong>Organic, irregular outlines</strong> from Perlin noise distortion</li>
+        <li>✨ <strong>Natural Appearance:</strong> Mimics natural cloud formation through turbulence</li>
+        <li>✨ <strong>Multi-scale Detail:</strong> Large billows with fine wisps, just like real clouds</li>
+        <li>✨ <strong>Organic Shapes:</strong> No artificial boundaries or geometric artifacts</li>
+        <li>✨ <strong>Controllable:</strong> Intuitive parameters for different cloud types</li>
+        <li>✨ <strong>Reproducible:</strong> Same seed always generates the same cloud</li>
+      </ul>
+
+      <h3>Recommended Presets</h3>
+      <ul>
+        <li><strong>Fluffy Cumulus:</strong> Octaves: 4, Frequency: 0.005, Threshold: 0.3</li>
+        <li><strong>Wispy Cirrus:</strong> Octaves: 6, Frequency: 0.008, Threshold: 0.5</li>
+        <li><strong>Dense Storm:</strong> Octaves: 5, Frequency: 0.004, Threshold: 0.2</li>
+        <li><strong>Ink Wash Style:</strong> Octaves: 3, Frequency: 0.006, Threshold: 0.35</li>
       </ul>
     </div>
   </div>
@@ -330,6 +381,25 @@ onMounted(() => {
 .control-group.checkbox input[type="checkbox"] {
   width: 18px;
   height: 18px;
+  cursor: pointer;
+}
+
+.radio-group {
+  display: flex;
+  gap: 1.5rem;
+  flex: 1;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: normal;
+  min-width: auto;
+}
+
+.radio-label input[type="radio"] {
   cursor: pointer;
 }
 

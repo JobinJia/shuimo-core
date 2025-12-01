@@ -4,6 +4,7 @@ import StampPlayground from '../demos/StampPlayground.vue'
 import Shanshui from '../demos/Shanshui.vue'
 import ShanShuiElements from '../demos/ShanShuiElements.vue'
 import CloudDemo from '../demos/CloudDemo.vue'
+import BrushDemo from '../demos/BrushDemo.vue'
 import Flower from '../Flower.vue'
 import FlowerCanvasTest from '../FlowerCanvasTest.vue'
 import FlowerCompare from '../FlowerCompare.vue'
@@ -28,6 +29,11 @@ const routes = [
     path: '/cloud',
     name: 'CloudDemo',
     component: CloudDemo,
+  },
+  {
+    path: '/brush',
+    name: 'BrushDemo',
+    component: BrushDemo,
   },
   {
     path: '/stamp',

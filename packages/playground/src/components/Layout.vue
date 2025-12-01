@@ -62,6 +62,7 @@ const menuItems = [
       { path: '/shanshui', name: 'Main' },
       { path: '/shanshui-elements', name: 'Elements' },
       { path: '/cloud', name: 'Cloud' },
+      { path: '/brush', name: 'Brush' },
     ]
   },
   {
