@@ -800,25 +800,34 @@ export function generateStamp(options: StampOptions): string {
 
   if (shape === 'square' || shape === 'circle' || shape === 'ellipse') {
     // For square, circle, and ellipse: center the text both horizontally and vertically
-    // Horizontal centering: center of bounds - half of text width
+    // Horizontal centering:
+    // In vertical-rl mode, x represents the RIGHT edge of the text column
+    // - textDims.width is the total width of all columns
+    // - leftMargin is where the text block should start
+    // - firstColumnX is the right edge of the first column
     const textWidth = textDims.width;
-    firstColumnX = (bounds.width - textWidth) / 2 + fontSize;
+    const leftMargin = (bounds.width - textWidth) / 2;
+    firstColumnX = leftMargin + columnWidth;  // Right edge of first column
 
     // Vertical centering: center of bounds - half of max text height
     const textHeight = Math.max(...textDims.columnHeights);
     startY = (bounds.height - textHeight) / 2;
   } else if (shape === 'rectangle') {
     // For rectangle: use padding
-    firstColumnX = paddingX + fontSize;
+    // In vertical-rl, x is the right edge of the column
+    firstColumnX = paddingX + columnWidth;
     startY = paddingY;
   } else {
     // Auto (default): use padding
-    firstColumnX = paddingX + fontSize;
+    // In vertical-rl, x is the right edge of the column
+    firstColumnX = paddingX + columnWidth;
     startY = paddingY;
   }
 
   const textElements = displayText.map((line, index) => {
     // Each subsequent column moves right by columnWidth
+    // In vertical-rl mode, x represents the right edge of the text column
+    // To center the column, we need to offset by half the column width
     const x = firstColumnX + index * columnWidth;
     return `<text x="${x}" y="${startY}"
       style="
