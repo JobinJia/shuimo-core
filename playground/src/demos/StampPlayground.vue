@@ -7,7 +7,7 @@ const textLines = ref(['水墨', '江南'])
 const initialText = '水墨\n江南'
 
 // Stamp parameters
-const stampType = ref<StampType>('yin')
+const stampType = ref<StampType>('yang')
 const stampShape = ref<StampShape>('auto')
 const color = ref('#C8102E')
 const fontFamily = ref('beishida, 楷体, serif')
@@ -17,10 +17,13 @@ const offsetX = ref(0)
 const offsetY = ref(0)
 const columnSpacing = ref(0.05)
 const characterSpacing = ref(0.05)
-const noiseAmount = ref(12)
+const paddingX = ref(0.05)
+const paddingY = ref(0.05)
+const borderScale = ref(1.0)
+const noiseAmount = ref(0)
 const borderPoints = ref(24)
 const cornerRadius = ref(15)
-const borderWidth = ref(1)
+const borderWidth = ref(6)
 const regularShape = ref(false)
 const seed = ref(12345)
 
@@ -52,6 +55,9 @@ const stampSvg = computed(() => {
     offsetY: offsetY.value,
     columnSpacing: columnSpacing.value,
     characterSpacing: characterSpacing.value,
+    paddingX: paddingX.value,
+    paddingY: paddingY.value,
+    borderScale: borderScale.value,
     noiseAmount: noiseAmount.value,
     borderPoints: borderPoints.value,
     cornerRadius: cornerRadius.value,
@@ -69,7 +75,7 @@ function resetDefaults() {
   textInput.value = initialText
   textLines.value = ['水墨', '江南']
   userModifiedText.value = false
-  stampType.value = 'yin'
+  stampType.value = 'yang'
   stampShape.value = 'auto'
   color.value = '#C8102E'
   fontFamily.value = 'beishida, 楷体, serif'
@@ -79,10 +85,13 @@ function resetDefaults() {
   offsetY.value = 0
   columnSpacing.value = 0.05
   characterSpacing.value = 0.05
-  noiseAmount.value = 12
+  paddingX.value = 0.05
+  paddingY.value = 0.05
+  borderScale.value = 1.0
+  noiseAmount.value = 0
   borderPoints.value = 24
   cornerRadius.value = 15
-  borderWidth.value = 1
+  borderWidth.value = 6
   regularShape.value = false
   seed.value = 12345
 }
@@ -306,6 +315,27 @@ function applyPreset(preset: typeof presets[0]) {
               <input v-model.number="characterSpacing" type="range" min="0" max="0.3" step="0.01" class="range-input">
             </label>
             <p class="hint">控制同一列中文字的垂直间距</p>
+          </div>
+          <div class="control-row">
+            <label>
+              <span class="label-text">水平留白: {{ paddingX.toFixed(2) }}</span>
+              <input v-model.number="paddingX" type="range" min="0" max="0.3" step="0.01" class="range-input">
+            </label>
+            <p class="hint">控制文字左右两侧的留白</p>
+          </div>
+          <div class="control-row">
+            <label>
+              <span class="label-text">垂直留白: {{ paddingY.toFixed(2) }}</span>
+              <input v-model.number="paddingY" type="range" min="0" max="0.3" step="0.01" class="range-input">
+            </label>
+            <p class="hint">控制文字上下两侧的留白</p>
+          </div>
+          <div class="control-row">
+            <label>
+              <span class="label-text">边框缩放: {{ borderScale.toFixed(2) }}</span>
+              <input v-model.number="borderScale" type="range" min="0.8" max="1.5" step="0.01" class="range-input">
+            </label>
+            <p class="hint">整体放大或缩小印章边框 (1.0 = 默认)</p>
           </div>
         </div>
 

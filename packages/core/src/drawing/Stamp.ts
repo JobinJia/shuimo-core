@@ -61,6 +61,15 @@ export interface StampOptions {
   /** Spacing between characters within a column (vertical spacing), as a multiplier of fontSize (default: 0.05) */
   characterSpacing?: number;
 
+  /** Horizontal padding around text (left and right), as a multiplier of fontSize (default: 0.05) */
+  paddingX?: number;
+
+  /** Vertical padding around text (top and bottom), as a multiplier of fontSize (default: 0.05) */
+  paddingY?: number;
+
+  /** Border scale factor - scales the entire stamp border relative to text (default: 1.0, range: 0.8-1.5) */
+  borderScale?: number;
+
   /** Amount of irregularity (0-20, default: 12) */
   noiseAmount?: number;
 
@@ -110,24 +119,27 @@ function calculateTextBounds(text: string[], fontSize: number, characterSpacing:
   // For vertical text with writing-mode: vertical-rl
   // Traditional stamps have minimal spacing between characters and columns
 
-  // Column width based on columnSpacing parameter
-  // columnSpacing is a multiplier: 0.05 means 5% of fontSize spacing between columns
-  // Actual column width = fontSize + columnSpacing * fontSize
-  const columnWidth = fontSize * (1 + columnSpacing);
+  // Column width: slightly less than fontSize for tighter packing
+  // Chinese characters actual width is typically ~0.85-0.9 of fontSize
+  const columnWidth = fontSize * 0.85;
 
   // Calculate height for each column with customizable character spacing
   const columnHeights = text.map(line => {
     const chars = line.length;
     // Vertical packing with customizable spacing:
-    // chars * fontSize: base height for all characters
+    // chars * fontSize * 1.1: base height for all characters (with vertical padding for proper display)
     // (chars - 1) * fontSize * characterSpacing: spacing between characters
-    return chars * fontSize + (chars - 1) * fontSize * characterSpacing;
+    return chars * fontSize * 1.1 + (chars - 1) * fontSize * characterSpacing;
   });
 
   // Find longest column
   const maxChars = Math.max(...text.map(t => t.length));
   const totalHeight = Math.max(...columnHeights);
-  const totalWidth = text.length * columnWidth;
+
+  // Total width = all columns (with tighter width) + gaps between columns
+  // When columnSpacing = 0, columns are tightly packed at 0.85 * fontSize each
+  // When columnSpacing > 0, add gaps between columns
+  const totalWidth = text.length * columnWidth + (text.length - 1) * fontSize * columnSpacing;
 
   return {
     width: totalWidth,
@@ -590,6 +602,9 @@ export function generateStampPath(options: StampOptions): StampResult {
     fontSize = 70,
     columnSpacing = 0.05,
     characterSpacing = 0.05,
+    paddingX = 0.05,
+    paddingY = 0.05,
+    borderScale = 1.0,
     noiseAmount = 12,
     borderPoints = 24,
     cornerRadius = 15,
@@ -628,17 +643,20 @@ export function generateStampPath(options: StampOptions): StampResult {
     text: line
   }));
 
-  // Add base margin for offset to work (10% of fontSize)
-  const baseMargin = fontSize * 0.1;
+  // Use separate horizontal and vertical padding
+  const horizontalPadding = fontSize * paddingX;
+  const verticalPadding = fontSize * paddingY;
 
-  // Find bounds based on actual text layout with base margin for offset
-  // Width: all columns + base margin for horizontal offset
-  const maxWidth = textDims.width + baseMargin * 2;
-  // In vertical-rl: first column (index 0) is on the RIGHT, last column is on the LEFT
-  // Right height: first column height + base margin for vertical offset
-  const rightHeight = columnData[0].height + baseMargin * 2;
-  // Left height: last column height + base margin for vertical offset
-  const leftHeight = columnData[columnData.length - 1].height + baseMargin * 2;
+  // Calculate base dimensions with padding
+  const baseWidth = textDims.width + horizontalPadding * 2;
+  const baseRightHeight = columnData[0].height + verticalPadding * 2;
+  const baseLeftHeight = columnData[columnData.length - 1].height + verticalPadding * 2;
+
+  // Apply border scale to expand/shrink the border relative to text
+  // Scale from the center, so text stays centered
+  const maxWidth = baseWidth * borderScale;
+  const rightHeight = baseRightHeight * borderScale;
+  const leftHeight = baseLeftHeight * borderScale;
 
   // Simple PRNG for reproducible noise
   let seedValue = seed;
@@ -678,10 +696,11 @@ export function generateStampPath(options: StampOptions): StampResult {
   let bounds;
 
   if (shape === 'square') {
-    // Square: create a compact square based on text dimensions with base margin
+    // Square: create a compact square based on text dimensions with padding and border scale
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
-    const size = Math.max(textWidth, textHeight) + baseMargin * 2;
+    const baseSize = Math.max(textWidth + horizontalPadding * 2, textHeight + verticalPadding * 2);
+    const size = baseSize * borderScale;
 
     path = generateSquarePath(size, noiseAmount, borderPoints, cornerRadius, noise, random, applyNoise, regularShape);
     bounds = {
@@ -693,11 +712,11 @@ export function generateStampPath(options: StampOptions): StampResult {
       height: size
     };
   } else if (shape === 'rectangle') {
-    // Rectangle: fits text dimensions with base margin
+    // Rectangle: fits text dimensions with padding and border scale
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
-    const width = textWidth + baseMargin * 2;
-    const height = textHeight + baseMargin * 2;
+    const width = (textWidth + horizontalPadding * 2) * borderScale;
+    const height = (textHeight + verticalPadding * 2) * borderScale;
 
     path = generateRectanglePath(width, height, noiseAmount, borderPoints, cornerRadius, noise, random, applyNoise, regularShape);
     bounds = {
@@ -709,10 +728,11 @@ export function generateStampPath(options: StampOptions): StampResult {
       height
     };
   } else if (shape === 'circle') {
-    // Circle: fits text dimensions with base margin
+    // Circle: fits text dimensions with padding and border scale
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
-    const diameter = Math.max(textWidth, textHeight) + baseMargin * 2;
+    const baseDiameter = Math.max(textWidth + horizontalPadding * 2, textHeight + verticalPadding * 2);
+    const diameter = baseDiameter * borderScale;
     const radius = diameter / 2;
 
     path = generateCirclePath(radius, noiseAmount, borderPoints, noise, random, applyNoise, regularShape);
@@ -725,7 +745,7 @@ export function generateStampPath(options: StampOptions): StampResult {
       height: diameter
     };
   } else if (shape === 'ellipse') {
-    // Ellipse: non-standard ellipse design with base margin
+    // Ellipse: non-standard ellipse design with padding and border scale
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
 
@@ -735,14 +755,17 @@ export function generateStampPath(options: StampOptions): StampResult {
 
     if (aspectRatio > 1) {
       // Horizontal layout
-      height = textHeight + baseMargin * 2;
-      width = textWidth + baseMargin * 2 + height * 0.15;
+      const baseHeight = textHeight + verticalPadding * 2;
+      const baseWidth = textWidth + horizontalPadding * 2 + baseHeight * 0.15;
+      width = baseWidth * borderScale;
+      height = baseHeight * borderScale;
     } else {
       // Vertical layout
-      const baseHeight = textHeight + baseMargin * 2;
-      width = textWidth + baseMargin * 2;
-      const shortSide = Math.min(width, baseHeight);
-      height = baseHeight + shortSide * 0.15;
+      const baseHeight = textHeight + verticalPadding * 2;
+      const baseWidth = textWidth + horizontalPadding * 2;
+      const shortSide = Math.min(baseWidth, baseHeight);
+      width = baseWidth * borderScale;
+      height = (baseHeight + shortSide * 0.15) * borderScale;
     }
 
     path = generateEllipsePath(width, height, noiseAmount, borderPoints, noise, random, applyNoise, regularShape);
@@ -878,13 +901,13 @@ export function generateStamp(options: StampOptions): string {
   // Calculate text dimensions with custom spacing
   const textDims = calculateTextBounds(displayText, fontSize, characterSpacing, columnSpacing);
   const columnWidth = textDims.columnWidth;
+  const columnGap = fontSize * columnSpacing; // Gap between columns
 
   // Calculate text position using offset
   // offsetX and offsetY range from -1 to 1
   // -1: left/top edge, 0: center, 1: right/bottom edge
 
   const fontTopMargin = fontSize * 0.10;  // Font's built-in top margin
-  const fontSideMargin = fontSize * 0.05; // Font's built-in side margin
 
   // Calculate available space for offset
   // Horizontal: bounds.width - textDims.width
@@ -900,16 +923,18 @@ export function generateStamp(options: StampOptions): string {
   const horizontalOffset = (offsetX + 1) / 2 * horizontalSpace;
   const verticalOffset = (offsetY + 1) / 2 * verticalSpace;
 
-  // Compensate for font's built-in margins
+  // Compensate for font's built-in top margin
   const startY = verticalOffset - fontTopMargin;
-  const firstColumnX = bounds.width - horizontalOffset + fontSideMargin;
+  // For horizontal positioning, start from the right edge minus the offset
+  const firstColumnX = bounds.width - horizontalOffset;
 
   const textElements = displayText.map((line, index) => {
     // In vertical-rl mode, columns flow right to left
     // x represents the RIGHT edge of the column (inline-start in rl context)
     // Text extends LEFTWARD from x by approximately columnWidth
     // First column (index 0) is rightmost, each subsequent column moves left
-    const x = firstColumnX - index * columnWidth;
+    // Each column is separated by columnWidth + columnGap
+    const x = firstColumnX - index * (columnWidth + columnGap);
 
     return `<text x="${x}" y="${startY}"
       style="
@@ -919,7 +944,6 @@ export function generateStamp(options: StampOptions): string {
         font-size: ${fontSize}px;
         font-weight: ${fontWeight};
         fill: ${stampTextColor};
-        line-height: ${1 + characterSpacing};
         letter-spacing: ${characterSpacing}em;
         dominant-baseline: text-before-edge;
         text-anchor: start;
@@ -1039,6 +1063,9 @@ export class Stamp {
       offsetY: options.offsetY ?? 0,
       columnSpacing: options.columnSpacing ?? 0.05,
       characterSpacing: options.characterSpacing ?? 0.05,
+      paddingX: options.paddingX ?? 0.05,
+      paddingY: options.paddingY ?? 0.05,
+      borderScale: options.borderScale ?? 1.0,
       noiseAmount: options.noiseAmount || 12,
       borderPoints: options.borderPoints || 24,
       cornerRadius: options.cornerRadius || 15,
