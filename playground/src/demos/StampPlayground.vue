@@ -17,6 +17,7 @@ const paddingY = ref(5)
 const noiseAmount = ref(12)
 const borderPoints = ref(24)
 const cornerRadius = ref(15)
+const regularShape = ref(false)
 const seed = ref(12345)
 
 // Text input
@@ -47,6 +48,7 @@ const stampSvg = computed(() => {
     noiseAmount: noiseAmount.value,
     borderPoints: borderPoints.value,
     cornerRadius: cornerRadius.value,
+    regularShape: regularShape.value,
     seed: seed.value,
   })
 })
@@ -69,6 +71,7 @@ function resetDefaults() {
   noiseAmount.value = 12
   borderPoints.value = 24
   cornerRadius.value = 15
+  regularShape.value = false
   seed.value = 12345
 }
 
@@ -203,6 +206,15 @@ function applyPreset(preset: typeof presets[0]) {
                 <option value="ellipse">椭圆形</option>
               </select>
             </label>
+          </div>
+          <div class="control-row checkbox-row">
+            <label class="checkbox-label">
+              <input v-model="regularShape" type="checkbox" class="checkbox-input">
+              <span class="checkbox-text">规则形状 (仅非 auto 形状)</span>
+            </label>
+            <p class="hint">
+              开启后，square、rectangle、circle、ellipse 将生成完美几何形状
+            </p>
           </div>
         </div>
 
@@ -419,6 +431,32 @@ function applyPreset(preset: typeof presets[0]) {
   margin: 6px 0 0 0;
   font-size: 12px;
   color: #999;
+}
+
+.checkbox-row {
+  margin-bottom: 16px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.checkbox-input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #3498db;
+}
+
+.checkbox-text {
+  margin-left: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #666;
+  user-select: none;
 }
 
 .select-input {

@@ -46,10 +46,10 @@ export interface StampOptions {
   /** Font size in pixels (default: 70) */
   fontSize?: number;
 
-  /** Left padding around text (default: 3) */
+  /** Left padding around text (default: 0) */
   paddingX?: number;
 
-  /** Top/bottom padding around text (default: 3) */
+  /** Top/bottom padding around text (default: 0) */
   paddingY?: number;
 
   /** Amount of irregularity (0-20, default: 12) */
@@ -60,6 +60,9 @@ export interface StampOptions {
 
   /** Corner radius for rounded corners (default: 15, set 0 for sharp corners) */
   cornerRadius?: number;
+
+  /** Whether to generate regular geometric shapes without noise (default: false). Only applies to non-auto shapes (square, rectangle, circle, ellipse) */
+  regularShape?: boolean;
 
   /** Random seed for reproducible generation */
   seed?: number;
@@ -82,6 +85,7 @@ interface StampResult {
 
 /**
  * Calculate accurate text dimensions for vertical layout with per-column heights
+ * For edge-aligned stamps (贴边印章)
  */
 function calculateTextBounds(text: string[], fontSize: number): {
   width: number;
@@ -91,24 +95,23 @@ function calculateTextBounds(text: string[], fontSize: number): {
   columnHeights: number[];
 } {
   // For vertical text with writing-mode: vertical-rl
-  // Each character occupies approximately fontSize × fontSize space
-  // With line-height: 1.1 and letter-spacing: 0.15em
+  // Traditional stamps have minimal spacing between characters and columns
 
-  const lineHeight = 1.1;
-  const letterSpacing = 0.15;
+  // Minimal letter spacing for tight character packing (贴边效果)
+  const letterSpacing = 0.05;
 
-  // Column width (character width + some spacing)
-  // In vertical mode, this is the horizontal space each column takes
-  const columnWidth = fontSize * lineHeight;
+  // Tight column width - characters should be close together
+  // In traditional stamps, columns are tightly packed
+  const columnWidth = fontSize * 0.95;
 
-  // Calculate height for each column
+  // Calculate height for each column with minimal spacing
   const columnHeights = text.map(line => {
     const chars = line.length;
-    // Text height calculation with bottom safety margin
+    // Tight vertical packing:
     // chars * fontSize: base height for all characters
-    // (chars - 1) * fontSize * letterSpacing: spacing between characters
-    // fontSize * 0.3: bottom safety margin to ensure last character is fully visible
-    return chars * fontSize + (chars - 1) * fontSize * letterSpacing + fontSize * 0.3;
+    // (chars - 1) * fontSize * letterSpacing: minimal spacing between characters
+    // No extra margin - text should reach the edge
+    return chars * fontSize + (chars - 1) * fontSize * letterSpacing;
   });
 
   // Find longest column
@@ -135,10 +138,16 @@ function generateSquarePath(
   cornerRadius: number,
   noise: StampNoise,
   random: () => number,
-  applyNoise: (x: number, y: number, edgeProgress: number) => { x: number; y: number }
+  applyNoise: (x: number, y: number, edgeProgress: number) => { x: number; y: number },
+  regularShape: boolean
 ): string {
-  // Generate randomized corner radii
-  const cornerRadii = {
+  // For regular shapes, use uniform corner radius; otherwise randomize
+  const cornerRadii = regularShape ? {
+    topLeft: cornerRadius,
+    topRight: cornerRadius,
+    bottomRight: cornerRadius,
+    bottomLeft: cornerRadius
+  } : {
     topLeft: cornerRadius * (0.8 + random() * 0.4),
     topRight: cornerRadius * (0.8 + random() * 0.4),
     bottomRight: cornerRadius * (0.8 + random() * 0.4),
@@ -146,6 +155,28 @@ function generateSquarePath(
   };
 
   let path = '';
+
+  if (regularShape) {
+    // Generate perfect square with uniform corners
+    if (cornerRadius > 0) {
+      // Rounded square
+      path = `M ${cornerRadii.topLeft} 0 ` +
+             `L ${size - cornerRadii.topRight} 0 ` +
+             `Q ${size} 0, ${size} ${cornerRadii.topRight} ` +
+             `L ${size} ${size - cornerRadii.bottomRight} ` +
+             `Q ${size} ${size}, ${size - cornerRadii.bottomRight} ${size} ` +
+             `L ${cornerRadii.bottomLeft} ${size} ` +
+             `Q 0 ${size}, 0 ${size - cornerRadii.bottomLeft} ` +
+             `L 0 ${cornerRadii.topLeft} ` +
+             `Q 0 0, ${cornerRadii.topLeft} 0 Z`;
+    } else {
+      // Sharp corners
+      path = `M 0 0 L ${size} 0 L ${size} ${size} L 0 ${size} Z`;
+    }
+    return path;
+  }
+
+  // Irregular square with noise (original behavior)
   const pointsPerEdge = Math.floor(borderPoints / 4);
 
   // Top-left corner start point
@@ -164,10 +195,8 @@ function generateSquarePath(
     path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
   }
 
-  // Top-right corner
-  const topRightCorner = applyNoise(size, 0, 0);
-  const topRightEnd = applyNoise(size, cornerRadii.topRight, 0);
-  path += ` Q ${topRightCorner.x.toFixed(2)} ${topRightCorner.y.toFixed(2)}, ${topRightEnd.x.toFixed(2)} ${topRightEnd.y.toFixed(2)}`;
+  // Top-right corner - NO noise on corners for smooth curves
+  path += ` Q ${size.toFixed(2)} ${(0).toFixed(2)}, ${size.toFixed(2)} ${cornerRadii.topRight.toFixed(2)}`;
 
   // Right edge
   for (let i = 1; i < pointsPerEdge; i++) {
@@ -179,10 +208,8 @@ function generateSquarePath(
     path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
   }
 
-  // Bottom-right corner
-  const bottomRightCorner = applyNoise(size, size, 0);
-  const bottomRightEnd = applyNoise(size - cornerRadii.bottomRight, size, 0);
-  path += ` Q ${bottomRightCorner.x.toFixed(2)} ${bottomRightCorner.y.toFixed(2)}, ${bottomRightEnd.x.toFixed(2)} ${bottomRightEnd.y.toFixed(2)}`;
+  // Bottom-right corner - NO noise on corners for smooth curves
+  path += ` Q ${size.toFixed(2)} ${size.toFixed(2)}, ${(size - cornerRadii.bottomRight).toFixed(2)} ${size.toFixed(2)}`;
 
   // Bottom edge
   for (let i = 1; i < pointsPerEdge; i++) {
@@ -194,10 +221,8 @@ function generateSquarePath(
     path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
   }
 
-  // Bottom-left corner
-  const bottomLeftCorner = applyNoise(0, size, 0);
-  const bottomLeftEnd = applyNoise(0, size - cornerRadii.bottomLeft, 0);
-  path += ` Q ${bottomLeftCorner.x.toFixed(2)} ${bottomLeftCorner.y.toFixed(2)}, ${bottomLeftEnd.x.toFixed(2)} ${bottomLeftEnd.y.toFixed(2)}`;
+  // Bottom-left corner - NO noise on corners for smooth curves
+  path += ` Q ${(0).toFixed(2)} ${size.toFixed(2)}, ${(0).toFixed(2)} ${(size - cornerRadii.bottomLeft).toFixed(2)}`;
 
   // Left edge
   for (let i = 1; i < pointsPerEdge; i++) {
@@ -209,9 +234,8 @@ function generateSquarePath(
     path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
   }
 
-  // Top-left corner (close path)
-  const topLeftCorner = applyNoise(0, 0, 0);
-  path += ` Q ${topLeftCorner.x.toFixed(2)} ${topLeftCorner.y.toFixed(2)}, ${start.x.toFixed(2)} ${start.y.toFixed(2)}`;
+  // Top-left corner (close path) - NO noise on corners for smooth curves
+  path += ` Q ${(0).toFixed(2)} ${(0).toFixed(2)}, ${start.x.toFixed(2)} ${start.y.toFixed(2)}`;
 
   path += ' Z';
   return path;
@@ -228,10 +252,16 @@ function generateRectanglePath(
   cornerRadius: number,
   noise: StampNoise,
   random: () => number,
-  applyNoise: (x: number, y: number, edgeProgress: number) => { x: number; y: number }
+  applyNoise: (x: number, y: number, edgeProgress: number) => { x: number; y: number },
+  regularShape: boolean
 ): string {
-  // Generate randomized corner radii
-  const cornerRadii = {
+  // For regular shapes, use uniform corner radius; otherwise randomize
+  const cornerRadii = regularShape ? {
+    topLeft: cornerRadius,
+    topRight: cornerRadius,
+    bottomRight: cornerRadius,
+    bottomLeft: cornerRadius
+  } : {
     topLeft: cornerRadius * (0.8 + random() * 0.4),
     topRight: cornerRadius * (0.8 + random() * 0.4),
     bottomRight: cornerRadius * (0.8 + random() * 0.4),
@@ -239,6 +269,28 @@ function generateRectanglePath(
   };
 
   let path = '';
+
+  if (regularShape) {
+    // Generate perfect rectangle with uniform corners
+    if (cornerRadius > 0) {
+      // Rounded rectangle
+      path = `M ${cornerRadii.topLeft} 0 ` +
+             `L ${width - cornerRadii.topRight} 0 ` +
+             `Q ${width} 0, ${width} ${cornerRadii.topRight} ` +
+             `L ${width} ${height - cornerRadii.bottomRight} ` +
+             `Q ${width} ${height}, ${width - cornerRadii.bottomRight} ${height} ` +
+             `L ${cornerRadii.bottomLeft} ${height} ` +
+             `Q 0 ${height}, 0 ${height - cornerRadii.bottomLeft} ` +
+             `L 0 ${cornerRadii.topLeft} ` +
+             `Q 0 0, ${cornerRadii.topLeft} 0 Z`;
+    } else {
+      // Sharp corners
+      path = `M 0 0 L ${width} 0 L ${width} ${height} L 0 ${height} Z`;
+    }
+    return path;
+  }
+
+  // Irregular rectangle with noise (original behavior)
   const pointsPerEdge = Math.floor(borderPoints / 4);
 
   // Top-left corner start point
@@ -257,10 +309,8 @@ function generateRectanglePath(
     path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
   }
 
-  // Top-right corner
-  const topRightCorner = applyNoise(width, 0, 0);
-  const topRightEnd = applyNoise(width, cornerRadii.topRight, 0);
-  path += ` Q ${topRightCorner.x.toFixed(2)} ${topRightCorner.y.toFixed(2)}, ${topRightEnd.x.toFixed(2)} ${topRightEnd.y.toFixed(2)}`;
+  // Top-right corner - NO noise for smooth curves
+  path += ` Q ${width.toFixed(2)} ${(0).toFixed(2)}, ${width.toFixed(2)} ${cornerRadii.topRight.toFixed(2)}`;
 
   // Right edge
   for (let i = 1; i < pointsPerEdge; i++) {
@@ -272,10 +322,8 @@ function generateRectanglePath(
     path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
   }
 
-  // Bottom-right corner
-  const bottomRightCorner = applyNoise(width, height, 0);
-  const bottomRightEnd = applyNoise(width - cornerRadii.bottomRight, height, 0);
-  path += ` Q ${bottomRightCorner.x.toFixed(2)} ${bottomRightCorner.y.toFixed(2)}, ${bottomRightEnd.x.toFixed(2)} ${bottomRightEnd.y.toFixed(2)}`;
+  // Bottom-right corner - NO noise for smooth curves
+  path += ` Q ${width.toFixed(2)} ${height.toFixed(2)}, ${(width - cornerRadii.bottomRight).toFixed(2)} ${height.toFixed(2)}`;
 
   // Bottom edge
   for (let i = 1; i < pointsPerEdge; i++) {
@@ -287,10 +335,8 @@ function generateRectanglePath(
     path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
   }
 
-  // Bottom-left corner
-  const bottomLeftCorner = applyNoise(0, height, 0);
-  const bottomLeftEnd = applyNoise(0, height - cornerRadii.bottomLeft, 0);
-  path += ` Q ${bottomLeftCorner.x.toFixed(2)} ${bottomLeftCorner.y.toFixed(2)}, ${bottomLeftEnd.x.toFixed(2)} ${bottomLeftEnd.y.toFixed(2)}`;
+  // Bottom-left corner - NO noise for smooth curves
+  path += ` Q ${(0).toFixed(2)} ${height.toFixed(2)}, ${(0).toFixed(2)} ${(height - cornerRadii.bottomLeft).toFixed(2)}`;
 
   // Left edge
   for (let i = 1; i < pointsPerEdge; i++) {
@@ -302,9 +348,8 @@ function generateRectanglePath(
     path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
   }
 
-  // Top-left corner (close path)
-  const topLeftCorner = applyNoise(0, 0, 0);
-  path += ` Q ${topLeftCorner.x.toFixed(2)} ${topLeftCorner.y.toFixed(2)}, ${start.x.toFixed(2)} ${start.y.toFixed(2)}`;
+  // Top-left corner (close path) - NO noise for smooth curves
+  path += ` Q ${(0).toFixed(2)} ${(0).toFixed(2)}, ${start.x.toFixed(2)} ${start.y.toFixed(2)}`;
 
   path += ' Z';
   return path;
@@ -319,12 +364,28 @@ function generateCirclePath(
   borderPoints: number,
   noise: StampNoise,
   random: () => number,
-  applyNoise: (x: number, y: number, edgeProgress: number) => { x: number; y: number }
+  applyNoise: (x: number, y: number, edgeProgress: number) => { x: number; y: number },
+  regularShape: boolean
 ): string {
   const centerX = radius;
   const centerY = radius;
   let path = '';
 
+  if (regularShape) {
+    // Generate perfect circle using SVG circle command converted to path
+    // Using 4 cubic Bezier curves for a smooth circle (standard SVG approach)
+    const k = 0.5522847498; // Magic constant for circle approximation with cubic Bezier
+    const offset = radius * k;
+
+    path = `M ${centerX} ${centerY - radius} ` +
+           `C ${centerX + offset} ${centerY - radius}, ${centerX + radius} ${centerY - offset}, ${centerX + radius} ${centerY} ` +
+           `C ${centerX + radius} ${centerY + offset}, ${centerX + offset} ${centerY + radius}, ${centerX} ${centerY + radius} ` +
+           `C ${centerX - offset} ${centerY + radius}, ${centerX - radius} ${centerY + offset}, ${centerX - radius} ${centerY} ` +
+           `C ${centerX - radius} ${centerY - offset}, ${centerX - offset} ${centerY - radius}, ${centerX} ${centerY - radius} Z`;
+    return path;
+  }
+
+  // Irregular circle with noise (original behavior)
   // Generate points around the circle
   for (let i = 0; i < borderPoints; i++) {
     const angle = (i / borderPoints) * Math.PI * 2;
@@ -358,9 +419,31 @@ function generateEllipsePath(
   borderPoints: number,
   noise: StampNoise,
   random: () => number,
-  applyNoise: (x: number, y: number, edgeProgress: number) => { x: number; y: number }
+  applyNoise: (x: number, y: number, edgeProgress: number) => { x: number; y: number },
+  regularShape: boolean
 ): string {
   let path = '';
+
+  if (regularShape) {
+    // Generate perfect ellipse/capsule shape
+    const k = 0.5522847498; // Magic constant for circle approximation with cubic Bezier
+    const rx = width / 2;  // X radius
+    const ry = height / 2; // Y radius
+    const cx = rx;         // Center X
+    const cy = ry;         // Center Y
+    const ox = rx * k;     // X offset for control points
+    const oy = ry * k;     // Y offset for control points
+
+    // Perfect ellipse using 4 cubic Bezier curves
+    path = `M ${cx} ${cy - ry} ` +
+           `C ${cx + ox} ${cy - ry}, ${cx + rx} ${cy - oy}, ${cx + rx} ${cy} ` +
+           `C ${cx + rx} ${cy + oy}, ${cx + ox} ${cy + ry}, ${cx} ${cy + ry} ` +
+           `C ${cx - ox} ${cy + ry}, ${cx - rx} ${cy + oy}, ${cx - rx} ${cy} ` +
+           `C ${cx - rx} ${cy - oy}, ${cx - ox} ${cy - ry}, ${cx} ${cy - ry} Z`;
+    return path;
+  }
+
+  // Irregular ellipse with noise (original behavior)
   const pointsPerEdge = Math.floor(borderPoints / 4);
 
   if (width > height) {
@@ -494,11 +577,12 @@ export function generateStampPath(options: StampOptions): StampResult {
     text,
     shape = 'auto',
     fontSize = 70,
-    paddingX = 3,
-    paddingY = 3,
+    paddingX = 0,
+    paddingY = 0,
     noiseAmount = 12,
     borderPoints = 24,
     cornerRadius = 15,
+    regularShape = false,
     seed = Date.now()
   } = options;
 
@@ -518,29 +602,36 @@ export function generateStampPath(options: StampOptions): StampResult {
     };
   }
 
-  // Reverse text array for right-to-left reading order
-  // User provides ['风雪', '落梅听'], we display as ['落梅听', '风雪'] (right to left)
-  const displayText = [...text].reverse();
+  // Keep text array in original order
+  // In vertical-rl mode with decreasing x coordinates, the first element will appear on the right
+  // User provides ['A', 'B'], it will display as: B(left) A(right), reading right-to-left
+  const displayText = [...text];
 
   // Calculate actual text dimensions
   const textDims = calculateTextBounds(displayText, fontSize);
-  const lineHeight = 1.1;
-  const columnWidth = fontSize * lineHeight;
+  const columnWidth = fontSize * 0.95; // Tight column spacing
 
-  // Calculate column positions and create control points for each column
+  // Check if user wants true edge alignment (zero padding)
+  const wantsEdgeAlignment = paddingX === 0 && paddingY === 0;
+
+  // For edge alignment: use text dimensions directly (no padding)
+  // For normal mode: add minimal padding
+  const edgePadding = wantsEdgeAlignment ? 0 : Math.max(paddingX, paddingY, fontSize * 0.05);
+
+  // Calculate column positions and heights
   const columnData = displayText.map((line, index) => ({
-    x: paddingX + fontSize + index * columnWidth,
     height: textDims.columnHeights[index],
     text: line
   }));
 
   // Find bounds based on actual text layout
-  // 最宽处（顶部）：所有列的总宽度
-  const maxWidth = textDims.width + paddingX * 2;
-  // 左边高度：第一列（columnData[0]，即 text[0]）的高度
-  const leftHeight = columnData[0].height + paddingY * 2;
-  // 右边高度：最后一列（columnData[text.length-1]，即 text[text.length-1]）的高度
-  const rightHeight = columnData[columnData.length - 1].height + paddingY * 2;
+  // Width: all columns + padding (0 for edge alignment)
+  const maxWidth = textDims.width + edgePadding * 2;
+  // In vertical-rl: first column (index 0) is on the RIGHT, last column is on the LEFT
+  // Right height: first column height + padding
+  const rightHeight = columnData[0].height + edgePadding * 2;
+  // Left height: last column height + padding
+  const leftHeight = columnData[columnData.length - 1].height + edgePadding * 2;
 
   // Simple PRNG for reproducible noise
   let seedValue = seed;
@@ -580,13 +671,16 @@ export function generateStampPath(options: StampOptions): StampResult {
   let bounds;
 
   if (shape === 'square') {
-    // Square: use the larger dimension to make it square, but keep text bounds tight
+    // Square: create a compact square
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
-    // Use smaller padding for square shape
-    const squarePadding = Math.max(paddingX, paddingY);
-    const size = Math.max(textWidth, textHeight) + squarePadding * 2;
-    path = generateSquarePath(size, noiseAmount, borderPoints, cornerRadius, noise, random, applyNoise);
+
+    // For edge alignment (padding=0): use text size directly
+    // Otherwise: add padding
+    const maxDimension = Math.max(textWidth, textHeight);
+    const size = maxDimension + edgePadding * 2;
+
+    path = generateSquarePath(size, noiseAmount, borderPoints, cornerRadius, noise, random, applyNoise, regularShape);
     bounds = {
       left: 0,
       right: size,
@@ -596,12 +690,14 @@ export function generateStampPath(options: StampOptions): StampResult {
       height: size
     };
   } else if (shape === 'rectangle') {
-    // Rectangle: use tight text bounds with padding
+    // Rectangle: fits text dimensions with padding
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
-    const width = textWidth + paddingX * 2;
-    const height = textHeight + paddingY * 2;
-    path = generateRectanglePath(width, height, noiseAmount, borderPoints, cornerRadius, noise, random, applyNoise);
+
+    const width = textWidth + edgePadding * 2;
+    const height = textHeight + edgePadding * 2;
+
+    path = generateRectanglePath(width, height, noiseAmount, borderPoints, cornerRadius, noise, random, applyNoise, regularShape);
     bounds = {
       left: 0,
       right: width,
@@ -611,14 +707,14 @@ export function generateStampPath(options: StampOptions): StampResult {
       height
     };
   } else if (shape === 'circle') {
-    // Circle: use the larger dimension as diameter
+    // Circle: fits text with padding
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
-    // Use uniform padding for circle shape
-    const circlePadding = Math.max(paddingX, paddingY);
-    const diameter = Math.max(textWidth, textHeight) + circlePadding * 2;
+
+    const diameter = Math.max(textWidth, textHeight) + edgePadding * 2;
     const radius = diameter / 2;
-    path = generateCirclePath(radius, noiseAmount, borderPoints, noise, random, applyNoise);
+
+    path = generateCirclePath(radius, noiseAmount, borderPoints, noise, random, applyNoise, regularShape);
     bounds = {
       left: 0,
       right: diameter,
@@ -629,8 +725,6 @@ export function generateStampPath(options: StampOptions): StampResult {
     };
   } else if (shape === 'ellipse') {
     // Ellipse: non-standard ellipse design
-    // - Short axis direction: tightly wraps text (just padding)
-    // - Long axis direction: adds curvature for ellipse effect
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
 
@@ -639,24 +733,18 @@ export function generateStampPath(options: StampOptions): StampResult {
     let height: number;
 
     if (aspectRatio > 1) {
-      // Horizontal layout: text is wider than tall
-      // Height: tight fit (just padding)
-      // Width: add extra space for curvature based on short side (height)
-      height = textHeight + paddingY * 2;
-      width = textWidth + paddingX * 2 + height * 0.2;
+      // Horizontal layout
+      height = textHeight + edgePadding * 2;
+      width = textWidth + edgePadding * 2 + height * 0.15;
     } else {
-      // Vertical layout: text is taller than wide
-      // Width: tight fit (just padding)
-      // Height: add extra space for curvature
-      // Use textHeight (not width) as base for consistent spacing
-      const baseHeight = textHeight + paddingY * 2;
-      width = textWidth + paddingX * 2;
-      // Calculate curve spacing based on the short side dimension
+      // Vertical layout
+      const baseHeight = textHeight + edgePadding * 2;
+      width = textWidth + edgePadding * 2;
       const shortSide = Math.min(width, baseHeight);
-      height = baseHeight + shortSide * 0.2;
+      height = baseHeight + shortSide * 0.15;
     }
 
-    path = generateEllipsePath(width, height, noiseAmount, borderPoints, noise, random, applyNoise);
+    path = generateEllipsePath(width, height, noiseAmount, borderPoints, noise, random, applyNoise, regularShape);
     bounds = {
       left: 0,
       right: width,
@@ -703,10 +791,8 @@ export function generateStampPath(options: StampOptions): StampResult {
       path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
     }
 
-    // Top-right corner (使用二次贝塞尔曲线)
-    const topRightCorner = applyNoise(maxWidth, 0, 0);
-    const topRightEnd = applyNoise(maxWidth, cornerRadii.topRight, 0);
-    path += ` Q ${topRightCorner.x.toFixed(2)} ${topRightCorner.y.toFixed(2)}, ${topRightEnd.x.toFixed(2)} ${topRightEnd.y.toFixed(2)}`;
+    // Top-right corner (使用二次贝塞尔曲线) - NO noise for smooth CSS-like border-radius
+    path += ` Q ${maxWidth.toFixed(2)} ${(0).toFixed(2)}, ${maxWidth.toFixed(2)} ${cornerRadii.topRight.toFixed(2)}`;
 
     // Right edge (从右上圆角后到右下圆角前)
     for (let i = 1; i < pointsPerEdge; i++) {
@@ -718,10 +804,8 @@ export function generateStampPath(options: StampOptions): StampResult {
       path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
     }
 
-    // Bottom-right corner (使用二次贝塞尔曲线)
-    const bottomRightCorner = applyNoise(maxWidth, rightHeight, 0);
-    const bottomRightEnd = applyNoise(maxWidth - cornerRadii.bottomRight, rightHeight, 0);
-    path += ` Q ${bottomRightCorner.x.toFixed(2)} ${bottomRightCorner.y.toFixed(2)}, ${bottomRightEnd.x.toFixed(2)} ${bottomRightEnd.y.toFixed(2)}`;
+    // Bottom-right corner (使用二次贝塞尔曲线) - NO noise for smooth CSS-like border-radius
+    path += ` Q ${maxWidth.toFixed(2)} ${rightHeight.toFixed(2)}, ${(maxWidth - cornerRadii.bottomRight).toFixed(2)} ${rightHeight.toFixed(2)}`;
 
     // Bottom edge (从右下圆角后到左下圆角前)
     for (let i = 1; i < pointsPerEdge; i++) {
@@ -733,10 +817,8 @@ export function generateStampPath(options: StampOptions): StampResult {
       path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
     }
 
-    // Bottom-left corner (使用二次贝塞尔曲线)
-    const bottomLeftCorner = applyNoise(0, leftHeight, 0);
-    const bottomLeftEnd = applyNoise(0, leftHeight - cornerRadii.bottomLeft, 0);
-    path += ` Q ${bottomLeftCorner.x.toFixed(2)} ${bottomLeftCorner.y.toFixed(2)}, ${bottomLeftEnd.x.toFixed(2)} ${bottomLeftEnd.y.toFixed(2)}`;
+    // Bottom-left corner (使用二次贝塞尔曲线) - NO noise for smooth CSS-like border-radius
+    path += ` Q ${(0).toFixed(2)} ${leftHeight.toFixed(2)}, ${(0).toFixed(2)} ${(leftHeight - cornerRadii.bottomLeft).toFixed(2)}`;
 
     // Left edge (从左下圆角后到左上圆角前)
     for (let i = 1; i < pointsPerEdge; i++) {
@@ -748,9 +830,8 @@ export function generateStampPath(options: StampOptions): StampResult {
       path += ` L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
     }
 
-    // Top-left corner (使用二次贝塞尔曲线，闭合路径)
-    const topLeftCorner = applyNoise(0, 0, 0);
-    path += ` Q ${topLeftCorner.x.toFixed(2)} ${topLeftCorner.y.toFixed(2)}, ${start.x.toFixed(2)} ${start.y.toFixed(2)}`;
+    // Top-left corner (使用二次贝塞尔曲线，闭合路径) - NO noise for smooth CSS-like border-radius
+    path += ` Q ${(0).toFixed(2)} ${(0).toFixed(2)}, ${cornerRadii.topLeft.toFixed(2)} ${(0).toFixed(2)}`;
 
     path += ' Z';
   }
@@ -769,8 +850,8 @@ export function generateStamp(options: StampOptions): string {
     color = '#C8102E',
     fontFamily = 'serif',
     fontSize = 70,
-    paddingX = 3,
-    paddingY = 3,
+    paddingX = 0,
+    paddingY = 0,
     seed = Date.now()
   } = options;
 
@@ -786,49 +867,40 @@ export function generateStamp(options: StampOptions): string {
 
   const { path, bounds } = generateStampPath(options);
 
-  // Reverse text array for right-to-left reading order (same as in generateStampPath)
-  const displayText = [...text].reverse();
+  // Keep text array in original order (same as in generateStampPath)
+  const displayText = [...text];
 
   // Calculate text dimensions for centering
   const textDims = calculateTextBounds(displayText, fontSize);
-  const lineHeight = 1.1;
-  const columnWidth = fontSize * lineHeight;
+  // Tight column spacing for edge-aligned traditional stamps
+  const columnWidth = fontSize * 0.95;
 
-  // Calculate text position based on shape
-  let firstColumnX: number;
-  let startY: number;
+  // Calculate text position for TRUE edge alignment (真正贴边)
+  // Traditional stamps have text touching the borders
 
-  if (shape === 'square' || shape === 'circle' || shape === 'ellipse') {
-    // For square, circle, and ellipse: center the text both horizontally and vertically
-    // Horizontal centering:
-    // In vertical-rl mode, x represents the RIGHT edge of the text column
-    // - textDims.width is the total width of all columns
-    // - leftMargin is where the text block should start
-    // - firstColumnX is the right edge of the first column
-    const textWidth = textDims.width;
-    const leftMargin = (bounds.width - textWidth) / 2;
-    firstColumnX = leftMargin + columnWidth;  // Right edge of first column
+  // For true edge alignment, we need to compensate for:
+  // 1. Font's built-in margins (top ~10%, sides ~5%)
+  // 2. User's explicit padding (if any)
 
-    // Vertical centering: center of bounds - half of max text height
-    const textHeight = Math.max(...textDims.columnHeights);
-    startY = (bounds.height - textHeight) / 2;
-  } else if (shape === 'rectangle') {
-    // For rectangle: use padding
-    // In vertical-rl, x is the right edge of the column
-    firstColumnX = paddingX + columnWidth;
-    startY = paddingY;
-  } else {
-    // Auto (default): use padding
-    // In vertical-rl, x is the right edge of the column
-    firstColumnX = paddingX + columnWidth;
-    startY = paddingY;
-  }
+  const fontTopMargin = fontSize * 0.10;  // Font's top margin
+  const fontSideMargin = fontSize * 0.05; // Font's side margin
+
+  // Top edge: start from 0 but compensate for font's built-in top margin
+  // Only compensate if user wants edge alignment (small/zero padding)
+  const wantsEdgeAlignment = paddingY === 0 && paddingX === 0;
+  const startY = wantsEdgeAlignment ? -fontTopMargin : Math.max(paddingY, fontSize * 0.05);
+
+  // Right edge: text should touch the right border
+  // In vertical-rl, x is the right edge of text, so we want it at bounds.width
+  const firstColumnX = wantsEdgeAlignment ? bounds.width + fontSideMargin : bounds.width - Math.max(paddingX, fontSize * 0.05);
 
   const textElements = displayText.map((line, index) => {
-    // Each subsequent column moves right by columnWidth
-    // In vertical-rl mode, x represents the right edge of the text column
-    // To center the column, we need to offset by half the column width
-    const x = firstColumnX + index * columnWidth;
+    // In vertical-rl mode, columns flow right to left
+    // x represents the RIGHT edge of the column (inline-start in rl context)
+    // Text extends LEFTWARD from x by approximately columnWidth
+    // First column (index 0) is rightmost, each subsequent column moves left
+    const x = firstColumnX - index * columnWidth;
+
     return `<text x="${x}" y="${startY}"
       style="
         writing-mode: vertical-rl;
@@ -836,8 +908,8 @@ export function generateStamp(options: StampOptions): string {
         font-family: ${fontFamily};
         font-size: ${fontSize}px;
         fill: ${stampTextColor};
-        line-height: 1.1;
-        letter-spacing: 0.15em;
+        line-height: 1.05;
+        letter-spacing: 0.05em;
         dominant-baseline: text-before-edge;
         text-anchor: start;
       "
@@ -914,18 +986,18 @@ export function generateStamp(options: StampOptions): string {
     </filter>
 
     <!-- Text engraving texture - simulates carved/chiseled effect -->
-    <filter id="stamp-text-texture">
+    <filter id="stamp-text-texture" x="-10%" y="-10%" width="120%" height="120%">
       <!-- Primary noise for edge variation -->
       <feTurbulence type="fractalNoise" baseFrequency="0.15" numOctaves="4" seed="${seed}" result="textNoise"/>
-      <!-- Stronger displacement for carved effect -->
-      <feDisplacementMap in="SourceGraphic" in2="textNoise" scale="2.5" xChannelSelector="R" yChannelSelector="G" result="roughEdges"/>
+      <!-- Reduced displacement to prevent text breaking apart -->
+      <feDisplacementMap in="SourceGraphic" in2="textNoise" scale="1.2" xChannelSelector="R" yChannelSelector="G" result="roughEdges"/>
       <!-- Secondary noise layer for more variation -->
       <feTurbulence type="turbulence" baseFrequency="0.05" numOctaves="2" seed="${seed + 999}" result="coarseNoise"/>
-      <feDisplacementMap in="roughEdges" in2="coarseNoise" scale="1.5" xChannelSelector="R" yChannelSelector="G" result="carvedText"/>
+      <feDisplacementMap in="roughEdges" in2="coarseNoise" scale="0.8" xChannelSelector="R" yChannelSelector="G" result="carvedText"/>
       <!-- Slight blur to smooth sharp artifacts -->
-      <feGaussianBlur in="carvedText" stdDeviation="0.4" result="smoothedText"/>
+      <feGaussianBlur in="carvedText" stdDeviation="0.3" result="smoothedText"/>
       <!-- Enhance contrast for crisp edges -->
-      <feColorMatrix in="smoothedText" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1.3 -0.15" result="finalCarvedText"/>
+      <feColorMatrix in="smoothedText" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1.2 -0.1" result="finalCarvedText"/>
     </filter>
   </defs>
 
@@ -951,11 +1023,12 @@ export class Stamp {
       textColor: options.textColor || (type === 'yin' ? '#FFFFFF' : '#C8102E'),
       fontFamily: options.fontFamily || 'serif',
       fontSize: options.fontSize || 70,
-      paddingX: options.paddingX || 5,
-      paddingY: options.paddingY || 5,
+      paddingX: options.paddingX ?? 0,
+      paddingY: options.paddingY ?? 0,
       noiseAmount: options.noiseAmount || 12,
       borderPoints: options.borderPoints || 24,
       cornerRadius: options.cornerRadius || 15,
+      regularShape: options.regularShape ?? false,
       seed: options.seed || Date.now()
     };
   }
