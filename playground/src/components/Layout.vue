@@ -9,10 +9,10 @@
           <div v-if="item.children" class="nav-group">
             <div class="nav-group-title" @click="toggleGroup(item.name)">
               <span>{{ item.name }}</span>
-              <span class="arrow" :class="{ expanded: expandedGroups.has(item.name) }">▼</span>
+              <span class="arrow" :class="{ expanded: expandedGroups.includes(item.name) }">▼</span>
             </div>
             <transition name="collapse">
-              <div v-show="expandedGroups.has(item.name)" class="nav-group-items">
+              <div v-show="expandedGroups.includes(item.name)" class="nav-group-items">
                 <router-link
                   v-for="child in item.children"
                   :key="child.path"
@@ -45,7 +45,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const expandedGroups = ref(new Set(['Flower', 'Shanshui', 'Stamp']))
+const expandedGroups = ref(['Flower', 'Shanshui', 'Stamp'])
 
 const menuItems = [
   {
@@ -72,10 +72,11 @@ const menuItems = [
 ]
 
 function toggleGroup(groupName: string) {
-  if (expandedGroups.value.has(groupName)) {
-    expandedGroups.value.delete(groupName)
+  const index = expandedGroups.value.indexOf(groupName)
+  if (index > -1) {
+    expandedGroups.value.splice(index, 1)
   } else {
-    expandedGroups.value.add(groupName)
+    expandedGroups.value.push(groupName)
   }
 }
 </script>
@@ -155,6 +156,7 @@ function toggleGroup(groupName: string) {
   text-decoration: none;
   transition: all 0.2s ease;
   border-left: 3px solid transparent;
+  cursor: pointer;
 }
 
 .nav-item-child {
