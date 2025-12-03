@@ -12,11 +12,15 @@ const stampShape = ref<StampShape>('auto')
 const color = ref('#C8102E')
 const fontFamily = ref('beishida, 楷体, serif')
 const fontSize = ref(70)
-const paddingX = ref(5)
-const paddingY = ref(5)
+const fontWeight = ref<string | number>('normal')
+const offsetX = ref(0)
+const offsetY = ref(0)
+const columnSpacing = ref(0.05)
+const characterSpacing = ref(0.05)
 const noiseAmount = ref(12)
 const borderPoints = ref(24)
 const cornerRadius = ref(15)
+const borderWidth = ref(1)
 const regularShape = ref(false)
 const seed = ref(12345)
 
@@ -43,11 +47,15 @@ const stampSvg = computed(() => {
     color: color.value,
     fontFamily: fontFamily.value,
     fontSize: fontSize.value,
-    paddingX: paddingX.value,
-    paddingY: paddingY.value,
+    fontWeight: fontWeight.value,
+    offsetX: offsetX.value,
+    offsetY: offsetY.value,
+    columnSpacing: columnSpacing.value,
+    characterSpacing: characterSpacing.value,
     noiseAmount: noiseAmount.value,
     borderPoints: borderPoints.value,
     cornerRadius: cornerRadius.value,
+    borderWidth: borderWidth.value,
     regularShape: regularShape.value,
     seed: seed.value,
   })
@@ -66,11 +74,15 @@ function resetDefaults() {
   color.value = '#C8102E'
   fontFamily.value = 'beishida, 楷体, serif'
   fontSize.value = 70
-  paddingX.value = 5
-  paddingY.value = 5
+  fontWeight.value = 'normal'
+  offsetX.value = 0
+  offsetY.value = 0
+  columnSpacing.value = 0.05
+  characterSpacing.value = 0.05
   noiseAmount.value = 12
   borderPoints.value = 24
   cornerRadius.value = 15
+  borderWidth.value = 1
   regularShape.value = false
   seed.value = 12345
 }
@@ -242,11 +254,27 @@ function applyPreset(preset: typeof presets[0]) {
               </select>
             </label>
           </div>
+          <div class="control-row">
+            <label>
+              <span class="label-text">字体粗细</span>
+              <select v-model="fontWeight" class="select-input">
+                <option value="100">100 - 极细</option>
+                <option value="200">200 - 纤细</option>
+                <option value="300">300 - 细</option>
+                <option value="normal">400 - 正常</option>
+                <option value="500">500 - 中等</option>
+                <option value="600">600 - 半粗</option>
+                <option value="bold">700 - 粗体</option>
+                <option value="800">800 - 特粗</option>
+                <option value="900">900 - 极粗</option>
+              </select>
+            </label>
+          </div>
         </div>
 
-        <!-- Size & Padding -->
+        <!-- Size & Position -->
         <div class="control-section">
-          <h4>尺寸与边距</h4>
+          <h4>尺寸与位置</h4>
           <div class="control-row">
             <label>
               <span class="label-text">字体大小: {{ fontSize }}px</span>
@@ -255,15 +283,29 @@ function applyPreset(preset: typeof presets[0]) {
           </div>
           <div class="control-row">
             <label>
-              <span class="label-text">水平边距: {{ paddingX }}px</span>
-              <input v-model.number="paddingX" type="range" min="0" max="30" class="range-input">
+              <span class="label-text">水平偏移: {{ offsetX.toFixed(2) }} ({{ offsetX === -1 ? '左' : offsetX === 0 ? '中' : offsetX === 1 ? '右' : offsetX < 0 ? '偏左' : '偏右' }})</span>
+              <input v-model.number="offsetX" type="range" min="-1" max="1" step="0.01" class="range-input">
             </label>
           </div>
           <div class="control-row">
             <label>
-              <span class="label-text">垂直边距: {{ paddingY }}px</span>
-              <input v-model.number="paddingY" type="range" min="0" max="30" class="range-input">
+              <span class="label-text">垂直偏移: {{ offsetY.toFixed(2) }} ({{ offsetY === -1 ? '上' : offsetY === 0 ? '中' : offsetY === 1 ? '下' : offsetY < 0 ? '偏上' : '偏下' }})</span>
+              <input v-model.number="offsetY" type="range" min="-1" max="1" step="0.01" class="range-input">
             </label>
+          </div>
+          <div class="control-row">
+            <label>
+              <span class="label-text">列间距 (左右): {{ columnSpacing.toFixed(2) }}</span>
+              <input v-model.number="columnSpacing" type="range" min="0" max="0.3" step="0.01" class="range-input">
+            </label>
+            <p class="hint">控制文字列之间的水平间距</p>
+          </div>
+          <div class="control-row">
+            <label>
+              <span class="label-text">字间距 (上下): {{ characterSpacing.toFixed(2) }}</span>
+              <input v-model.number="characterSpacing" type="range" min="0" max="0.3" step="0.01" class="range-input">
+            </label>
+            <p class="hint">控制同一列中文字的垂直间距</p>
           </div>
         </div>
 
@@ -287,6 +329,13 @@ function applyPreset(preset: typeof presets[0]) {
               <span class="label-text">圆角半径: {{ cornerRadius }}</span>
               <input v-model.number="cornerRadius" type="range" min="0" max="30" class="range-input">
             </label>
+          </div>
+          <div class="control-row">
+            <label>
+              <span class="label-text">边框宽度: {{ borderWidth }}px</span>
+              <input v-model.number="borderWidth" type="range" min="0.5" max="5" step="0.5" class="range-input">
+            </label>
+            <p class="hint">仅阳章 (白底红字) 显示边框</p>
           </div>
         </div>
 

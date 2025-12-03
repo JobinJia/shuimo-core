@@ -46,11 +46,20 @@ export interface StampOptions {
   /** Font size in pixels (default: 70) */
   fontSize?: number;
 
-  /** Left padding around text (default: 0) */
-  paddingX?: number;
+  /** Font weight for the text (default: 'normal'). Can be 'normal', 'bold', or numeric values like 100-900 */
+  fontWeight?: string | number;
 
-  /** Top/bottom padding around text (default: 0) */
-  paddingY?: number;
+  /** Horizontal offset of text within the stamp bounds. Range: -1 to 1, where -1 is left edge, 0 is center, 1 is right edge (default: 0) */
+  offsetX?: number;
+
+  /** Vertical offset of text within the stamp bounds. Range: -1 to 1, where -1 is top edge, 0 is center, 1 is bottom edge (default: 0) */
+  offsetY?: number;
+
+  /** Spacing between columns (horizontal spacing), as a multiplier of fontSize (default: 0.05) */
+  columnSpacing?: number;
+
+  /** Spacing between characters within a column (vertical spacing), as a multiplier of fontSize (default: 0.05) */
+  characterSpacing?: number;
 
   /** Amount of irregularity (0-20, default: 12) */
   noiseAmount?: number;
@@ -60,6 +69,9 @@ export interface StampOptions {
 
   /** Corner radius for rounded corners (default: 15, set 0 for sharp corners) */
   cornerRadius?: number;
+
+  /** Border width/stroke width in pixels (default: 1). Only applies to yang stamps (阳章) */
+  borderWidth?: number;
 
   /** Whether to generate regular geometric shapes without noise (default: false). Only applies to non-auto shapes (square, rectangle, circle, ellipse) */
   regularShape?: boolean;
@@ -87,31 +99,29 @@ interface StampResult {
  * Calculate accurate text dimensions for vertical layout with per-column heights
  * For edge-aligned stamps (贴边印章)
  */
-function calculateTextBounds(text: string[], fontSize: number): {
+function calculateTextBounds(text: string[], fontSize: number, characterSpacing: number = 0.05, columnSpacing: number = 0.05): {
   width: number;
   height: number;
   columnCount: number;
   maxChars: number;
   columnHeights: number[];
+  columnWidth: number;
 } {
   // For vertical text with writing-mode: vertical-rl
   // Traditional stamps have minimal spacing between characters and columns
 
-  // Minimal letter spacing for tight character packing (贴边效果)
-  const letterSpacing = 0.05;
+  // Column width based on columnSpacing parameter
+  // columnSpacing is a multiplier: 0.05 means 5% of fontSize spacing between columns
+  // Actual column width = fontSize + columnSpacing * fontSize
+  const columnWidth = fontSize * (1 + columnSpacing);
 
-  // Tight column width - characters should be close together
-  // In traditional stamps, columns are tightly packed
-  const columnWidth = fontSize * 0.95;
-
-  // Calculate height for each column with minimal spacing
+  // Calculate height for each column with customizable character spacing
   const columnHeights = text.map(line => {
     const chars = line.length;
-    // Tight vertical packing:
+    // Vertical packing with customizable spacing:
     // chars * fontSize: base height for all characters
-    // (chars - 1) * fontSize * letterSpacing: minimal spacing between characters
-    // No extra margin - text should reach the edge
-    return chars * fontSize + (chars - 1) * fontSize * letterSpacing;
+    // (chars - 1) * fontSize * characterSpacing: spacing between characters
+    return chars * fontSize + (chars - 1) * fontSize * characterSpacing;
   });
 
   // Find longest column
@@ -124,7 +134,8 @@ function calculateTextBounds(text: string[], fontSize: number): {
     height: totalHeight,
     columnCount: text.length,
     maxChars,
-    columnHeights
+    columnHeights,
+    columnWidth
   };
 }
 
@@ -577,8 +588,8 @@ export function generateStampPath(options: StampOptions): StampResult {
     text,
     shape = 'auto',
     fontSize = 70,
-    paddingX = 0,
-    paddingY = 0,
+    columnSpacing = 0.05,
+    characterSpacing = 0.05,
     noiseAmount = 12,
     borderPoints = 24,
     cornerRadius = 15,
@@ -607,16 +618,9 @@ export function generateStampPath(options: StampOptions): StampResult {
   // User provides ['A', 'B'], it will display as: B(left) A(right), reading right-to-left
   const displayText = [...text];
 
-  // Calculate actual text dimensions
-  const textDims = calculateTextBounds(displayText, fontSize);
-  const columnWidth = fontSize * 0.95; // Tight column spacing
-
-  // Check if user wants true edge alignment (zero padding)
-  const wantsEdgeAlignment = paddingX === 0 && paddingY === 0;
-
-  // For edge alignment: use text dimensions directly (no padding)
-  // For normal mode: add minimal padding
-  const edgePadding = wantsEdgeAlignment ? 0 : Math.max(paddingX, paddingY, fontSize * 0.05);
+  // Calculate actual text dimensions with custom spacing
+  const textDims = calculateTextBounds(displayText, fontSize, characterSpacing, columnSpacing);
+  const columnWidth = textDims.columnWidth;
 
   // Calculate column positions and heights
   const columnData = displayText.map((line, index) => ({
@@ -624,14 +628,17 @@ export function generateStampPath(options: StampOptions): StampResult {
     text: line
   }));
 
-  // Find bounds based on actual text layout
-  // Width: all columns + padding (0 for edge alignment)
-  const maxWidth = textDims.width + edgePadding * 2;
+  // Add base margin for offset to work (10% of fontSize)
+  const baseMargin = fontSize * 0.1;
+
+  // Find bounds based on actual text layout with base margin for offset
+  // Width: all columns + base margin for horizontal offset
+  const maxWidth = textDims.width + baseMargin * 2;
   // In vertical-rl: first column (index 0) is on the RIGHT, last column is on the LEFT
-  // Right height: first column height + padding
-  const rightHeight = columnData[0].height + edgePadding * 2;
-  // Left height: last column height + padding
-  const leftHeight = columnData[columnData.length - 1].height + edgePadding * 2;
+  // Right height: first column height + base margin for vertical offset
+  const rightHeight = columnData[0].height + baseMargin * 2;
+  // Left height: last column height + base margin for vertical offset
+  const leftHeight = columnData[columnData.length - 1].height + baseMargin * 2;
 
   // Simple PRNG for reproducible noise
   let seedValue = seed;
@@ -671,14 +678,10 @@ export function generateStampPath(options: StampOptions): StampResult {
   let bounds;
 
   if (shape === 'square') {
-    // Square: create a compact square
+    // Square: create a compact square based on text dimensions with base margin
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
-
-    // For edge alignment (padding=0): use text size directly
-    // Otherwise: add padding
-    const maxDimension = Math.max(textWidth, textHeight);
-    const size = maxDimension + edgePadding * 2;
+    const size = Math.max(textWidth, textHeight) + baseMargin * 2;
 
     path = generateSquarePath(size, noiseAmount, borderPoints, cornerRadius, noise, random, applyNoise, regularShape);
     bounds = {
@@ -690,12 +693,11 @@ export function generateStampPath(options: StampOptions): StampResult {
       height: size
     };
   } else if (shape === 'rectangle') {
-    // Rectangle: fits text dimensions with padding
+    // Rectangle: fits text dimensions with base margin
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
-
-    const width = textWidth + edgePadding * 2;
-    const height = textHeight + edgePadding * 2;
+    const width = textWidth + baseMargin * 2;
+    const height = textHeight + baseMargin * 2;
 
     path = generateRectanglePath(width, height, noiseAmount, borderPoints, cornerRadius, noise, random, applyNoise, regularShape);
     bounds = {
@@ -707,11 +709,10 @@ export function generateStampPath(options: StampOptions): StampResult {
       height
     };
   } else if (shape === 'circle') {
-    // Circle: fits text with padding
+    // Circle: fits text dimensions with base margin
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
-
-    const diameter = Math.max(textWidth, textHeight) + edgePadding * 2;
+    const diameter = Math.max(textWidth, textHeight) + baseMargin * 2;
     const radius = diameter / 2;
 
     path = generateCirclePath(radius, noiseAmount, borderPoints, noise, random, applyNoise, regularShape);
@@ -724,7 +725,7 @@ export function generateStampPath(options: StampOptions): StampResult {
       height: diameter
     };
   } else if (shape === 'ellipse') {
-    // Ellipse: non-standard ellipse design
+    // Ellipse: non-standard ellipse design with base margin
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
 
@@ -734,12 +735,12 @@ export function generateStampPath(options: StampOptions): StampResult {
 
     if (aspectRatio > 1) {
       // Horizontal layout
-      height = textHeight + edgePadding * 2;
-      width = textWidth + edgePadding * 2 + height * 0.15;
+      height = textHeight + baseMargin * 2;
+      width = textWidth + baseMargin * 2 + height * 0.15;
     } else {
       // Vertical layout
-      const baseHeight = textHeight + edgePadding * 2;
-      width = textWidth + edgePadding * 2;
+      const baseHeight = textHeight + baseMargin * 2;
+      width = textWidth + baseMargin * 2;
       const shortSide = Math.min(width, baseHeight);
       height = baseHeight + shortSide * 0.15;
     }
@@ -850,8 +851,12 @@ export function generateStamp(options: StampOptions): string {
     color = '#C8102E',
     fontFamily = 'serif',
     fontSize = 70,
-    paddingX = 0,
-    paddingY = 0,
+    fontWeight = 'normal',
+    offsetX = 0,
+    offsetY = 0,
+    columnSpacing = 0.05,
+    characterSpacing = 0.05,
+    borderWidth = 1,
     seed = Date.now()
   } = options;
 
@@ -870,29 +875,34 @@ export function generateStamp(options: StampOptions): string {
   // Keep text array in original order (same as in generateStampPath)
   const displayText = [...text];
 
-  // Calculate text dimensions for centering
-  const textDims = calculateTextBounds(displayText, fontSize);
-  // Tight column spacing for edge-aligned traditional stamps
-  const columnWidth = fontSize * 0.95;
+  // Calculate text dimensions with custom spacing
+  const textDims = calculateTextBounds(displayText, fontSize, characterSpacing, columnSpacing);
+  const columnWidth = textDims.columnWidth;
 
-  // Calculate text position for TRUE edge alignment (真正贴边)
-  // Traditional stamps have text touching the borders
+  // Calculate text position using offset
+  // offsetX and offsetY range from -1 to 1
+  // -1: left/top edge, 0: center, 1: right/bottom edge
 
-  // For true edge alignment, we need to compensate for:
-  // 1. Font's built-in margins (top ~10%, sides ~5%)
-  // 2. User's explicit padding (if any)
+  const fontTopMargin = fontSize * 0.10;  // Font's built-in top margin
+  const fontSideMargin = fontSize * 0.05; // Font's built-in side margin
 
-  const fontTopMargin = fontSize * 0.10;  // Font's top margin
-  const fontSideMargin = fontSize * 0.05; // Font's side margin
+  // Calculate available space for offset
+  // Horizontal: bounds.width - textDims.width
+  const horizontalSpace = bounds.width - textDims.width;
+  // Vertical: bounds.height - max(column heights)
+  const maxTextHeight = Math.max(...textDims.columnHeights);
+  const verticalSpace = bounds.height - maxTextHeight;
 
-  // Top edge: start from 0 but compensate for font's built-in top margin
-  // Only compensate if user wants edge alignment (small/zero padding)
-  const wantsEdgeAlignment = paddingY === 0 && paddingX === 0;
-  const startY = wantsEdgeAlignment ? -fontTopMargin : Math.max(paddingY, fontSize * 0.05);
+  // Apply offset: -1 (left/top) to 1 (right/bottom)
+  // offsetX = -1: text at left edge (x = 0)
+  // offsetX = 0: text centered (x = horizontalSpace / 2)
+  // offsetX = 1: text at right edge (x = horizontalSpace)
+  const horizontalOffset = (offsetX + 1) / 2 * horizontalSpace;
+  const verticalOffset = (offsetY + 1) / 2 * verticalSpace;
 
-  // Right edge: text should touch the right border
-  // In vertical-rl, x is the right edge of text, so we want it at bounds.width
-  const firstColumnX = wantsEdgeAlignment ? bounds.width + fontSideMargin : bounds.width - Math.max(paddingX, fontSize * 0.05);
+  // Compensate for font's built-in margins
+  const startY = verticalOffset - fontTopMargin;
+  const firstColumnX = bounds.width - horizontalOffset + fontSideMargin;
 
   const textElements = displayText.map((line, index) => {
     // In vertical-rl mode, columns flow right to left
@@ -907,9 +917,10 @@ export function generateStamp(options: StampOptions): string {
         text-orientation: upright;
         font-family: ${fontFamily};
         font-size: ${fontSize}px;
+        font-weight: ${fontWeight};
         fill: ${stampTextColor};
-        line-height: 1.05;
-        letter-spacing: 0.05em;
+        line-height: ${1 + characterSpacing};
+        letter-spacing: ${characterSpacing}em;
         dominant-baseline: text-before-edge;
         text-anchor: start;
       "
@@ -926,8 +937,8 @@ export function generateStamp(options: StampOptions): string {
     : `  <!-- Yang stamp background (阳章 - white background) -->
   <path d="${path}" fill="${stampBgColor}" filter="url(#stamp-ink-texture)" />
 
-  <!-- Yang stamp border (阳章 - red border, 1px stroke) -->
-  <path d="${path}" fill="none" stroke="${stampColor}" stroke-width="1" filter="url(#stamp-border-texture)" />
+  <!-- Yang stamp border (阳章 - red border with custom width) -->
+  <path d="${path}" fill="none" stroke="${stampColor}" stroke-width="${borderWidth}" filter="url(#stamp-border-texture)" />
 
   <!-- Text -->
   ${textElements}`;
@@ -1023,11 +1034,15 @@ export class Stamp {
       textColor: options.textColor || (type === 'yin' ? '#FFFFFF' : '#C8102E'),
       fontFamily: options.fontFamily || 'serif',
       fontSize: options.fontSize || 70,
-      paddingX: options.paddingX ?? 0,
-      paddingY: options.paddingY ?? 0,
+      fontWeight: options.fontWeight || 'normal',
+      offsetX: options.offsetX ?? 0,
+      offsetY: options.offsetY ?? 0,
+      columnSpacing: options.columnSpacing ?? 0.05,
+      characterSpacing: options.characterSpacing ?? 0.05,
       noiseAmount: options.noiseAmount || 12,
       borderPoints: options.borderPoints || 24,
       cornerRadius: options.cornerRadius || 15,
+      borderWidth: options.borderWidth ?? 1,
       regularShape: options.regularShape ?? false,
       seed: options.seed || Date.now()
     };
