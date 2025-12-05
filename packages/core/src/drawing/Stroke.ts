@@ -17,6 +17,8 @@ export interface StrokeOptions {
   out?: number;
   /** Width function along the stroke */
   fun?: (x: number) => number;
+  /** SVG filter reference */
+  filter?: string;
 }
 
 /**
@@ -85,7 +87,7 @@ export class Stroke {
     // Generate SVG
     const canv = poly(
       vtxlist.map((x) => [x[0] + xof, x[1] + yof]),
-      { fil: col, str: col, wid: out }
+      { fil: col, str: col, wid: out, filter: options.filter }
     );
 
     return canv;

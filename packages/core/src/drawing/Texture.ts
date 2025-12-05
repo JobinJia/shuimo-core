@@ -19,8 +19,8 @@ export interface TextureOptions {
   ret?: number;
   /** Noise function based on layer depth */
   noi?: (x: number) => number;
-  /** Color function based on progress (0-1) */
-  col?: (x: number) => string;
+  /** Color function - receives progress (0-1) and layerDepth (0=top, 1=bottom) */
+  col?: (progress: number, layerDepth: number) => string;
   /** Distribution function for horizontal positioning */
   dis?: () => number;
 }
@@ -47,7 +47,7 @@ export class Texture {
     const noi = options.noi ?? ((x: number) => 30 / x);
     const col =
       options.col ??
-      ((x: number) => 'rgba(100,100,100,' + (Math.random() * 0.3).toFixed(3) + ')');
+      ((progress: number, layerDepth: number) => 'rgba(100,100,100,' + (Math.random() * 0.3).toFixed(3) + ')');
     const dis =
       options.dis ??
       (() => {
@@ -60,6 +60,7 @@ export class Texture {
 
     const reso = [ptlist.length, ptlist[0].length];
     const texlist: Polygon[] = [];
+    const layerDepths: number[] = []; // Track layer depth for each stroke
 
     // Generate texture strokes
     for (let i = 0; i < tex; i++) {
@@ -72,6 +73,9 @@ export class Texture {
       end = Math.min(Math.max(end, 0), reso[1]);
 
       const layer = (i / tex) * (reso[0] - 1);
+
+      // Store normalized layer depth (0=top/first layer, 1=bottom/last layer)
+      layerDepths.push(layer / (reso[0] - 1));
 
       texlist.push([]);
       for (let j = start; j < end; j++) {
@@ -110,7 +114,7 @@ export class Texture {
     for (let j = 0 + sha; j < texlist.length; j += 1 + sha) {
       canv += stroke(
         texlist[j].map((x) => [x[0] + xof, x[1] + yof]),
-        { col: col(j / texlist.length), wid: wid }
+        { col: col(j / texlist.length, layerDepths[j]), wid: wid }
       );
     }
 

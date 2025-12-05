@@ -21,3 +21,6 @@ export * from './elements';
 
 // Composition - Scene management and planning
 export * from './composition';
+
+// Experimental features - APIs may change
+export * as Experimental from './experimental';

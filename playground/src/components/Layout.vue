@@ -45,7 +45,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const expandedGroups = ref(['Flower', 'Shanshui', 'Stamp'])
+const expandedGroups = ref(['Flower', 'Shanshui', 'Stamp', 'Experimental'])
 
 const menuItems = [
   {
@@ -67,6 +67,12 @@ const menuItems = [
     children: [
       { path: '/stamp', name: 'Basic' },
       { path: '/stamp-playground', name: 'Playground' },
+    ]
+  },
+  {
+    name: 'Experimental',
+    children: [
+      { path: '/stroke-animation', name: 'Stroke Animation' },
     ]
   },
 ]

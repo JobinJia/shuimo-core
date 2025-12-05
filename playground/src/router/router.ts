@@ -5,6 +5,7 @@ import Shanshui from '../demos/Shanshui.vue'
 import ShanShuiElements from '../demos/ShanShuiElements.vue'
 import CloudDemo from '../demos/CloudDemo.vue'
 import FlowerCanvasTest from '../FlowerCanvasTest.vue'
+import StrokeAnimation from '../demos/StrokeAnimation.vue'
 
 const routes = [
   {
@@ -41,6 +42,11 @@ const routes = [
     path: '/flower-canvas',
     name: 'FlowerCanvas',
     component: FlowerCanvasTest,
+  },
+  {
+    path: '/stroke-animation',
+    name: 'StrokeAnimation',
+    component: StrokeAnimation,
   },
 ]
 

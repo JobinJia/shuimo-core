@@ -1,5 +1,5 @@
 import { Polygon, PolyTools } from '../../foundation/geometry';
-import { noise } from '../../foundation/noise';
+import { noise, SimplexNoise } from '../../foundation/noise';
 import { stroke } from '../../drawing/Stroke';
 import { texture } from '../../drawing/Texture';
 import { poly } from '../../utils/svg';
@@ -37,6 +37,12 @@ export interface DistMountOptions {
   hei?: number;
   len?: number;
   seg?: number;
+}
+
+export interface MistyMountOptions {
+  hei?: number;
+  len?: number;
+  layers?: number;
 }
 
 interface FootOptions {
@@ -217,7 +223,25 @@ export class Mount {
       yof: yoff,
       tex: tex,
       sha: randChoice([0, 0, 0, 0, 5]),
-      col: typeof col === 'function' ? col : undefined,
+      col: (progress: number, layerDepth: number) => {
+        // If user provided a custom color string, use it
+        if (typeof col === 'string') {
+          return col;
+        }
+        // If user provided a custom color function, use it
+        if (typeof col === 'function') {
+          return col(progress);
+        }
+        // Default gradient: darker at bottom (layerDepth=1), lighter at top (layerDepth=0)
+        // Exponential curve for more natural gradient
+        // layerDepth^2 creates stronger contrast at the bottom
+        const depthFactor = Math.pow(layerDepth, 1.5);
+        // Base opacity ranges from 0.05 at top to 0.6 at bottom
+        const baseOpacity = 0.05 + depthFactor * 0.55;
+        // Add some randomness for natural variation
+        const opacity = baseOpacity + Math.random() * 0.15;
+        return `rgba(100,100,100,${opacity.toFixed(3)})`;
+      },
     }) as string;
 
     // TOP
@@ -633,6 +657,147 @@ export class Mount {
   }
 
   /**
+   * Generate misty mountain with soft gradients and halo effects
+   * Uses Simplex Noise to create natural mountain contours
+   */
+  static mistyMount(xoff: number, yoff: number, seed: number, options: MistyMountOptions = {}): string {
+    const hei = options.hei ?? 200;
+    const len = options.len ?? 2000;
+    const layers = options.layers ?? 3;
+
+    seed = seed ?? 0;
+    let canv = '';
+
+    // Create Simplex Noise instance with seed
+    const simplex = new SimplexNoise(seed);
+
+    // Add SVG filter definition for simple brush texture
+    const filterId = `simple-brush-${Math.random().toString(36).substr(2, 9)}`;
+    canv += `<defs>
+      <filter id="${filterId}" x="-50%" y="-50%" width="200%" height="200%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.015 0.008" numOctaves="2" seed="3" result="brushNoise" />
+        <feComponentTransfer in="brushNoise" result="brushMask">
+          <feFuncA type="linear" slope="1.5" intercept="-0.3" />
+        </feComponentTransfer>
+        <feComposite operator="in" in="SourceGraphic" in2="brushMask" result="textured" />
+        <feGaussianBlur in="textured" stdDeviation="1" />
+      </filter>
+    </defs>`;
+
+    // Generate mountain layers from back to front
+    for (let layer = 0; layer < layers; layer++) {
+      const layerDepth = layer / layers; // 0 = far, 1 = near
+      const layerSeed = seed + layer * 100;
+
+      // Assume canvas height is approximately len/2 (e.g., 1400 -> 700)
+      const canvasHeight = len / 2;
+
+      // Bottom 1/4 of canvas: from (3/4 * canvasHeight) to canvasHeight
+      // For len=1400, canvasHeight=700, bottom 1/4 is from y=525 to y=700
+      const bottomQuarterTop = canvasHeight * 0.75;
+      const bottomQuarterBottom = canvasHeight;
+      const quarterRange = bottomQuarterBottom - bottomQuarterTop;
+
+      // Random starting point at left edge (within bottom 1/4)
+      // Map noise [-1, 1] to [0, 1] for position within bottom quarter
+      const leftHeightFactor = (noise.noise(layerSeed, 0.1, 0.2) + 1) / 2;
+      const startY = bottomQuarterTop + quarterRange * leftHeightFactor;
+
+      // Random ending point at right edge (within bottom 1/4)
+      const rightHeightFactor = (noise.noise(layerSeed, 0.3, 0.4) + 1) / 2;
+      const endY = bottomQuarterTop + quarterRange * rightHeightFactor;
+
+      // Generate mountain ridge using FBM
+      const ridgeLine: Polygon = [];
+      const resolution = 200;
+
+      for (let i = 0; i <= resolution; i++) {
+        const t = i / resolution; // Progress from 0 to 1
+        const x = xoff - len / 2 + t * len; // From left edge to right edge
+
+        // Linear interpolation between start and end points (baseline)
+        const baselineY = startY * (1 - t) + endY * t;
+
+        // Use Simplex Noise with multiple octaves for rich detail
+        let noiseValue = 0;
+        let amplitude = 1.0;
+        let frequency = 2.0;
+        let maxValue = 0;
+
+        // Combine 6 octaves of Simplex Noise
+        for (let octave = 0; octave < 6; octave++) {
+          noiseValue += simplex.noise2D(t * frequency, layerSeed + octave) * amplitude;
+          maxValue += amplitude;
+          amplitude *= 0.5;  // Persistence: each octave has half the amplitude
+          frequency *= 2.0;  // Lacunarity: each octave has double the frequency
+        }
+
+        // Normalize to [-1, 1]
+        noiseValue = noiseValue / maxValue;
+
+        // Scale by height parameter with increased amplitude
+        // Mountain peaks go upward (negative Y), so subtract noise value
+        // Multiply by 3.0 for more dramatic mountain shapes
+        const mountainY = baselineY - Math.abs(noiseValue) * hei * 3.0;
+
+        ridgeLine.push([x, mountainY]);
+      }
+
+      // Create closed mountain polygon
+      const mountainPoly: Polygon = [];
+      const baseY = canvasHeight; // Extend to canvas bottom
+
+      // Start from bottom left
+      mountainPoly.push([ridgeLine[0][0], baseY]);
+
+      // Add the entire ridge line
+      for (const pt of ridgeLine) {
+        mountainPoly.push(pt);
+      }
+
+      // Close to bottom right
+      mountainPoly.push([ridgeLine[ridgeLine.length - 1][0], baseY]);
+
+      // Calculate opacity based on layer depth
+      const fillOpacity = 0.6 + layerDepth * 0.3;
+
+      // Only render the main mountain (the closest layer)
+      if (layer === layers - 1) {
+        // Draw filled mountain body with brush texture
+        canv += poly(mountainPoly, {
+          fil: `rgba(100, 120, 110, ${fillOpacity})`,
+          str: 'none',
+          filter: `url(#${filterId})`,
+        });
+
+        // Draw ridge outline with multiple soft layers and enhanced noise
+        // Layer 1: Outer soft shadow (lightest, most noise)
+        canv += stroke(ridgeLine, {
+          col: `rgba(80, 80, 80, ${0.15 + layerDepth * 0.1})`,
+          wid: 3,
+          noi: 2,
+        });
+
+        // Layer 2: Middle tone
+        canv += stroke(ridgeLine, {
+          col: `rgba(70, 70, 70, ${0.25 + layerDepth * 0.15})`,
+          wid: 2,
+          noi: 1.5,
+        });
+
+        // Layer 3: Core darker line (sharpest detail)
+        canv += stroke(ridgeLine, {
+          col: `rgba(60, 60, 60, ${0.4 + layerDepth * 0.2})`,
+          wid: 1,
+          noi: 1.2,
+        });
+      }
+    }
+
+    return canv;
+  }
+
+  /**
    * Generate a rock
    */
   static rock(xoff: number, yoff: number, seed: number, options: RockOptions = {}): string {
@@ -699,7 +864,7 @@ export class Mount {
       tex: tex,
       wid: 3,
       sha: sha,
-      col: (x: number) => 'rgba(180,180,180,' + (0.3 + Math.random() * 0.3).toFixed(3) + ')',
+      col: (progress: number, layerDepth: number) => 'rgba(180,180,180,' + (0.3 + Math.random() * 0.3).toFixed(3) + ')',
       dis: () => {
         if (Math.random() > 0.5) {
           return 0.15 + 0.15 * Math.random();

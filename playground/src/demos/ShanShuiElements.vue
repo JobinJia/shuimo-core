@@ -10,6 +10,7 @@ type ElementType =
   | 'mountain'
   | 'flatMount'
   | 'distMount'
+  | 'mistyMount'
   | 'rock'
   | 'tree01'
   | 'tree02'
@@ -42,6 +43,7 @@ const elementCategories = [
       { id: 'mountain' as ElementType, name: 'Mountain' },
       { id: 'flatMount' as ElementType, name: 'Flat Mount' },
       { id: 'distMount' as ElementType, name: 'Distant Mount' },
+      { id: 'mistyMount' as ElementType, name: 'Misty Mount' },
       { id: 'rock' as ElementType, name: 'Rock' },
     ],
   },
@@ -123,6 +125,17 @@ function generateElement(type: ElementType, seed: number): string {
       content = Mount.distMount(250, 350, seed, {
         hei: 120,
         len: 900,
+      }) as string
+      break
+
+    case 'mistyMount':
+      // Misty mountain with soft gradients and halos
+      width = 1400
+      height = 700
+      content = Mount.mistyMount(700, 500, seed, {
+        hei: 180,
+        len: 1400,  // Match canvas width so mountain spans edge to edge
+        layers: 6,
       }) as string
       break
 

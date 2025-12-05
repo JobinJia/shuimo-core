@@ -11,6 +11,8 @@ export interface PolyOptions {
   str?: string;
   /** Stroke width */
   wid?: number;
+  /** SVG filter reference */
+  filter?: string;
 }
 
 /**
@@ -25,11 +27,16 @@ export function poly(plist: Polygon, options: PolyOptions = {}): string {
   const fil = options.fil ?? 'rgba(0,0,0,0)';
   const str = options.str ?? fil;
   const wid = options.wid ?? 0;
+  const filter = options.filter;
 
   let canv = "<polyline points='";
   for (let i = 0; i < plist.length; i++) {
     canv += ' ' + (plist[i][0] + xof).toFixed(1) + ',' + (plist[i][1] + yof).toFixed(1);
   }
-  canv += "' style='fill:" + fil + ';stroke:' + str + ';stroke-width:' + wid + "'/>";
+  canv += "' style='fill:" + fil + ';stroke:' + str + ';stroke-width:' + wid + "'";
+  if (filter) {
+    canv += " filter='" + filter + "'";
+  }
+  canv += '/>';
   return canv;
 }
