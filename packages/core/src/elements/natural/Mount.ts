@@ -1,5 +1,5 @@
 import { Polygon, PolyTools } from '../../foundation/geometry';
-import { noise, SimplexNoise } from '../../foundation/noise';
+import { noise, SimplexNoise, WorleyNoise } from '../../foundation/noise';
 import { stroke } from '../../drawing/Stroke';
 import { texture } from '../../drawing/Texture';
 import { poly } from '../../utils/svg';
@@ -670,17 +670,72 @@ export class Mount {
 
     // Create Simplex Noise instance with seed
     const simplex = new SimplexNoise(seed);
+    // Create Worley Noise instance for ink particle distribution
+    const worley = new WorleyNoise(seed + 999);
 
-    // Add SVG filter definition for simple brush texture
-    const filterId = `simple-brush-${Math.random().toString(36).substr(2, 9)}`;
+    // Add SVG filter definitions for ink wash effect (模拟 Kuwahara Filter + 水墨扩散)
+    const filterId = `ink-wash-${Math.random().toString(36).substr(2, 9)}`;
+    const particleFilterId = `ink-particle-${Math.random().toString(36).substr(2, 9)}`;
+
     canv += `<defs>
-      <filter id="${filterId}" x="-50%" y="-50%" width="200%" height="200%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.015 0.008" numOctaves="2" seed="3" result="brushNoise" />
-        <feComponentTransfer in="brushNoise" result="brushMask">
-          <feFuncA type="linear" slope="1.5" intercept="-0.3" />
+      <!-- Main ink wash filter for mountain body (皴法效果) -->
+      <filter id="${filterId}" x="-100%" y="-100%" width="300%" height="300%">
+        <!-- Step 1: Generate brush texture noise -->
+        <feTurbulence type="fractalNoise" baseFrequency="0.025 0.015" numOctaves="4" seed="${seed}" result="brushNoise" />
+
+        <!-- Step 2: Create displacement map for ink bleeding effect (水墨渗透) - INCREASED -->
+        <feDisplacementMap in="SourceGraphic" in2="brushNoise" scale="12" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+
+        <!-- Step 3: Multi-layer blur to simulate Kuwahara smoothing - INCREASED -->
+        <!-- Layer 1: Heavy blur for base wash -->
+        <feGaussianBlur in="displaced" stdDeviation="5" result="blur1" />
+        <!-- Layer 2: Medium blur for mid-tone -->
+        <feGaussianBlur in="displaced" stdDeviation="2.5" result="blur2" />
+        <!-- Layer 3: Light blur for detail retention -->
+        <feGaussianBlur in="displaced" stdDeviation="1" result="blur3" />
+
+        <!-- Step 4: Combine blur layers with different weights (模拟 Kuwahara 的分区平滑) -->
+        <feBlend in="blur1" in2="blur2" mode="multiply" result="combined1" />
+        <feBlend in="combined1" in2="blur3" mode="screen" result="combined2" />
+
+        <!-- Step 5: Add texture grain using turbulence -->
+        <feComponentTransfer in="brushNoise" result="grainMask">
+          <feFuncA type="linear" slope="1.0" intercept="-0.15" />
         </feComponentTransfer>
-        <feComposite operator="in" in="SourceGraphic" in2="brushMask" result="textured" />
-        <feGaussianBlur in="textured" stdDeviation="1" />
+        <feComposite operator="in" in="combined2" in2="grainMask" result="textured" />
+
+        <!-- Step 6: Morphology for edge enhancement (保持边缘) - INCREASED -->
+        <feMorphology operator="dilate" radius="0.5" in="textured" result="dilated" />
+        <feMorphology operator="erode" radius="0.5" in="dilated" result="eroded" />
+
+        <!-- Step 7: Enhance contrast (增加墨色浓度) - SIGNIFICANTLY INCREASED -->
+        <feColorMatrix in="eroded" type="matrix" values="
+          1.5 0   0   0 -0.25
+          0   1.5 0   0 -0.25
+          0   0   1.5 0 -0.25
+          0   0   0   1.2 0
+        " result="contrasted" />
+
+        <!-- Step 8: Final soft blur for natural ink diffusion - INCREASED -->
+        <feGaussianBlur in="contrasted" stdDeviation="1.2" result="final" />
+      </filter>
+
+      <!-- Particle filter for ink dots (墨粒滤镜) -->
+      <filter id="${particleFilterId}" x="-50%" y="-50%" width="200%" height="200%">
+        <!-- Generate organic noise for particle edges -->
+        <feTurbulence type="turbulence" baseFrequency="0.08" numOctaves="3" seed="${seed + 100}" result="particleNoise" />
+
+        <!-- Create irregular particle edges (墨粒边缘不规则) - INCREASED -->
+        <feDisplacementMap in="SourceGraphic" in2="particleNoise" scale="3.5" result="displaced" />
+
+        <!-- Blur for soft ink bleeding - INCREASED -->
+        <feGaussianBlur in="displaced" stdDeviation="1.8" result="blurred" />
+
+        <!-- Add texture - ENHANCED -->
+        <feComponentTransfer in="particleNoise" result="textureMask">
+          <feFuncA type="linear" slope="1.4" intercept="-0.15" />
+        </feComponentTransfer>
+        <feComposite operator="in" in="blurred" in2="textureMask" />
       </filter>
     </defs>`;
 
@@ -765,47 +820,164 @@ export class Mount {
 
       // Calculate opacity and color based on layer depth
       // Far mountains (layerDepth=0) are lighter, near mountains (layerDepth=1) are darker
-      const fillOpacity = 0.15 + layerDepth * 0.4; // 0.15 to 0.55
-      const strokeBaseOpacity = 0.08 + layerDepth * 0.25; // 0.08 to 0.33
+      // Increased opacity to compensate for texture filter lightening effect
+      const fillOpacity = 0.5 + layerDepth * 0.45; // 0.5 to 0.95
+      const strokeBaseOpacity = 0.2 + layerDepth * 0.45; // 0.2 to 0.65
+
+      // Color gradation: ink cyan-blue tone (墨青色) - traditional Chinese ink wash
+      // Far: (50, 65, 80) light ink cyan
+      // Near: (15, 20, 30) deep ink cyan, almost black
+      const r = Math.round(50 - layerDepth * 35);   // 50 to 15
+      const g = Math.round(65 - layerDepth * 45);   // 65 to 20
+      const b = Math.round(80 - layerDepth * 50);   // 80 to 30
 
       // Render all layers to create depth effect
-      // Draw filled mountain body with brush texture
+      // First: Draw opaque background to block mountains behind (occlusion effect)
       canv += poly(mountainPoly, {
-        fil: `rgba(100, 120, 110, ${fillOpacity.toFixed(3)})`,
+        fil: '#f5f5dc', // Beige background color (matches canvas background)
+        str: 'none',
+      });
+
+      // Second: Draw semi-transparent mountain body with brush texture and depth-based color
+      canv += poly(mountainPoly, {
+        fil: `rgba(${r}, ${g}, ${b}, ${fillOpacity.toFixed(3)})`,
         str: 'none',
         filter: `url(#${filterId})`,
       });
 
       // Draw ridge outline with varying detail based on depth
       if (layerDepth > 0.6) {
-        // Near mountains: more detailed with multiple stroke layers
-        // Layer 1: Outer soft shadow
-        canv += stroke(ridgeLine, {
-          col: `rgba(80, 80, 80, ${(strokeBaseOpacity * 0.6).toFixed(3)})`,
-          wid: 3,
-          noi: 2,
-        });
-
-        // Layer 2: Middle tone
-        canv += stroke(ridgeLine, {
-          col: `rgba(70, 70, 70, ${(strokeBaseOpacity * 1.0).toFixed(3)})`,
-          wid: 2,
-          noi: 1.5,
-        });
-
-        // Layer 3: Core darker line
-        canv += stroke(ridgeLine, {
-          col: `rgba(60, 60, 60, ${(strokeBaseOpacity * 1.5).toFixed(3)})`,
-          wid: 1,
-          noi: 1.2,
-        });
+        // Near mountains: NO outline (空白，无轮廓线)
+        // Skip drawing outline for near mountains to create depth contrast
       } else {
-        // Far mountains: single soft stroke for misty effect
+        // Far mountains: darker stroke for depth (浓墨) - crisp outline without blur
         canv += stroke(ridgeLine, {
-          col: `rgba(100, 100, 100, ${(strokeBaseOpacity * 1.2).toFixed(3)})`,
-          wid: 1.5,
-          noi: 2.5,
+          col: `rgba(50, 50, 50, ${(strokeBaseOpacity * 1.5).toFixed(3)})`,
+          wid: 2, // Reduced from 20 to 2 for crisp outline
+          noi: 0, // Removed noise for sharp edge
         });
+      }
+
+      // ===== Ink Particle Effect (皴法) using Worley Noise =====
+      // Generate ink particles along the mountain surface
+      // Near mountains have denser, larger particles; far mountains have sparse, smaller particles
+
+      const amplitudeScale = 1.5 + layerDepth * 2.0; // 1.5 to 3.5 (same as ridgeLine generation)
+      const particleDensity = 0.5 + layerDepth * 1.0; // Increased from 0.3-1.0 to 0.5-1.5
+      const particleSize = 0.8 + layerDepth * 1.7; // 0.8 to 2.5
+      const particleCount = Math.floor(len * particleDensity * 0.35); // Increased from 0.15 to 0.35
+
+      for (let p = 0; p < particleCount; p++) {
+        // Random position along the mountain width
+        const t = Math.random();
+        const x = xoff - len / 2 + t * len;
+
+        // Use Worley noise to determine if particle should appear at this location
+        // Lower Worley values = closer to cell center = place particle
+        const worleyValue = worley.noise2D(x * 0.008, layerSeed * 0.01, {
+          cellSize: 40 + layerDepth * 60, // Far: larger cells (sparse), Near: smaller cells (dense)
+          jitter: 0.9,
+        });
+
+        // Only place particle if Worley value is below threshold
+        // Lower threshold = fewer particles, higher = more particles
+        const threshold = 0.45 + layerDepth * 0.25; // Increased from 0.35-0.5 to 0.45-0.7
+        if (worleyValue > threshold) continue;
+
+        // Find corresponding Y position on the ridge line
+        const ridgeIndex = Math.floor(t * resolution);
+        const baseY = ridgeLine[ridgeIndex]?.[1] ?? canvasHeight;
+
+        // Offset Y position using another Worley noise layer for vertical distribution
+        // Particles should cluster more near ridges and peaks
+        const verticalNoise = worley.noise2D(x * 0.012, (layerSeed + 50) * 0.01, {
+          cellSize: 30,
+          jitter: 0.8,
+        });
+
+        // Vertical offset: particles distributed from ridge down to base
+        // Use inverted Worley noise to cluster near peaks (low values)
+        const maxVerticalOffset = hei * amplitudeScale * 0.6; // Particles spread down from ridge
+        const verticalOffset = (1 - verticalNoise) * maxVerticalOffset * Math.random();
+        const y = baseY + verticalOffset;
+
+        // Particle size with variation
+        const baseSize = particleSize * (0.6 + Math.random() * 0.8);
+
+        // Particle opacity based on layer depth and Worley noise
+        // Near mountains: darker particles, far mountains: lighter particles
+        const baseOpacity = 0.15 + layerDepth * 0.25; // 0.15 to 0.4
+        const opacity = baseOpacity * (0.5 + worleyValue);
+
+        // Particle color: inherit from mountain color but slightly darker
+        const particleR = Math.max(0, r - 10);
+        const particleG = Math.max(0, g - 15);
+        const particleB = Math.max(0, b - 10);
+
+        // Draw ink particle as small circle with soft edges
+        canv += `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${baseSize.toFixed(2)}" ` +
+          `fill="rgba(${particleR}, ${particleG}, ${particleB}, ${opacity.toFixed(3)})" ` +
+          `filter="url(#${particleFilterId})" />`;
+      }
+
+      // ===== Vertical Texture Strokes (皴法) using Noise Mask =====
+      // Add vertical strokes to simulate traditional Chinese painting texture
+      // Denser and darker near ridges, lighter towards base
+
+      if (layerDepth > 0.4) {
+        // Only apply texture strokes to mid and near layers for performance
+        const strokeDensity = 0.4 + layerDepth * 0.6; // 0.4 to 1.0
+        const strokeCount = Math.floor(len * strokeDensity * 0.08);
+
+        for (let s = 0; s < strokeCount; s++) {
+          const t = Math.random();
+          const x = xoff - len / 2 + t * len;
+
+          // Use Worley noise to determine stroke placement
+          const worleyValue = worley.noise2D(x * 0.015, layerSeed * 0.015, {
+            cellSize: 30 + (1 - layerDepth) * 40,
+            jitter: 0.85,
+          });
+
+          // Only place stroke if Worley value suggests it
+          if (worleyValue > 0.4) continue;
+
+          // Find ridge position
+          const ridgeIndex = Math.floor(t * resolution);
+          const ridgeY = ridgeLine[ridgeIndex]?.[1] ?? canvasHeight;
+
+          // Stroke extends from ridge downward
+          // Length controlled by Simplex noise
+          const lengthNoise = simplex.noise2D(x * 0.02, layerSeed * 0.02);
+          const strokeLength = hei * amplitudeScale * (0.2 + Math.abs(lengthNoise) * 0.5);
+
+          // Start position: slightly below ridge (using noise for variation)
+          const startOffset = hei * 0.1 * Math.random();
+          const startY = ridgeY + startOffset;
+          const endY = ridgeY + strokeLength;
+
+          // Opacity based on distance from ridge (darker near ridge)
+          // Use Simplex noise to create natural variation
+          const opacityNoise = simplex.noise2D(x * 0.025, (layerSeed + 200) * 0.025);
+          const baseStrokeOpacity = 0.12 + layerDepth * 0.18; // 0.12 to 0.3
+          const strokeOpacity = baseStrokeOpacity * (0.6 + Math.abs(opacityNoise) * 0.4);
+
+          // Stroke width with variation
+          const strokeWidth = (0.5 + Math.random() * 1.0) * (1 + layerDepth * 0.5);
+
+          // Color: slightly darker than mountain base
+          const strokeR = Math.max(0, r - 15);
+          const strokeG = Math.max(0, g - 20);
+          const strokeB = Math.max(0, b - 15);
+
+          // Draw vertical texture stroke
+          canv += `<line x1="${x.toFixed(2)}" y1="${startY.toFixed(2)}" ` +
+            `x2="${x.toFixed(2)}" y2="${endY.toFixed(2)}" ` +
+            `stroke="rgba(${strokeR}, ${strokeG}, ${strokeB}, ${strokeOpacity.toFixed(3)})" ` +
+            `stroke-width="${strokeWidth.toFixed(2)}" ` +
+            `stroke-linecap="round" ` +
+            `filter="url(#${particleFilterId})" />`;
+        }
       }
     }
 
