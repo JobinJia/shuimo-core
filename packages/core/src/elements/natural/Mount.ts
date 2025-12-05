@@ -692,10 +692,14 @@ export class Mount {
       // Assume canvas height is approximately len/2 (e.g., 1400 -> 700)
       const canvasHeight = len / 2;
 
+      // Vertical offset for each layer: far mountains higher, near mountains lower
+      // Far mountains (layerDepth=0) pushed up, near mountains (layerDepth=1) at bottom
+      const layerVerticalOffset = -(1 - layerDepth) * hei * 1.5; // Far: -270, Near: 0
+
       // Bottom 1/4 of canvas: from (3/4 * canvasHeight) to canvasHeight
       // For len=1400, canvasHeight=700, bottom 1/4 is from y=525 to y=700
-      const bottomQuarterTop = canvasHeight * 0.75;
-      const bottomQuarterBottom = canvasHeight;
+      const bottomQuarterTop = canvasHeight * 0.75 + layerVerticalOffset;
+      const bottomQuarterBottom = canvasHeight + layerVerticalOffset;
       const quarterRange = bottomQuarterBottom - bottomQuarterTop;
 
       // Random starting point at left edge (within bottom 1/4)
@@ -737,8 +741,9 @@ export class Mount {
 
         // Scale by height parameter with increased amplitude
         // Mountain peaks go upward (negative Y), so subtract noise value
-        // Multiply by 3.0 for more dramatic mountain shapes
-        const mountainY = baselineY - Math.abs(noiseValue) * hei * 3.0;
+        // Far mountains: less dramatic (1.5x), Near mountains: more dramatic (3.5x)
+        const amplitudeScale = 1.5 + layerDepth * 2.0; // 1.5 to 3.5
+        const mountainY = baselineY - Math.abs(noiseValue) * hei * amplitudeScale;
 
         ridgeLine.push([x, mountainY]);
       }
@@ -758,38 +763,48 @@ export class Mount {
       // Close to bottom right
       mountainPoly.push([ridgeLine[ridgeLine.length - 1][0], baseY]);
 
-      // Calculate opacity based on layer depth
-      const fillOpacity = 0.6 + layerDepth * 0.3;
+      // Calculate opacity and color based on layer depth
+      // Far mountains (layerDepth=0) are lighter, near mountains (layerDepth=1) are darker
+      const fillOpacity = 0.15 + layerDepth * 0.4; // 0.15 to 0.55
+      const strokeBaseOpacity = 0.08 + layerDepth * 0.25; // 0.08 to 0.33
 
-      // Only render the main mountain (the closest layer)
-      if (layer === layers - 1) {
-        // Draw filled mountain body with brush texture
-        canv += poly(mountainPoly, {
-          fil: `rgba(100, 120, 110, ${fillOpacity})`,
-          str: 'none',
-          filter: `url(#${filterId})`,
-        });
+      // Render all layers to create depth effect
+      // Draw filled mountain body with brush texture
+      canv += poly(mountainPoly, {
+        fil: `rgba(100, 120, 110, ${fillOpacity.toFixed(3)})`,
+        str: 'none',
+        filter: `url(#${filterId})`,
+      });
 
-        // Draw ridge outline with multiple soft layers and enhanced noise
-        // Layer 1: Outer soft shadow (lightest, most noise)
+      // Draw ridge outline with varying detail based on depth
+      if (layerDepth > 0.6) {
+        // Near mountains: more detailed with multiple stroke layers
+        // Layer 1: Outer soft shadow
         canv += stroke(ridgeLine, {
-          col: `rgba(80, 80, 80, ${0.15 + layerDepth * 0.1})`,
+          col: `rgba(80, 80, 80, ${(strokeBaseOpacity * 0.6).toFixed(3)})`,
           wid: 3,
           noi: 2,
         });
 
         // Layer 2: Middle tone
         canv += stroke(ridgeLine, {
-          col: `rgba(70, 70, 70, ${0.25 + layerDepth * 0.15})`,
+          col: `rgba(70, 70, 70, ${(strokeBaseOpacity * 1.0).toFixed(3)})`,
           wid: 2,
           noi: 1.5,
         });
 
-        // Layer 3: Core darker line (sharpest detail)
+        // Layer 3: Core darker line
         canv += stroke(ridgeLine, {
-          col: `rgba(60, 60, 60, ${0.4 + layerDepth * 0.2})`,
+          col: `rgba(60, 60, 60, ${(strokeBaseOpacity * 1.5).toFixed(3)})`,
           wid: 1,
           noi: 1.2,
+        });
+      } else {
+        // Far mountains: single soft stroke for misty effect
+        canv += stroke(ridgeLine, {
+          col: `rgba(100, 100, 100, ${(strokeBaseOpacity * 1.2).toFixed(3)})`,
+          wid: 1.5,
+          noi: 2.5,
         });
       }
     }
