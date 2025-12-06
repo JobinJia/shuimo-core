@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { generateStamp } from '@shuimo/core'
+import { generateStamp, measureStampText } from '@shuimo/core'
 import { onMounted, ref } from 'vue'
 
 const yinStampSvg = ref('')
@@ -19,35 +19,42 @@ const ellipseYangStampSvg = ref('')
 
 onMounted(() => {
   // 阴章 - 红底白字 (默认自动形状)
-  yinStampSvg.value = generateStamp({
+  const yinOptions = {
     text: ['落梅听', '风雪'],
-    type: 'yin',
+    type: 'yin' as const,
     color: '#C8102E',
-    fontFamily: 'beishida, 楷体, serif',
+    fontFamily: 'beishida',
     fontSize: 70,
-    columnSpacing: 0.02,
-    characterSpacing: 0.05,
-    paddingX: 0.08,
-    paddingY: 0.08,
+    columnSpacingPx: 1.4,
+    characterSpacingPx: 3.5,
+    paddingXPx: 10,
+    paddingYPx: 10,
     borderScale: 1.0,
     offsetX: 0,
     offsetY: 0,
     noiseAmount: 10,
     borderPoints: 24,
     seed: 12345,
+  }
+  const yinMeasure = measureStampText(yinOptions)
+  yinStampSvg.value = generateStamp({
+    ...yinOptions,
+    measuredColumnWidths: yinMeasure?.columnWidths,
+    measuredColumnHeights: yinMeasure?.columnHeights,
+    measuredColumnHeights: yinMeasure?.columnHeights,
   })
 
   // 阳章 - 白底红字红边框 (默认自动形状)
-  yangStampSvg.value = generateStamp({
+  const yangOptions = {
     text: ['落梅', '听风雪'],
-    type: 'yang',
+    type: 'yang' as const,
     color: '#C8102E',
-    fontFamily: 'beishida, 楷体, serif',
+    fontFamily: 'beishida',
     fontSize: 70,
-    columnSpacing: 0.02,
-    characterSpacing: 0.05,
-    paddingX: 0.08,
-    paddingY: 0.08,
+    columnSpacingPx: 1.4,
+    characterSpacingPx: 3.5,
+    paddingXPx: 10,
+    paddingYPx: 10,
     borderScale: 1.0,
     borderWidth: 4,
     offsetX: 0,
@@ -55,40 +62,54 @@ onMounted(() => {
     noiseAmount: 10,
     borderPoints: 24,
     seed: 54321,
+  }
+  const yangMeasure = measureStampText(yangOptions)
+  yangStampSvg.value = generateStamp({
+    ...yangOptions,
+    measuredColumnWidths: yangMeasure?.columnWidths,
+    measuredColumnHeights: yangMeasure?.columnHeights,
+    measuredColumnHeights: yangMeasure?.columnHeights,
   })
 
   // 正方形印章 - 阴章
-  squareYinStampSvg.value = generateStamp({
+  const squareYinOptions = {
     text: ['月落', '乌啼'],
-    type: 'yin',
-    shape: 'square',
+    type: 'yin' as const,
+    shape: 'square' as const,
     color: '#C8102E',
-    fontFamily: 'beishida, 楷体, serif',
+    fontFamily: 'beishida',
     fontSize: 70,
-    columnSpacing: 0.02,
-    characterSpacing: 0.05,
-    paddingX: 0.12,
-    paddingY: 0.12,
+    columnSpacingPx: 1.4,
+    characterSpacingPx: 3.5,
+    paddingXPx: 10,
+    paddingYPx: 10,
     borderScale: 1.0,
     offsetX: 0,
     offsetY: 0,
     noiseAmount: 8,
     borderPoints: 24,
     seed: 11111,
+  }
+  const squareYinMeasure = measureStampText(squareYinOptions)
+  squareYinStampSvg.value = generateStamp({
+    ...squareYinOptions,
+    measuredColumnWidths: squareYinMeasure?.columnWidths,
+    measuredColumnHeights: squareYinMeasure?.columnHeights,
+    measuredColumnHeights: squareYinMeasure?.columnHeights,
   })
 
   // 正方形印章 - 阳章
-  squareYangStampSvg.value = generateStamp({
+  const squareYangOptions = {
     text: ['月落', '乌啼'],
-    type: 'yang',
-    shape: 'square',
+    type: 'yang' as const,
+    shape: 'square' as const,
     color: '#C8102E',
-    fontFamily: 'beishida, 楷体, serif',
+    fontFamily: 'beishida',
     fontSize: 70,
-    columnSpacing: 0.02,
-    characterSpacing: 0.05,
-    paddingX: 0.12,
-    paddingY: 0.12,
+    columnSpacingPx: 1.4,
+    characterSpacingPx: 3.5,
+    paddingXPx: 10,
+    paddingYPx: 10,
     borderScale: 1.0,
     borderWidth: 4,
     offsetX: 0,
@@ -96,40 +117,52 @@ onMounted(() => {
     noiseAmount: 8,
     borderPoints: 24,
     seed: 11112,
+  }
+  const squareYangMeasure = measureStampText(squareYangOptions)
+  squareYangStampSvg.value = generateStamp({
+    ...squareYangOptions,
+    measuredColumnWidths: squareYangMeasure?.columnWidths,
+    measuredColumnHeights: squareYangMeasure?.columnHeights,
   })
 
   // 长方形印章 - 阴章
-  rectangleYinStampSvg.value = generateStamp({
+  const rectangleYinOptions = {
     text: ['明月', '别枝', '惊鹊'],
-    type: 'yin',
-    shape: 'rectangle',
+    type: 'yin' as const,
+    shape: 'rectangle' as const,
     color: '#C8102E',
-    fontFamily: 'beishida, 楷体, serif',
+    fontFamily: 'beishida',
     fontSize: 70,
-    columnSpacing: 0.02,
-    characterSpacing: 0.05,
-    paddingX: 0.08,
-    paddingY: 0.08,
+    columnSpacingPx: 1.4,
+    characterSpacingPx: 3.5,
+    paddingXPx: 10,
+    paddingYPx: 10,
     borderScale: 1.0,
     offsetX: 0,
     offsetY: 0,
     noiseAmount: 10,
     borderPoints: 24,
     seed: 22221,
+  }
+  const rectangleYinMeasure = measureStampText(rectangleYinOptions)
+  rectangleYinStampSvg.value = generateStamp({
+    ...rectangleYinOptions,
+    measuredColumnWidths: rectangleYinMeasure?.columnWidths,
+    measuredColumnHeights: rectangleYinMeasure?.columnHeights,
   })
 
   // 长方形印章 - 阳章
-  rectangleYangStampSvg.value = generateStamp({
+  const rectangleYangOptions = {
     text: ['清风', '半夜', '鸣蝉'],
-    type: 'yang',
-    shape: 'rectangle',
+    type: 'yang' as const,
+    shape: 'rectangle' as const,
     color: '#C8102E',
-    fontFamily: 'beishida, 楷体, serif',
+    fontFamily: 'beishida',
     fontSize: 70,
-    columnSpacing: 0.02,
-    characterSpacing: 0.05,
-    paddingX: 0.08,
-    paddingY: 0.08,
+    columnSpacingPx: 1.4,
+    characterSpacingPx: 3.5,
+    paddingXPx: 10,
+    paddingYPx: 10,
     borderScale: 1.0,
     borderWidth: 4,
     offsetX: 0,
@@ -137,36 +170,48 @@ onMounted(() => {
     noiseAmount: 10,
     borderPoints: 24,
     seed: 22222,
+  }
+  const rectangleYangMeasure = measureStampText(rectangleYangOptions)
+  rectangleYangStampSvg.value = generateStamp({
+    ...rectangleYangOptions,
+    measuredColumnWidths: rectangleYangMeasure?.columnWidths,
+    measuredColumnHeights: rectangleYangMeasure?.columnHeights,
   })
 
   // 圆形印章 - 阴章
-  circleYinStampSvg.value = generateStamp({
+  const circleYinOptions = {
     text: ['兰'],
-    type: 'yin',
-    shape: 'circle',
+    type: 'yin' as const,
+    shape: 'circle' as const,
     color: '#C8102E',
-    fontFamily: 'beishida, 楷体, serif',
+    fontFamily: 'beishida',
     fontSize: 70,
-    paddingX: 0.15,
-    paddingY: 0.15,
+    paddingXPx: 15,
+    paddingYPx: 15,
     borderScale: 1.0,
     offsetX: 0,
     offsetY: 0,
     noiseAmount: 10,
     borderPoints: 32,
     seed: 33333,
+  }
+  const circleYinMeasure = measureStampText(circleYinOptions)
+  circleYinStampSvg.value = generateStamp({
+    ...circleYinOptions,
+    measuredColumnWidths: circleYinMeasure?.columnWidths,
+    measuredColumnHeights: circleYinMeasure?.columnHeights,
   })
 
   // 圆形印章 - 阳章
-  circleYangStampSvg.value = generateStamp({
+  const circleYangOptions = {
     text: ['梅'],
-    type: 'yang',
-    shape: 'circle',
+    type: 'yang' as const,
+    shape: 'circle' as const,
     color: '#C8102E',
-    fontFamily: 'beishida, 楷体, serif',
+    fontFamily: 'beishida',
     fontSize: 70,
-    paddingX: 0.15,
-    paddingY: 0.15,
+    paddingXPx: 15,
+    paddingYPx: 15,
     borderScale: 1.0,
     borderWidth: 4,
     offsetX: 0,
@@ -174,40 +219,52 @@ onMounted(() => {
     noiseAmount: 10,
     borderPoints: 32,
     seed: 33334,
+  }
+  const circleYangMeasure = measureStampText(circleYangOptions)
+  circleYangStampSvg.value = generateStamp({
+    ...circleYangOptions,
+    measuredColumnWidths: circleYangMeasure?.columnWidths,
+    measuredColumnHeights: circleYangMeasure?.columnHeights,
   })
 
   // 椭圆形印章 - 阴章
-  ellipseYinStampSvg.value = generateStamp({
+  const ellipseYinOptions = {
     text: ['水墨', '江南'],
-    type: 'yin',
-    shape: 'ellipse',
+    type: 'yin' as const,
+    shape: 'ellipse' as const,
     color: '#C8102E',
-    fontFamily: 'beishida, 楷体, serif',
+    fontFamily: 'beishida',
     fontSize: 70,
-    columnSpacing: 0.02,
-    characterSpacing: 0.05,
-    paddingX: 0.10,
-    paddingY: 0.10,
+    columnSpacingPx: 1.4,
+    characterSpacingPx: 3.5,
+    paddingXPx: 10,
+    paddingYPx: 10,
     borderScale: 1.0,
     offsetX: 0,
     offsetY: 0,
     noiseAmount: 10,
     borderPoints: 32,
     seed: 44443,
+  }
+  const ellipseYinMeasure = measureStampText(ellipseYinOptions)
+  ellipseYinStampSvg.value = generateStamp({
+    ...ellipseYinOptions,
+    measuredColumnWidths: ellipseYinMeasure?.columnWidths,
+    measuredColumnHeights: ellipseYinMeasure?.columnHeights,
   })
 
   // 椭圆形印章 - 阳章
-  ellipseYangStampSvg.value = generateStamp({
+  const ellipseYangOptions = {
     text: ['隔窗', '听雨'],
-    type: 'yang',
-    shape: 'ellipse',
+    type: 'yang' as const,
+    shape: 'ellipse' as const,
     color: '#C8102E',
-    fontFamily: 'beishida, 楷体, serif',
+    fontFamily: 'beishida',
     fontSize: 70,
-    columnSpacing: 0.02,
-    characterSpacing: 0.05,
-    paddingX: 0.10,
-    paddingY: 0.10,
+    columnSpacingPx: 1.4,
+    characterSpacingPx: 3.5,
+    paddingXPx: 10,
+    paddingYPx: 10,
     borderScale: 1.0,
     borderWidth: 4,
     offsetX: 0,
@@ -215,6 +272,12 @@ onMounted(() => {
     noiseAmount: 10,
     borderPoints: 32,
     seed: 1,
+  }
+  const ellipseYangMeasure = measureStampText(ellipseYangOptions)
+  ellipseYangStampSvg.value = generateStamp({
+    ...ellipseYangOptions,
+    measuredColumnWidths: ellipseYangMeasure?.columnWidths,
+    measuredColumnHeights: ellipseYangMeasure?.columnHeights,
   })
 })
 </script>
@@ -266,9 +329,13 @@ onMounted(() => {
 
     <!-- 印章演示区域 -->
     <div style="margin-top: 3em;">
-      <h2 style="font-family: '楷体', serif; color: #333; margin-bottom: 2em;">
+      <h2 style="font-family: '楷体', serif; color: #333; margin-bottom: 1em;">
         印章演示 Stamp Demo
       </h2>
+      <p style="color: #666; margin-bottom: 2em; max-width: 800px; font-size: 0.95em;">
+        所有印章均使用 <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">measureStampText()</code>
+        测量实际渲染的文字尺寸，确保文字在印章内准确居中，不受字体渲染差异影响。
+      </p>
 
       <!-- 所有印章展示 -->
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5em;">
@@ -389,11 +456,9 @@ onMounted(() => {
 <style scoped lang="css">
  @font-face {
         font-family: 'beishida';
-        /* 使用根路径 / 引用 public 目录下的字体，确保打包后路径正确 */
-        src: url('/fonts/yishanbeizhuanti.ttf') format('truetype');
+        src: url('@/assets/fonts/jinlong.ttf') format('truetype');
         font-weight: normal;
         font-style: normal;
-        /* 建议添加 font-display: swap; 优化加载体验 */
         font-display: swap;
       }
 

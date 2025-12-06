@@ -67,6 +67,27 @@ export interface StampOptions {
   /** Vertical padding around text (top and bottom), as a multiplier of fontSize (default: 0.05) */
   paddingY?: number;
 
+  /** Absolute column spacing in pixels. If provided, overrides columnSpacing */
+  columnSpacingPx?: number;
+
+  /** Absolute character spacing in pixels. If provided, overrides characterSpacing */
+  characterSpacingPx?: number;
+
+  /** Absolute horizontal padding in pixels. If provided, overrides paddingX */
+  paddingXPx?: number;
+
+  /** Absolute vertical padding in pixels. If provided, overrides paddingY */
+  paddingYPx?: number;
+
+  /** Absolute column width in pixels. If provided, overrides the automatic calculation (fontSize * 0.85). Use this for cross-platform consistency. */
+  columnWidthPx?: number;
+
+  /** Measured column widths in pixels for each column. If provided, uses actual measured widths instead of estimation. Array length should match text.length. */
+  measuredColumnWidths?: number[];
+
+  /** Measured column heights in pixels for each column. If provided, uses actual measured heights instead of estimation. Array length should match text.length. */
+  measuredColumnHeights?: number[];
+
   /** Border scale factor - scales the entire stamp border relative to text (default: 1.0, range: 0.8-1.5) */
   borderScale?: number;
 
@@ -108,38 +129,70 @@ interface StampResult {
  * Calculate accurate text dimensions for vertical layout with per-column heights
  * For edge-aligned stamps (贴边印章)
  */
-function calculateTextBounds(text: string[], fontSize: number, characterSpacing: number = 0.05, columnSpacing: number = 0.05): {
+function calculateTextBounds(
+  text: string[],
+  fontSize: number,
+  characterSpacing: number = 0.05,
+  columnSpacing: number = 0.05,
+  columnWidthPx?: number,
+  measuredColumnWidths?: number[],
+  measuredColumnHeights?: number[]
+): {
   width: number;
   height: number;
   columnCount: number;
   maxChars: number;
   columnHeights: number[];
   columnWidth: number;
+  columnWidths: number[];
 } {
   // For vertical text with writing-mode: vertical-rl
   // Traditional stamps have minimal spacing between characters and columns
 
-  // Column width: slightly less than fontSize for tighter packing
-  // Chinese characters actual width is typically ~0.85-0.9 of fontSize
-  const columnWidth = fontSize * 0.85;
+  // Determine column widths
+  let columnWidths: number[];
+  let columnWidth: number; // Average/representative column width for backward compatibility
+
+  if (measuredColumnWidths && measuredColumnWidths.length === text.length) {
+    // Use actual measured widths when available
+    columnWidths = measuredColumnWidths;
+    columnWidth = Math.max(...columnWidths); // Use max width for consistent spacing
+  } else if (columnWidthPx !== undefined) {
+    // Use uniform absolute column width
+    columnWidths = text.map(() => columnWidthPx);
+    columnWidth = columnWidthPx;
+  } else {
+    // Estimate based on fontSize (fallback)
+    // FIXED: Use 0.55 for serif fonts (was 0.85, then 0.7, now 0.55)
+    // Testing shows serif fonts render much narrower than expected
+    const estimatedWidth = fontSize * 0.55;
+    columnWidths = text.map(() => estimatedWidth);
+    columnWidth = estimatedWidth;
+  }
 
   // Calculate height for each column with customizable character spacing
-  const columnHeights = text.map(line => {
-    const chars = line.length;
-    // Vertical packing with customizable spacing:
-    // chars * fontSize * 1.1: base height for all characters (with vertical padding for proper display)
-    // (chars - 1) * fontSize * characterSpacing: spacing between characters
-    return chars * fontSize * 1.1 + (chars - 1) * fontSize * characterSpacing;
-  });
+  let columnHeights: number[];
+
+  if (measuredColumnHeights && measuredColumnHeights.length === text.length) {
+    // Use actual measured heights when available (most accurate)
+    columnHeights = measuredColumnHeights;
+  } else {
+    // Estimate based on fontSize and spacing (fallback)
+    columnHeights = text.map(line => {
+      const chars = line.length;
+      // Vertical packing with customizable spacing:
+      // chars * fontSize * 1.1: base height for all characters (with vertical padding for proper display)
+      // (chars - 1) * fontSize * characterSpacing: spacing between characters
+      return chars * fontSize * 1.1 + (chars - 1) * fontSize * characterSpacing;
+    });
+  }
 
   // Find longest column
   const maxChars = Math.max(...text.map(t => t.length));
   const totalHeight = Math.max(...columnHeights);
 
-  // Total width = all columns (with tighter width) + gaps between columns
-  // When columnSpacing = 0, columns are tightly packed at 0.85 * fontSize each
-  // When columnSpacing > 0, add gaps between columns
-  const totalWidth = text.length * columnWidth + (text.length - 1) * fontSize * columnSpacing;
+  // Total width = sum of all column widths + gaps between columns
+  const totalWidth = columnWidths.reduce((sum, w) => sum + w, 0) + (text.length - 1) * fontSize * columnSpacing;
 
   return {
     width: totalWidth,
@@ -147,7 +200,8 @@ function calculateTextBounds(text: string[], fontSize: number, characterSpacing:
     columnCount: text.length,
     maxChars,
     columnHeights,
-    columnWidth
+    columnWidth,
+    columnWidths
   };
 }
 
@@ -604,6 +658,11 @@ export function generateStampPath(options: StampOptions): StampResult {
     characterSpacing = 0.05,
     paddingX = 0.05,
     paddingY = 0.05,
+    columnSpacingPx,
+    characterSpacingPx,
+    paddingXPx,
+    paddingYPx,
+    columnWidthPx,
     borderScale = 1.0,
     noiseAmount = 12,
     borderPoints = 24,
@@ -611,6 +670,12 @@ export function generateStampPath(options: StampOptions): StampResult {
     regularShape = false,
     seed = Date.now()
   } = options;
+
+  // Use absolute pixel values if provided, otherwise calculate from relative values
+  const actualColumnSpacing = columnSpacingPx !== undefined ? columnSpacingPx / fontSize : columnSpacing;
+  const actualCharacterSpacing = characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
+  const actualPaddingX = paddingXPx !== undefined ? paddingXPx : fontSize * paddingX;
+  const actualPaddingY = paddingYPx !== undefined ? paddingYPx : fontSize * paddingY;
 
   // Early return if no valid text
   if (!text || text.length === 0 || text.every(t => !t || t.trim().length === 0)) {
@@ -634,7 +699,17 @@ export function generateStampPath(options: StampOptions): StampResult {
   const displayText = [...text];
 
   // Calculate actual text dimensions with custom spacing
-  const textDims = calculateTextBounds(displayText, fontSize, characterSpacing, columnSpacing);
+  // For stamp path (border), use estimated heights to ensure enough space
+  // Don't use measuredColumnHeights here to avoid text overflow
+  const textDims = calculateTextBounds(
+    displayText,
+    fontSize,
+    actualCharacterSpacing,
+    actualColumnSpacing,
+    columnWidthPx,
+    options.measuredColumnWidths,
+    undefined // Don't use measured heights for border calculation
+  );
   const columnWidth = textDims.columnWidth;
 
   // Calculate column positions and heights
@@ -643,9 +718,9 @@ export function generateStampPath(options: StampOptions): StampResult {
     text: line
   }));
 
-  // Use separate horizontal and vertical padding
-  const horizontalPadding = fontSize * paddingX;
-  const verticalPadding = fontSize * paddingY;
+  // Use separate horizontal and vertical padding (now using actualPaddingX/Y which can be absolute or relative)
+  const horizontalPadding = actualPaddingX;
+  const verticalPadding = actualPaddingY;
 
   // Calculate base dimensions with padding
   const baseWidth = textDims.width + horizontalPadding * 2;
@@ -879,9 +954,16 @@ export function generateStamp(options: StampOptions): string {
     offsetY = 0,
     columnSpacing = 0.05,
     characterSpacing = 0.05,
+    columnSpacingPx,
+    characterSpacingPx,
+    columnWidthPx,
     borderWidth = 1,
     seed = Date.now()
   } = options;
+
+  // Use absolute pixel values if provided, otherwise use relative values
+  const actualColumnSpacing = columnSpacingPx !== undefined ? columnSpacingPx / fontSize : columnSpacing;
+  const actualCharacterSpacing = characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
 
   // Early return if no valid text
   if (!text || text.length === 0 || text.every(t => !t || t.trim().length === 0)) {
@@ -899,43 +981,48 @@ export function generateStamp(options: StampOptions): string {
   const displayText = [...text];
 
   // Calculate text dimensions with custom spacing
-  const textDims = calculateTextBounds(displayText, fontSize, characterSpacing, columnSpacing);
-  const columnWidth = textDims.columnWidth;
-  const columnGap = fontSize * columnSpacing; // Gap between columns
+  const textDims = calculateTextBounds(
+    displayText,
+    fontSize,
+    actualCharacterSpacing,
+    actualColumnSpacing,
+    columnWidthPx,
+    options.measuredColumnWidths,
+    options.measuredColumnHeights
+  );
+  const columnWidths = textDims.columnWidths;
+  const columnGap = fontSize * actualColumnSpacing;
 
   // Calculate text position using offset
   // offsetX and offsetY range from -1 to 1
   // -1: left/top edge, 0: center, 1: right/bottom edge
 
-  const fontTopMargin = fontSize * 0.10;  // Font's built-in top margin
-
   // Calculate available space for offset
-  // Horizontal: bounds.width - textDims.width
   const horizontalSpace = bounds.width - textDims.width;
-  // Vertical: bounds.height - max(column heights)
   const maxTextHeight = Math.max(...textDims.columnHeights);
   const verticalSpace = bounds.height - maxTextHeight;
 
-  // Apply offset: -1 (left/top) to 1 (right/bottom)
-  // offsetX = -1: text at left edge (x = 0)
-  // offsetX = 0: text centered (x = horizontalSpace / 2)
-  // offsetX = 1: text at right edge (x = horizontalSpace)
+  // Apply offset
   const horizontalOffset = (offsetX + 1) / 2 * horizontalSpace;
   const verticalOffset = (offsetY + 1) / 2 * verticalSpace;
 
-  // Compensate for font's built-in top margin
-  const startY = verticalOffset - fontTopMargin;
-  // For horizontal positioning, start from the right edge minus the offset
+  // Start position (no font margin compensation needed for vertical-rl with dominant-baseline: text-before-edge)
+  const startY = verticalOffset;
   const firstColumnX = bounds.width - horizontalOffset;
 
   const textElements = displayText.map((line, index) => {
     // In vertical-rl mode, columns flow right to left
-    // x represents the RIGHT edge of the column (inline-start in rl context)
-    // Text extends LEFTWARD from x by approximately columnWidth
+    // x represents the RIGHT edge of the column
     // First column (index 0) is rightmost, each subsequent column moves left
-    // Each column is separated by columnWidth + columnGap
-    const x = firstColumnX - index * (columnWidth + columnGap);
+    // Calculate x position by summing up all previous column widths and gaps
+    let x = firstColumnX;
+    for (let i = 0; i < index; i++) {
+      x -= columnWidths[i] + columnGap;
+    }
 
+    // For vertical-rl text, textLength controls the INLINE size (height in vertical mode)
+    // We don't set textLength because it would stretch characters vertically, which looks bad
+    // Instead, we rely on accurate columnWidth calculation
     return `<text x="${x}" y="${startY}"
       style="
         writing-mode: vertical-rl;
@@ -1065,6 +1152,13 @@ export class Stamp {
       characterSpacing: options.characterSpacing ?? 0.05,
       paddingX: options.paddingX ?? 0.05,
       paddingY: options.paddingY ?? 0.05,
+      columnSpacingPx: options.columnSpacingPx,
+      characterSpacingPx: options.characterSpacingPx,
+      paddingXPx: options.paddingXPx,
+      paddingYPx: options.paddingYPx,
+      columnWidthPx: options.columnWidthPx,
+      measuredColumnWidths: options.measuredColumnWidths,
+      measuredColumnHeights: options.measuredColumnHeights,
       borderScale: options.borderScale ?? 1.0,
       noiseAmount: options.noiseAmount || 12,
       borderPoints: options.borderPoints || 24,
@@ -1102,4 +1196,72 @@ export class Stamp {
  */
 export function stamp(options: StampOptions): Stamp {
   return new Stamp(options);
+}
+
+/**
+ * Measure actual text dimensions in browser environment
+ * This function creates a temporary SVG to measure the actual rendered text size
+ */
+export function measureStampText(options: StampOptions): { width: number; height: number; columnWidths: number[]; columnHeights: number[] } | null {
+  // Only works in browser environment
+  if (typeof document === 'undefined') {
+    console.warn('measureStampText only works in browser environment');
+    return null;
+  }
+
+  const {
+    text,
+    fontFamily = 'serif',
+    fontSize = 70,
+    fontWeight = 'normal',
+    characterSpacing = 0.05,
+  } = options;
+
+  // Create temporary SVG
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '1000');
+  svg.setAttribute('height', '1000');
+  svg.style.position = 'absolute';
+  svg.style.visibility = 'hidden';
+  document.body.appendChild(svg);
+
+  const columnWidths: number[] = [];
+  const columnHeights: number[] = [];
+  let maxWidth = 0;
+  let maxHeight = 0;
+
+  // Measure each column
+  text.forEach((line) => {
+    const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    textElement.setAttribute('x', '500');
+    textElement.setAttribute('y', '500');
+    textElement.style.writingMode = 'vertical-rl';
+    textElement.style.textOrientation = 'upright';
+    textElement.style.fontFamily = fontFamily;
+    textElement.style.fontSize = `${fontSize}px`;
+    textElement.style.fontWeight = String(fontWeight);
+    textElement.style.letterSpacing = `${characterSpacing}em`;
+    textElement.textContent = line;
+
+    svg.appendChild(textElement);
+
+    // Get bounding box
+    const bbox = textElement.getBBox();
+    columnWidths.push(bbox.width);
+    columnHeights.push(bbox.height);
+    maxWidth = Math.max(maxWidth, bbox.width);
+    maxHeight = Math.max(maxHeight, bbox.height);
+
+    svg.removeChild(textElement);
+  });
+
+  // Cleanup
+  document.body.removeChild(svg);
+
+  return {
+    width: maxWidth,
+    height: maxHeight,
+    columnWidths,
+    columnHeights,
+  };
 }
