@@ -17,13 +17,16 @@ const circleYangStampSvg = ref('')
 const ellipseYinStampSvg = ref('')
 const ellipseYangStampSvg = ref('')
 
-onMounted(() => {
+onMounted(async () => {
+  // 等待所有字体加载完成，确保测量准确
+  await document.fonts.ready
+
   // 阴章 - 红底白字 (默认自动形状)
   const yinOptions = {
     text: ['落梅听', '风雪'],
     type: 'yin' as const,
     color: '#C8102E',
-    fontFamily: 'beishida',
+    fontFamily: 'Heiti SC, sans-serif',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
@@ -49,7 +52,7 @@ onMounted(() => {
     text: ['落梅', '听风雪'],
     type: 'yang' as const,
     color: '#C8102E',
-    fontFamily: 'beishida',
+    fontFamily: 'Heiti SC, sans-serif',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
@@ -77,7 +80,7 @@ onMounted(() => {
     type: 'yin' as const,
     shape: 'square' as const,
     color: '#C8102E',
-    fontFamily: 'beishida',
+    fontFamily: 'Heiti SC, sans-serif',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
@@ -104,7 +107,7 @@ onMounted(() => {
     type: 'yang' as const,
     shape: 'square' as const,
     color: '#C8102E',
-    fontFamily: 'beishida',
+    fontFamily: 'Heiti SC, sans-serif',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
@@ -131,7 +134,7 @@ onMounted(() => {
     type: 'yin' as const,
     shape: 'rectangle' as const,
     color: '#C8102E',
-    fontFamily: 'beishida',
+    fontFamily: 'Heiti SC, sans-serif',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
@@ -157,7 +160,7 @@ onMounted(() => {
     type: 'yang' as const,
     shape: 'rectangle' as const,
     color: '#C8102E',
-    fontFamily: 'beishida',
+    fontFamily: 'Heiti SC, sans-serif',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
@@ -184,7 +187,7 @@ onMounted(() => {
     type: 'yin' as const,
     shape: 'circle' as const,
     color: '#C8102E',
-    fontFamily: 'beishida',
+    fontFamily: 'Heiti SC, sans-serif',
     fontSize: 70,
     paddingXPx: 15,
     paddingYPx: 15,
@@ -208,7 +211,7 @@ onMounted(() => {
     type: 'yang' as const,
     shape: 'circle' as const,
     color: '#C8102E',
-    fontFamily: 'beishida',
+    fontFamily: 'Heiti SC, sans-serif',
     fontSize: 70,
     paddingXPx: 15,
     paddingYPx: 15,
@@ -233,7 +236,7 @@ onMounted(() => {
     type: 'yin' as const,
     shape: 'ellipse' as const,
     color: '#C8102E',
-    fontFamily: 'beishida',
+    fontFamily: 'Heiti SC, sans-serif',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
@@ -259,7 +262,7 @@ onMounted(() => {
     type: 'yang' as const,
     shape: 'ellipse' as const,
     color: '#C8102E',
-    fontFamily: 'beishida',
+    fontFamily: 'Heiti SC, sans-serif',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
