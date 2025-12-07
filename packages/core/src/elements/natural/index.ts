@@ -18,3 +18,11 @@ export {
   type RockOptions,
 } from './Mount';
 export { Cloud, cloud, type CloudOptions } from './Cloud';
+export {
+  XuanPaper,
+  xuanPaper,
+  xuanPaperSVG,
+  XuanPaperColors,
+  GoldFleckColors,
+  type XuanPaperOptions,
+} from './XuanPaper';

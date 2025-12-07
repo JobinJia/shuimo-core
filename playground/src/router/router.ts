@@ -10,6 +10,7 @@ import StrokeAnimation from '../demos/StrokeAnimation.vue'
 import InkDiffusion from '../demos/InkDiffusion.vue'
 import WebGPUShanshui from '../demos/WebGPUShanshui.vue'
 import WebGPUShanshuiScroll from '../demos/WebGPUShanshuiScroll.vue'
+import XuanPaperDemo from '../demos/XuanPaperDemo.vue'
 
 const routes = [
   {
@@ -71,6 +72,11 @@ const routes = [
     path: '/webgpu-scroll',
     name: 'WebGPUShanshuiScroll',
     component: WebGPUShanshuiScroll,
+  },
+  {
+    path: '/xuan-paper',
+    name: 'XuanPaper',
+    component: XuanPaperDemo,
   },
 ]
 
