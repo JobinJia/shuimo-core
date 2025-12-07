@@ -6,7 +6,8 @@
     "noUncheckedIndexedAccess": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "types": ["@webgpu/types"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"]

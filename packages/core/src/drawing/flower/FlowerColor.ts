@@ -182,3 +182,88 @@ export function adjustColor(
     a * noiseA,
   )
 }
+
+// ============================================================================
+// HSV with Filter (Pre-computation)
+// ============================================================================
+
+import type { LayerType } from './types'
+import { applyFadeAndWispy, applyWispy } from './FlowerFilter'
+
+/**
+ * Create HSV color with pre-applied filter effect
+ * This replicates the Canvas post-processing filter during generation
+ *
+ * @param h - Hue (0-360)
+ * @param s - Saturation (0-1)
+ * @param v - Value (0-1)
+ * @param a - Alpha (0-1)
+ * @param x - X position for noise sampling
+ * @param y - Y position for noise sampling
+ * @param layerType - 'lay0' (fade+wispy) or 'lay1' (wispy only)
+ * @returns Filtered color string
+ */
+export function hsvFiltered(
+  h: number,
+  s: number,
+  v: number,
+  a: number,
+  x: number,
+  y: number,
+  layerType: LayerType,
+): string {
+  // First convert HSV to RGB
+  const c = v * s
+  const xv = c * (1 - abs((h / 60) % 2 - 1))
+  const m = v - c
+
+  const hueSegment = Math.floor(h / 60)
+  const rgbPrimes = [
+    [c, xv, 0],
+    [xv, c, 0],
+    [0, c, xv],
+    [0, xv, c],
+    [xv, 0, c],
+    [c, 0, xv],
+  ]
+
+  const [rv, gv, bv] = rgbPrimes[hueSegment] || [0, 0, 0]
+  let r = (rv + m) * 255
+  let g = (gv + m) * 255
+  let b = (bv + m) * 255
+
+  // Apply filter based on layer type
+  const filtered = layerType === 'lay0'
+    ? applyFadeAndWispy(r, g, b, a, x, y)
+    : applyWispy(r, g, b, a, x, y)
+
+  return rgba(filtered.r, filtered.g, filtered.b, filtered.a)
+}
+
+/**
+ * Create RGBA color with pre-applied filter effect
+ *
+ * @param r - Red (0-255)
+ * @param g - Green (0-255)
+ * @param b - Blue (0-255)
+ * @param a - Alpha (0-1)
+ * @param x - X position for noise sampling
+ * @param y - Y position for noise sampling
+ * @param layerType - 'lay0' (fade+wispy) or 'lay1' (wispy only)
+ * @returns Filtered color string
+ */
+export function rgbaFiltered(
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+  x: number,
+  y: number,
+  layerType: LayerType,
+): string {
+  const filtered = layerType === 'lay0'
+    ? applyFadeAndWispy(r, g, b, a, x, y)
+    : applyWispy(r, g, b, a, x, y)
+
+  return rgba(filtered.r, filtered.g, filtered.b, filtered.a)
+}

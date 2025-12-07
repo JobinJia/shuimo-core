@@ -45,13 +45,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const expandedGroups = ref(['Flower', 'Shanshui', 'Stamp', 'Experimental'])
+const expandedGroups = ref(['Flower', 'Shanshui', 'Stamp', 'Experimental', 'WebGPU'])
 
 const menuItems = [
   {
     name: 'Flower',
     children: [
       { path: '/flower-canvas', name: 'Canvas' },
+      { path: '/flower-svg', name: 'SVG' },
     ]
   },
   {
@@ -73,6 +74,14 @@ const menuItems = [
     name: 'Experimental',
     children: [
       { path: '/stroke-animation', name: 'Stroke Animation' },
+    ]
+  },
+  {
+    name: 'WebGPU',
+    children: [
+      { path: '/ink-diffusion', name: 'Ink Diffusion' },
+      { path: '/webgpu-shanshui', name: 'Shanshui' },
+      { path: '/webgpu-scroll', name: 'Scroll (Main)' },
     ]
   },
 ]

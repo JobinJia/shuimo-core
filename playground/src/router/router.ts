@@ -5,7 +5,11 @@ import Shanshui from '../demos/Shanshui.vue'
 import ShanShuiElements from '../demos/ShanShuiElements.vue'
 import CloudDemo from '../demos/CloudDemo.vue'
 import FlowerCanvasTest from '../FlowerCanvasTest.vue'
+import FlowerSVGTest from '../demos/FlowerSVGTest.vue'
 import StrokeAnimation from '../demos/StrokeAnimation.vue'
+import InkDiffusion from '../demos/InkDiffusion.vue'
+import WebGPUShanshui from '../demos/WebGPUShanshui.vue'
+import WebGPUShanshuiScroll from '../demos/WebGPUShanshuiScroll.vue'
 
 const routes = [
   {
@@ -44,9 +48,29 @@ const routes = [
     component: FlowerCanvasTest,
   },
   {
+    path: '/flower-svg',
+    name: 'FlowerSVG',
+    component: FlowerSVGTest,
+  },
+  {
     path: '/stroke-animation',
     name: 'StrokeAnimation',
     component: StrokeAnimation,
+  },
+  {
+    path: '/ink-diffusion',
+    name: 'InkDiffusion',
+    component: InkDiffusion,
+  },
+  {
+    path: '/webgpu-shanshui',
+    name: 'WebGPUShanshui',
+    component: WebGPUShanshui,
+  },
+  {
+    path: '/webgpu-scroll',
+    name: 'WebGPUShanshuiScroll',
+    component: WebGPUShanshuiScroll,
   },
 ]
 

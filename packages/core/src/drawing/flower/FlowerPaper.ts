@@ -131,7 +131,7 @@ export function createPaperImage(
 }
 
 /**
- * Create SVG pattern with paper texture for tiling
+ * Create SVG pattern with paper texture for tiling (Canvas-based)
  *
  * @param id - Pattern ID
  * @param options - Paper generation options
@@ -141,8 +141,6 @@ export function createPaperPattern(
   id: string,
   options: PaperOptions = {},
 ): SVGPatternElement {
-  console.log('📄 createPaperPattern called with id:', id)
-
   const SVG_NS = 'http://www.w3.org/2000/svg'
   const reso = options.reso || 512
 
@@ -162,6 +160,89 @@ export function createPaperPattern(
   pattern.appendChild(img)
 
   return pattern
+}
+
+/**
+ * Create pure SVG paper texture using SVG filters
+ * No Canvas dependency - uses feTurbulence for noise
+ *
+ * @param id - Unique ID for the filter and rect
+ * @param width - Width of the paper
+ * @param height - Height of the paper
+ * @param options - Paper generation options
+ * @returns Object containing defs element and rect element
+ */
+export function createPureSVGPaper(
+  id: string,
+  width: number,
+  height: number,
+  options: PaperOptions = {},
+): { defs: SVGDefsElement, rect: SVGRectElement } {
+  const SVG_NS = 'http://www.w3.org/2000/svg'
+  const {
+    col = [0.98, 0.91, 0.74],
+    tex = 20,
+  } = options
+
+  const filterId = `${id}-filter`
+
+  // Create defs with filter
+  const defs = document.createElementNS(SVG_NS, 'defs')
+
+  const filter = document.createElementNS(SVG_NS, 'filter')
+  filter.setAttribute('id', filterId)
+  filter.setAttribute('x', '0%')
+  filter.setAttribute('y', '0%')
+  filter.setAttribute('width', '100%')
+  filter.setAttribute('height', '100%')
+
+  // Base turbulence for paper grain
+  const feTurbulence = document.createElementNS(SVG_NS, 'feTurbulence')
+  feTurbulence.setAttribute('type', 'fractalNoise')
+  feTurbulence.setAttribute('baseFrequency', '0.04')
+  feTurbulence.setAttribute('numOctaves', '5')
+  feTurbulence.setAttribute('seed', id.length.toString())
+  feTurbulence.setAttribute('result', 'noise')
+  filter.appendChild(feTurbulence)
+
+  // Convert noise to grayscale and adjust intensity
+  const feColorMatrix = document.createElementNS(SVG_NS, 'feColorMatrix')
+  feColorMatrix.setAttribute('in', 'noise')
+  feColorMatrix.setAttribute('type', 'matrix')
+  // Reduce noise intensity based on tex parameter
+  const intensity = tex / 100
+  feColorMatrix.setAttribute('values', `
+    0 0 0 0 ${1 - intensity * 0.5}
+    0 0 0 0 ${1 - intensity * 0.5}
+    0 0 0 0 ${1 - intensity * 0.5}
+    0 0 0 1 0
+  `)
+  feColorMatrix.setAttribute('result', 'monoNoise')
+  filter.appendChild(feColorMatrix)
+
+  // Blend with base color
+  const feFlood = document.createElementNS(SVG_NS, 'feFlood')
+  feFlood.setAttribute('flood-color', rgba(col[0] * 255, col[1] * 255, col[2] * 255))
+  feFlood.setAttribute('result', 'baseColor')
+  filter.appendChild(feFlood)
+
+  const feBlend = document.createElementNS(SVG_NS, 'feBlend')
+  feBlend.setAttribute('in', 'baseColor')
+  feBlend.setAttribute('in2', 'monoNoise')
+  feBlend.setAttribute('mode', 'multiply')
+  feBlend.setAttribute('result', 'paper')
+  filter.appendChild(feBlend)
+
+  defs.appendChild(filter)
+
+  // Create rect with filter applied
+  const rect = document.createElementNS(SVG_NS, 'rect')
+  rect.setAttribute('width', width.toString())
+  rect.setAttribute('height', height.toString())
+  rect.setAttribute('fill', rgba(col[0] * 255, col[1] * 255, col[2] * 255))
+  rect.setAttribute('filter', `url(#${filterId})`)
+
+  return { defs, rect }
 }
 
 // ============================================================================

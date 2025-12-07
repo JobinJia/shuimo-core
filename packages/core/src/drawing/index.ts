@@ -5,6 +5,6 @@ export { div } from './div';
 export { Texture, texture, type TextureOptions } from './Texture';
 export { Stamp, stamp, generateStamp, generateStampPath, measureStampText, type StampOptions, type StampType, type StampShape } from './Stamp';
 export { generateFlowerCanvas, genParams, squircle, type FlowerCanvasOptions, type FlowerParams } from './FlowerCanvas';
-// Alias for backward compatibility
-export { generateFlowerCanvas as generateFlower } from './FlowerCanvas';
+// SVG version of flower generator
+export { generateFlower, type FlowerOptions } from './Flower';
 export { generatePaperCanvas, generatePaperDataURL, createPaperImage, createPaperPattern, PAPER_COL_DEFAULT, PAPER_COL_WARM, PAPER_COL_COOL, PAPER_COL_AGED, type PaperOptions } from './flower/FlowerPaper';

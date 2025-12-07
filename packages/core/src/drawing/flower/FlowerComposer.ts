@@ -2,6 +2,10 @@
  * Flower Generator - Composers
  * High-level functions to compose woody and herbal plants
  * Original: reference-code/flowers/main.js (Lines 891-1059)
+ *
+ * Modified to use pre-computed filter colors instead of post-processing.
+ * - lay0 elements (branches, leaves, stems): apply fade + wispy
+ * - lay1 elements (flower petals): apply wispy only
  */
 
 import type { WoodyArgs, HerbalArgs, Layer, Vec3 } from './types'
@@ -9,7 +13,6 @@ import { PI, sin, mapval, normRand, grot } from './FlowerMath'
 import { noise } from './FlowerNoise'
 import { leaf, stem, branch } from './FlowerPlant'
 import * as LayerSystem from './FlowerLayer'
-import { filter } from './FlowerFilter'
 import { genParams } from './FlowerParams'
 
 // ============================================================================
@@ -32,7 +35,7 @@ export function woody(args: WoodyArgs = {}): Layer {
   const lay0 = LayerSystem.empty(cwid, cwid)
   const lay1 = LayerSystem.empty(cwid, cwid)
 
-  // Generate branch structure
+  // Generate branch structure (lay0 - fade + wispy)
   const { group: branchGroup, branches: PL } = branch({
     xof: cwid * 0.5,
     yof: cwid * 0.7,
@@ -41,9 +44,9 @@ export function woody(args: WoodyArgs = {}): Layer {
     dep: PAR.branchDepth,
     col: PAR.branchColor,
     frk: PAR.branchFork,
+    layerType: 'lay0',
   })
 
-  // CRITICAL FIX: Add branch SVG group to layer (THIS WAS MISSING!)
   lay0.group.appendChild(branchGroup)
 
   // Add leaves and flowers to branches
@@ -52,7 +55,7 @@ export function woody(args: WoodyArgs = {}): Layer {
       for (let j = 0; j < PL[i][1].length; j++) {
         const pt = PL[i][1][j]
 
-        // Add leaves
+        // Add leaves (lay0 - fade + wispy)
         if (Math.random() < PAR.leafChance) {
           const { group: leafGroup } = leaf({
             xof: pt[0],
@@ -67,6 +70,7 @@ export function woody(args: WoodyArgs = {}): Layer {
               0,
               mapval(noise(x * 1, i + PI), 0, 1, -1, 1) * 5,
             ],
+            layerType: 'lay0',
           })
           lay0.group.appendChild(leafGroup)
         }
@@ -75,7 +79,7 @@ export function woody(args: WoodyArgs = {}): Layer {
         if (Math.random() < PAR.flowerChance) {
           const hr: Vec3 = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * 0]
 
-          // Pedicel (flower stem)
+          // Pedicel (flower stem) - lay0
           const { points: P_ } = stem({
             xof: pt[0],
             yof: pt[1],
@@ -84,13 +88,14 @@ export function woody(args: WoodyArgs = {}): Layer {
             col: { min: [50, 1, 0.9, 1], max: [50, 1, 0.9, 1] },
             wid: (x: number) => sin(x * PI) * x * 2 + 1,
             ben: (x: number): Vec3 => [0, 0, 0],
+            layerType: 'lay0',
           })
 
           const op = Math.random()
           const r = grot(P_, P_.length - 1)
           const hhr = r
 
-          // Generate flower petals
+          // Generate flower petals (lay1 - wispy only)
           for (let k = 0; k < PAR.flowerPetal; k++) {
             const { group: petalGroup } = leaf({
               flo: true,
@@ -107,10 +112,11 @@ export function woody(args: WoodyArgs = {}): Layer {
                 0,
                 0,
               ],
+              layerType: 'lay1',
             })
             lay1.group.appendChild(petalGroup)
 
-            // Inner flower parts
+            // Inner flower parts (lay1 - wispy only)
             const { group: innerGroup } = leaf({
               flo: true,
               xof: pt[0] + P_[P_.length - 1][0],
@@ -126,6 +132,7 @@ export function woody(args: WoodyArgs = {}): Layer {
                 0,
                 0,
               ],
+              layerType: 'lay1',
             })
             lay1.group.appendChild(innerGroup)
           }
@@ -134,10 +141,8 @@ export function woody(args: WoodyArgs = {}): Layer {
     }
   }
 
-  // Apply filters
-  filter(lay0, 'fade')
-  filter(lay0, 'wispy')
-  filter(lay1, 'wispy')
+  // NOTE: Filters are now pre-computed during shape generation
+  // No need for post-processing filter calls
 
   // Calculate combined bounds
   const b1 = LayerSystem.bound(lay0)
@@ -199,6 +204,7 @@ export function herbal(args: HerbalArgs = {}): Layer {
         0,
         mapval(noise(x * 1, i + PI), 0, 1, -1, 1) * x * PAR.stemBend,
       ],
+      layerType: 'lay0',
     })
     lay0.group.appendChild(stemGroup)
 
@@ -219,6 +225,7 @@ export function herbal(args: HerbalArgs = {}): Layer {
               0,
               mapval(noise(x * 1, i + PI), 0, 1, -1, 1) * 5,
             ],
+            layerType: 'lay0',
           })
           lay0.group.appendChild(leafGroup)
         }
@@ -236,6 +243,7 @@ export function herbal(args: HerbalArgs = {}): Layer {
         col: { min: [60, 0.3, 0.9, 1], max: [60, 0.3, 0.9, 1] },
         wid: (x: number) => PAR.sheathWidth * (sin(x * PI) ** 2 - x * 0.5 + 0.5),
         ben: (x: number): Vec3 => [0, 0, 0],
+        layerType: 'lay0',
       })
       lay0.group.appendChild(sheathGroup)
     }
@@ -254,13 +262,14 @@ export function herbal(args: HerbalArgs = {}): Layer {
           0,
           mapval(noise(x * 1, j + PI), 0, 1, -1, 1) * x * 10,
         ],
+        layerType: 'lay0',
       })
       lay0.group.appendChild(shootGroup)
 
       const op = Math.random()
       const hhr: Vec3 = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * PI]
 
-      // Generate flower petals
+      // Generate flower petals (lay1 - wispy only)
       for (let k = 0; k < PAR.flowerPetal; k++) {
         const { group: petalGroup } = leaf({
           flo: true,
@@ -277,10 +286,11 @@ export function herbal(args: HerbalArgs = {}): Layer {
             0,
             0,
           ],
+          layerType: 'lay1',
         })
         lay1.group.appendChild(petalGroup)
 
-        // Inner flower parts
+        // Inner flower parts (lay1 - wispy only)
         const { group: innerGroup } = leaf({
           flo: true,
           xof: x0 + P[P.length - 1][0] + P_[P_.length - 1][0],
@@ -296,6 +306,7 @@ export function herbal(args: HerbalArgs = {}): Layer {
             0,
             0,
           ],
+          layerType: 'lay1',
         })
         lay1.group.appendChild(innerGroup)
       }
@@ -317,15 +328,14 @@ export function herbal(args: HerbalArgs = {}): Layer {
           0,
           mapval(noise(x * 1, i + PI), 0, 1, -1, 1) * 10,
         ],
+        layerType: 'lay0',
       })
       lay0.group.appendChild(leafGroup)
     }
   }
 
-  // Apply filters
-  filter(lay0, 'fade')
-  filter(lay0, 'wispy')
-  filter(lay1, 'wispy')
+  // NOTE: Filters are now pre-computed during shape generation
+  // No need for post-processing filter calls
 
   // Calculate combined bounds
   const b1 = LayerSystem.bound(lay0)
