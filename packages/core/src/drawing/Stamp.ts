@@ -88,8 +88,14 @@ export interface StampOptions {
   /** Measured column heights in pixels for each column. If provided, uses actual measured heights instead of estimation. Array length should match text.length. */
   measuredColumnHeights?: number[];
 
-  /** Border scale factor - scales the entire stamp border relative to text (default: 1.0, range: 0.8-1.5) */
+  /** Border scale factor - scales the entire stamp border relative to text (default: 1.0, range: 0.8-1.5). If borderScaleX/Y are provided, this is ignored. */
   borderScale?: number;
+
+  /** Horizontal border scale factor - scales stamp border width relative to text (default: 1.0) */
+  borderScaleX?: number;
+
+  /** Vertical border scale factor - scales stamp border height relative to text (default: 1.0) */
+  borderScaleY?: number;
 
   /** Amount of irregularity (0-20, default: 12) */
   noiseAmount?: number;
@@ -664,6 +670,8 @@ export function generateStampPath(options: StampOptions): StampResult {
     paddingYPx,
     columnWidthPx,
     borderScale = 1.0,
+    borderScaleX,
+    borderScaleY,
     noiseAmount = 12,
     borderPoints = 24,
     cornerRadius = 15,
@@ -729,9 +737,12 @@ export function generateStampPath(options: StampOptions): StampResult {
 
   // Apply border scale to expand/shrink the border relative to text
   // Scale from the center, so text stays centered
-  const maxWidth = baseWidth * borderScale;
-  const rightHeight = baseRightHeight * borderScale;
-  const leftHeight = baseLeftHeight * borderScale;
+  // Use borderScaleX/Y if provided, otherwise fall back to borderScale
+  const scaleX = borderScaleX ?? borderScale;
+  const scaleY = borderScaleY ?? borderScale;
+  const maxWidth = baseWidth * scaleX;
+  const rightHeight = baseRightHeight * scaleY;
+  const leftHeight = baseLeftHeight * scaleY;
 
   // Simple PRNG for reproducible noise
   let seedValue = seed;
@@ -775,7 +786,9 @@ export function generateStampPath(options: StampOptions): StampResult {
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
     const baseSize = Math.max(textWidth + horizontalPadding * 2, textHeight + verticalPadding * 2);
-    const size = baseSize * borderScale;
+    // For square, use the average of scaleX and scaleY to maintain square shape
+    const avgScale = (scaleX + scaleY) / 2;
+    const size = baseSize * avgScale;
 
     path = generateSquarePath(size, noiseAmount, borderPoints, cornerRadius, noise, random, applyNoise, regularShape);
     bounds = {
@@ -790,8 +803,8 @@ export function generateStampPath(options: StampOptions): StampResult {
     // Rectangle: fits text dimensions with padding and border scale
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
-    const width = (textWidth + horizontalPadding * 2) * borderScale;
-    const height = (textHeight + verticalPadding * 2) * borderScale;
+    const width = (textWidth + horizontalPadding * 2) * scaleX;
+    const height = (textHeight + verticalPadding * 2) * scaleY;
 
     path = generateRectanglePath(width, height, noiseAmount, borderPoints, cornerRadius, noise, random, applyNoise, regularShape);
     bounds = {
@@ -807,7 +820,9 @@ export function generateStampPath(options: StampOptions): StampResult {
     const textWidth = textDims.width;
     const textHeight = Math.max(...textDims.columnHeights);
     const baseDiameter = Math.max(textWidth + horizontalPadding * 2, textHeight + verticalPadding * 2);
-    const diameter = baseDiameter * borderScale;
+    // For circle, use the average of scaleX and scaleY to maintain circular shape
+    const avgScale = (scaleX + scaleY) / 2;
+    const diameter = baseDiameter * avgScale;
     const radius = diameter / 2;
 
     path = generateCirclePath(radius, noiseAmount, borderPoints, noise, random, applyNoise, regularShape);
@@ -832,15 +847,15 @@ export function generateStampPath(options: StampOptions): StampResult {
       // Horizontal layout
       const baseHeight = textHeight + verticalPadding * 2;
       const baseWidth = textWidth + horizontalPadding * 2 + baseHeight * 0.15;
-      width = baseWidth * borderScale;
-      height = baseHeight * borderScale;
+      width = baseWidth * scaleX;
+      height = baseHeight * scaleY;
     } else {
       // Vertical layout
       const baseHeight = textHeight + verticalPadding * 2;
       const baseWidth = textWidth + horizontalPadding * 2;
       const shortSide = Math.min(baseWidth, baseHeight);
-      width = baseWidth * borderScale;
-      height = (baseHeight + shortSide * 0.15) * borderScale;
+      width = baseWidth * scaleX;
+      height = (baseHeight + shortSide * 0.15) * scaleY;
     }
 
     path = generateEllipsePath(width, height, noiseAmount, borderPoints, noise, random, applyNoise, regularShape);
@@ -1160,6 +1175,8 @@ export class Stamp {
       measuredColumnWidths: options.measuredColumnWidths,
       measuredColumnHeights: options.measuredColumnHeights,
       borderScale: options.borderScale ?? 1.0,
+      borderScaleX: options.borderScaleX,
+      borderScaleY: options.borderScaleY,
       noiseAmount: options.noiseAmount || 12,
       borderPoints: options.borderPoints || 24,
       cornerRadius: options.cornerRadius || 15,
