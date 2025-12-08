@@ -59,6 +59,7 @@ const menuItems = [
     children: [
       { path: '/shanshui', name: 'Main' },
       { path: '/shanshui-elements', name: 'Elements' },
+      { path: '/misty-mount', name: 'Misty Mount' },
       { path: '/cloud', name: 'Cloud' },
     ]
   },

@@ -6,6 +6,7 @@ import ShanShuiElements from '../demos/ShanShuiElements.vue'
 import CloudDemo from '../demos/CloudDemo.vue'
 import FlowerCanvasTest from '../FlowerCanvasTest.vue'
 import StrokeAnimation from '../demos/StrokeAnimation.vue'
+import MistyMount from '../demos/MistyMount.vue'
 
 const routes = [
   {
@@ -47,6 +48,11 @@ const routes = [
     path: '/stroke-animation',
     name: 'StrokeAnimation',
     component: StrokeAnimation,
+  },
+  {
+    path: '/misty-mount',
+    name: 'MistyMount',
+    component: MistyMount,
   },
 ]
 

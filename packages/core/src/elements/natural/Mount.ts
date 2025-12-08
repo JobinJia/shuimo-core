@@ -43,6 +43,8 @@ export interface MistyMountOptions {
   hei?: number;
   len?: number;
   layers?: number;
+  /** 只渲染滤镜叠加层，用于调试对照 */
+  filterOnly?: boolean;
 }
 
 interface FootOptions {
@@ -664,6 +666,7 @@ export class Mount {
     const hei = options.hei ?? 200;
     const len = options.len ?? 2000;
     const layers = options.layers ?? 3;
+    const filterOnly = options.filterOnly ?? false;
 
     seed = seed ?? 0;
     let canv = '';
@@ -677,47 +680,29 @@ export class Mount {
     const filterId = `ink-wash-${Math.random().toString(36).substr(2, 9)}`;
     const particleFilterId = `ink-particle-${Math.random().toString(36).substr(2, 9)}`;
 
+    const blobFilterId = `ink-blob-${Math.random().toString(36).substr(2, 9)}`;
+
     canv += `<defs>
-      <!-- Main ink wash filter for mountain body (皴法效果) -->
+      <!-- Main ink wash filter for mountain body (大墨块离散效果) -->
       <filter id="${filterId}" x="-100%" y="-100%" width="300%" height="300%">
-        <!-- Step 1: Generate brush texture noise -->
-        <feTurbulence type="fractalNoise" baseFrequency="0.025 0.015" numOctaves="4" seed="${seed}" result="brushNoise" />
+        <!-- Step 1: Low frequency noise for large ink blobs -->
+        <feTurbulence type="fractalNoise" baseFrequency="0.005 0.003" numOctaves="3" seed="${seed}" result="blobNoise" />
 
-        <!-- Step 2: Create displacement map for ink bleeding effect (水墨渗透) - INCREASED -->
-        <feDisplacementMap in="SourceGraphic" in2="brushNoise" scale="12" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+        <!-- Step 2: Large displacement for scattered ink effect -->
+        <feDisplacementMap in="SourceGraphic" in2="blobNoise" scale="40" xChannelSelector="R" yChannelSelector="G" result="displaced" />
 
-        <!-- Step 3: Multi-layer blur to simulate Kuwahara smoothing - INCREASED -->
-        <!-- Layer 1: Heavy blur for base wash -->
-        <feGaussianBlur in="displaced" stdDeviation="5" result="blur1" />
-        <!-- Layer 2: Medium blur for mid-tone -->
-        <feGaussianBlur in="displaced" stdDeviation="2.5" result="blur2" />
-        <!-- Layer 3: Light blur for detail retention -->
-        <feGaussianBlur in="displaced" stdDeviation="1" result="blur3" />
+        <!-- Step 3: Heavy blur for soft, diffuse edges -->
+        <feGaussianBlur in="displaced" stdDeviation="15" result="blurred" />
 
-        <!-- Step 4: Combine blur layers with different weights (模拟 Kuwahara 的分区平滑) -->
-        <feBlend in="blur1" in2="blur2" mode="multiply" result="combined1" />
-        <feBlend in="combined1" in2="blur3" mode="screen" result="combined2" />
-
-        <!-- Step 5: Add texture grain using turbulence -->
-        <feComponentTransfer in="brushNoise" result="grainMask">
-          <feFuncA type="linear" slope="1.0" intercept="-0.15" />
+        <!-- Step 4: Create mask to break into discrete blobs -->
+        <feTurbulence type="turbulence" baseFrequency="0.008 0.006" numOctaves="2" seed="${seed + 50}" result="maskNoise" />
+        <feComponentTransfer in="maskNoise" result="blobMask">
+          <feFuncA type="discrete" tableValues="0 0 0.3 0.6 0.8 1" />
         </feComponentTransfer>
-        <feComposite operator="in" in="combined2" in2="grainMask" result="textured" />
+        <feComposite operator="in" in="blurred" in2="blobMask" result="masked" />
 
-        <!-- Step 6: Morphology for edge enhancement (保持边缘) - INCREASED -->
-        <feMorphology operator="dilate" radius="0.5" in="textured" result="dilated" />
-        <feMorphology operator="erode" radius="0.5" in="dilated" result="eroded" />
-
-        <!-- Step 7: Enhance contrast (增加墨色浓度) - SIGNIFICANTLY INCREASED -->
-        <feColorMatrix in="eroded" type="matrix" values="
-          1.5 0   0   0 -0.25
-          0   1.5 0   0 -0.25
-          0   0   1.5 0 -0.25
-          0   0   0   1.2 0
-        " result="contrasted" />
-
-        <!-- Step 8: Final soft blur for natural ink diffusion - INCREASED -->
-        <feGaussianBlur in="contrasted" stdDeviation="1.2" result="final" />
+        <!-- Step 5: Extra blur for transparent fade at edges -->
+        <feGaussianBlur in="masked" stdDeviation="8" result="final" />
       </filter>
 
       <!-- Particle filter for ink dots (墨粒滤镜) -->
@@ -737,6 +722,18 @@ export class Mount {
         </feComponentTransfer>
         <feComposite operator="in" in="blurred" in2="textureMask" />
       </filter>
+
+      <!-- Blob filter for ink wash blobs (墨块滤镜 - 毛边效果) -->
+      <filter id="${blobFilterId}" x="-50%" y="-50%" width="200%" height="200%">
+        <!-- 高频噪声用于边缘毛糙 -->
+        <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" seed="${seed + 200}" result="roughNoise" />
+
+        <!-- 边缘扰动，产生毛边 -->
+        <feDisplacementMap in="SourceGraphic" in2="roughNoise" scale="5" xChannelSelector="R" yChannelSelector="G" result="roughEdge" />
+
+        <!-- 轻微模糊，柔化但不糊掉 -->
+        <feGaussianBlur in="roughEdge" stdDeviation="1.5" result="final" />
+      </filter>
     </defs>`;
 
     // Generate mountain layers from back to front
@@ -747,26 +744,17 @@ export class Mount {
       // Assume canvas height is approximately len/2 (e.g., 1400 -> 700)
       const canvasHeight = len / 2;
 
-      // Vertical offset for each layer: far mountains higher, near mountains lower
-      // Far mountains (layerDepth=0) pushed up, near mountains (layerDepth=1) at bottom
-      const layerVerticalOffset = -(1 - layerDepth) * hei * 1.5; // Far: -270, Near: 0
+      // 定义山的三个关键点：左山脚、山顶、右山脚
+      // 左山脚 Y (较高的 Y 值 = 较低的位置) - 更低
+      const leftFootY = canvasHeight * 0.95 + (noise.noise(layerSeed, 0.1, 0.2) * 0.05 * canvasHeight);
+      // 右山脚 Y (可以和左边不一样) - 更高，差距更大
+      const rightFootY = canvasHeight * 0.55 + (noise.noise(layerSeed, 0.3, 0.4) * 0.1 * canvasHeight);
+      // 山顶位置 (0-1, 0.5 表示正中间) - 偏右
+      const peakPosition = 0.6 + noise.noise(layerSeed, 0.5, 0.6) * 0.15; // 0.45 ~ 0.75
+      // 山顶 Y
+      const peakY = canvasHeight * 0.2 - hei * (0.5 + layerDepth * 0.5);
 
-      // Bottom 1/4 of canvas: from (3/4 * canvasHeight) to canvasHeight
-      // For len=1400, canvasHeight=700, bottom 1/4 is from y=525 to y=700
-      const bottomQuarterTop = canvasHeight * 0.75 + layerVerticalOffset;
-      const bottomQuarterBottom = canvasHeight + layerVerticalOffset;
-      const quarterRange = bottomQuarterBottom - bottomQuarterTop;
-
-      // Random starting point at left edge (within bottom 1/4)
-      // Map noise [-1, 1] to [0, 1] for position within bottom quarter
-      const leftHeightFactor = (noise.noise(layerSeed, 0.1, 0.2) + 1) / 2;
-      const startY = bottomQuarterTop + quarterRange * leftHeightFactor;
-
-      // Random ending point at right edge (within bottom 1/4)
-      const rightHeightFactor = (noise.noise(layerSeed, 0.3, 0.4) + 1) / 2;
-      const endY = bottomQuarterTop + quarterRange * rightHeightFactor;
-
-      // Generate mountain ridge using FBM
+      // Generate mountain ridge: 左山脚 → 山顶 → 右山脚
       const ridgeLine: Polygon = [];
       const resolution = 200;
 
@@ -774,31 +762,50 @@ export class Mount {
         const t = i / resolution; // Progress from 0 to 1
         const x = xoff - len / 2 + t * len; // From left edge to right edge
 
-        // Linear interpolation between start and end points (baseline)
-        const baselineY = startY * (1 - t) + endY * t;
+        // 用平滑曲线连接三个点
+        // 山顶有微小的平缓过渡，但整体有棱角
+        let baseY: number;
+        // 山顶平缓区域范围 (peakPosition 左右各 1%)
+        const flatRange = 0.01;
+        const flatLeft = peakPosition - flatRange;
+        const flatRight = peakPosition + flatRange;
 
-        // Use Simplex Noise with multiple octaves for rich detail
-        let noiseValue = 0;
-        let amplitude = 1.0;
-        let frequency = 2.0;
-        let maxValue = 0;
-
-        // Combine 6 octaves of Simplex Noise
-        for (let octave = 0; octave < 6; octave++) {
-          noiseValue += simplex.noise2D(t * frequency, layerSeed + octave) * amplitude;
-          maxValue += amplitude;
-          amplitude *= 0.5;  // Persistence: each octave has half the amplitude
-          frequency *= 2.0;  // Lacunarity: each octave has double the frequency
+        if (t < flatLeft) {
+          // 左山脚到山顶平缓区
+          const localT = t / flatLeft; // 0 to 1
+          const curve = Math.pow(localT, 1.3);
+          baseY = leftFootY + (peakY - leftFootY) * curve;
+        } else if (t > flatRight) {
+          // 山顶平缓区到右山脚
+          const localT = (t - flatRight) / (1 - flatRight); // 0 to 1
+          const curve = 1 - Math.pow(1 - localT, 1.3);
+          baseY = peakY + (rightFootY - peakY) * curve;
+        } else {
+          // 山顶平缓区域 - 用缓坡而不是完全平
+          const localT = (t - flatLeft) / (flatRange * 2); // 0 to 1
+          // 微微凸起的弧形
+          const curve = Math.sin(localT * Math.PI);
+          baseY = peakY - curve * 3; // 微微凸起 3px
         }
 
-        // Normalize to [-1, 1]
+        // 添加噪声细节
+        let noiseValue = 0;
+        let amplitude = 1.0;
+        let frequency = 4.0;
+        let maxValue = 0;
+
+        for (let octave = 0; octave < 4; octave++) {
+          noiseValue += simplex.noise2D(t * frequency, layerSeed + octave) * amplitude;
+          maxValue += amplitude;
+          amplitude *= 0.5;
+          frequency *= 2.0;
+        }
         noiseValue = noiseValue / maxValue;
 
-        // Scale by height parameter with increased amplitude
-        // Mountain peaks go upward (negative Y), so subtract noise value
-        // Far mountains: less dramatic (1.5x), Near mountains: more dramatic (3.5x)
-        const amplitudeScale = 1.5 + layerDepth * 2.0; // 1.5 to 3.5
-        const mountainY = baselineY - Math.abs(noiseValue) * hei * amplitudeScale;
+        // 噪声幅度在山顶附近较小，山脚附近较大
+        const distFromPeak = Math.abs(t - peakPosition);
+        const noiseScale = 15 + distFromPeak * 30;
+        const mountainY = baseY + noiseValue * noiseScale;
 
         ridgeLine.push([x, mountainY]);
       }
@@ -833,29 +840,60 @@ export class Mount {
 
       // Render all layers to create depth effect
       // First: Draw opaque background to block mountains behind (occlusion effect)
-      canv += poly(mountainPoly, {
-        fil: '#f5f5dc', // Beige background color (matches canvas background)
-        str: 'none',
-      });
+      // canv += poly(mountainPoly, {
+      //   fil: '#f5f5dc', // Beige background color (matches canvas background)
+      //   str: 'none',
+      // });
 
-      // Second: Draw semi-transparent mountain body with brush texture and depth-based color
-      canv += poly(mountainPoly, {
-        fil: `rgba(${r}, ${g}, ${b}, ${fillOpacity.toFixed(3)})`,
-        str: 'none',
-        filter: `url(#${filterId})`,
-      });
+      // Second: 山体深色底 + 噪声淡化效果
+      if (!filterOnly) {
+        const textureFilterId = `texture-${layer}-${layerSeed}`;
+        const gradientId = `mount-gradient-${layer}-${Math.random().toString(36).substr(2, 9)}`;
+
+        // 噪声滤镜：让部分区域变淡
+        canv += `<defs>
+          <linearGradient id="${gradientId}" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="rgba(13, 29, 25, 1)" />
+            <stop offset="60%" stop-color="rgba(13, 29, 25, 0.6)" />
+            <stop offset="100%" stop-color="rgba(13, 29, 25, 0.15)" />
+          </linearGradient>
+          <filter id="${textureFilterId}" x="0%" y="0%" width="100%" height="100%">
+            <!-- 生成斑驳噪声 -->
+            <feTurbulence type="fractalNoise" baseFrequency="0.004" numOctaves="3" seed="${Math.floor(seed % 10000)}" result="noise" />
+            <!-- 把噪声转成透明度遮罩 -->
+            <feColorMatrix in="noise" type="matrix" values="
+              0 0 0 0 0
+              0 0 0 0 0
+              0 0 0 0 0
+              0.3 0.3 0.3 0 0.3
+            " result="alphaMask" />
+            <!-- 用噪声遮罩裁剪原图（只影响透明度） -->
+            <feComposite in="SourceGraphic" in2="alphaMask" operator="in" />
+          </filter>
+        </defs>`;
+
+        // 绘制山体（深色底 + 噪声淡化）
+        const texturePointsStr = mountainPoly.map(p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(' ');
+        canv += `<polygon
+          points="${texturePointsStr}"
+          fill="url(#${gradientId})"
+          filter="url(#${textureFilterId})"
+        />`;
+      }
 
       // Draw ridge outline with varying detail based on depth
-      if (layerDepth > 0.6) {
-        // Near mountains: NO outline (空白，无轮廓线)
-        // Skip drawing outline for near mountains to create depth contrast
-      } else {
-        // Far mountains: darker stroke for depth (浓墨) - crisp outline without blur
-        canv += stroke(ridgeLine, {
-          col: `rgba(50, 50, 50, ${(strokeBaseOpacity * 1.5).toFixed(3)})`,
-          wid: 2, // Reduced from 20 to 2 for crisp outline
-          noi: 0, // Removed noise for sharp edge
-        });
+      if (!filterOnly) {
+        if (layerDepth > 0.6) {
+          // Near mountains: NO outline (空白，无轮廓线)
+          // Skip drawing outline for near mountains to create depth contrast
+        } else {
+          // Far mountains: darker stroke for depth (浓墨) - crisp outline without blur
+          canv += stroke(ridgeLine, {
+            col: 'rgba(20, 20, 20, 0.9)',
+            wid: 4,
+            noi: 1,
+          });
+        }
       }
 
       // ===== Ink Particle Effect (皴法) using Worley Noise =====
@@ -863,6 +901,9 @@ export class Mount {
       // Near mountains have denser, larger particles; far mountains have sparse, smaller particles
 
       const amplitudeScale = 1.5 + layerDepth * 2.0; // 1.5 to 3.5 (same as ridgeLine generation)
+
+      if (filterOnly) continue; // 只渲染滤镜层时跳过皴法
+
       const particleDensity = 0.5 + layerDepth * 1.0; // Increased from 0.3-1.0 to 0.5-1.5
       const particleSize = 0.8 + layerDepth * 1.7; // 0.8 to 2.5
       const particleCount = Math.floor(len * particleDensity * 0.35); // Increased from 0.15 to 0.35
