@@ -24,3 +24,6 @@ export * from './composition';
 
 // Experimental features - APIs may change
 export * as Experimental from './experimental';
+
+// WebGPU rendering module
+export * from './webgpu';

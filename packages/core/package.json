@@ -40,6 +40,7 @@
     "@types/node": "^20.19.25",
     "@types/uuid": "^10.0.0",
     "@vitest/ui": "^4.0.14",
+    "@webgpu/types": "^0.1.67",
     "jsdom": "^27.2.0",
     "tsdown": "0.17.0-beta.1",
     "typescript": "^5.9.3",

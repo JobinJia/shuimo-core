@@ -11,18 +11,19 @@ const stampType = ref<StampType>('yang')
 const stampShape = ref<StampShape>('auto')
 const color = ref('#C8102E')
 const fontFamily = ref('beishida, 楷体, serif')
-const fontSize = ref(70)
+const fontSize = ref(105)
 const fontWeight = ref<string | number>('normal')
-const offsetX = ref(0)
-const offsetY = ref(0)
-const columnSpacing = ref(0.05)
-const characterSpacing = ref(0.05)
-const paddingX = ref(0.05)
-const paddingY = ref(0.05)
-const borderScale = ref(1.0)
-const noiseAmount = ref(0)
+const offsetX = ref(-1.90)
+const offsetY = ref(-2.70)
+const columnSpacing = ref(0.24)
+const characterSpacing = ref(-0.20)
+const paddingX = ref(0.04)
+const paddingY = ref(0.04)
+const borderScaleX = ref(1.24)
+const borderScaleY = ref(1.04)
+const noiseAmount = ref(6)
 const borderPoints = ref(24)
-const cornerRadius = ref(15)
+const cornerRadius = ref(9)
 const borderWidth = ref(6)
 const regularShape = ref(false)
 const seed = ref(12345)
@@ -57,7 +58,8 @@ const stampSvg = computed(() => {
     characterSpacing: characterSpacing.value,
     paddingX: paddingX.value,
     paddingY: paddingY.value,
-    borderScale: borderScale.value,
+    borderScaleX: borderScaleX.value,
+    borderScaleY: borderScaleY.value,
     noiseAmount: noiseAmount.value,
     borderPoints: borderPoints.value,
     cornerRadius: cornerRadius.value,
@@ -79,18 +81,19 @@ function resetDefaults() {
   stampShape.value = 'auto'
   color.value = '#C8102E'
   fontFamily.value = 'beishida, 楷体, serif'
-  fontSize.value = 70
+  fontSize.value = 105
   fontWeight.value = 'normal'
-  offsetX.value = 0
-  offsetY.value = 0
-  columnSpacing.value = 0.05
-  characterSpacing.value = 0.05
-  paddingX.value = 0.05
-  paddingY.value = 0.05
-  borderScale.value = 1.0
-  noiseAmount.value = 0
+  offsetX.value = -1.90
+  offsetY.value = -2.70
+  columnSpacing.value = 0.24
+  characterSpacing.value = -0.20
+  paddingX.value = 0.04
+  paddingY.value = 0.04
+  borderScaleX.value = 1.24
+  borderScaleY.value = 1.04
+  noiseAmount.value = 6
   borderPoints.value = 24
-  cornerRadius.value = 15
+  cornerRadius.value = 9
   borderWidth.value = 6
   regularShape.value = false
   seed.value = 12345
@@ -287,55 +290,62 @@ function applyPreset(preset: typeof presets[0]) {
           <div class="control-row">
             <label>
               <span class="label-text">字体大小: {{ fontSize }}px</span>
-              <input v-model.number="fontSize" type="range" min="40" max="120" class="range-input">
+              <input v-model.number="fontSize" type="range" min="20" max="200" class="range-input">
             </label>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">水平偏移: {{ offsetX.toFixed(2) }} ({{ offsetX === -1 ? '左' : offsetX === 0 ? '中' : offsetX === 1 ? '右' : offsetX < 0 ? '偏左' : '偏右' }})</span>
-              <input v-model.number="offsetX" type="range" min="-1" max="1" step="0.01" class="range-input">
+              <input v-model.number="offsetX" type="range" min="-20" max="20" step="0.1" class="range-input">
             </label>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">垂直偏移: {{ offsetY.toFixed(2) }} ({{ offsetY === -1 ? '上' : offsetY === 0 ? '中' : offsetY === 1 ? '下' : offsetY < 0 ? '偏上' : '偏下' }})</span>
-              <input v-model.number="offsetY" type="range" min="-1" max="1" step="0.01" class="range-input">
+              <input v-model.number="offsetY" type="range" min="-20" max="20" step="0.1" class="range-input">
             </label>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">列间距 (左右): {{ columnSpacing.toFixed(2) }}</span>
-              <input v-model.number="columnSpacing" type="range" min="0" max="0.3" step="0.01" class="range-input">
+              <input v-model.number="columnSpacing" type="range" min="-0.5" max="1.0" step="0.01" class="range-input">
             </label>
             <p class="hint">控制文字列之间的水平间距</p>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">字间距 (上下): {{ characterSpacing.toFixed(2) }}</span>
-              <input v-model.number="characterSpacing" type="range" min="0" max="0.3" step="0.01" class="range-input">
+              <input v-model.number="characterSpacing" type="range" min="-0.2" max="0.5" step="0.01" class="range-input">
             </label>
             <p class="hint">控制同一列中文字的垂直间距</p>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">水平留白: {{ paddingX.toFixed(2) }}</span>
-              <input v-model.number="paddingX" type="range" min="0" max="0.3" step="0.01" class="range-input">
+              <input v-model.number="paddingX" type="range" min="-0.1" max="0.5" step="0.01" class="range-input">
             </label>
             <p class="hint">控制文字左右两侧的留白</p>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">垂直留白: {{ paddingY.toFixed(2) }}</span>
-              <input v-model.number="paddingY" type="range" min="0" max="0.3" step="0.01" class="range-input">
+              <input v-model.number="paddingY" type="range" min="-0.1" max="0.5" step="0.01" class="range-input">
             </label>
             <p class="hint">控制文字上下两侧的留白</p>
           </div>
           <div class="control-row">
             <label>
-              <span class="label-text">边框缩放: {{ borderScale.toFixed(2) }}</span>
-              <input v-model.number="borderScale" type="range" min="0.8" max="1.5" step="0.01" class="range-input">
+              <span class="label-text">边框宽度缩放: {{ borderScaleX.toFixed(2) }}</span>
+              <input v-model.number="borderScaleX" type="range" min="0.5" max="2.0" step="0.01" class="range-input">
             </label>
-            <p class="hint">整体放大或缩小印章边框 (1.0 = 默认)</p>
+            <p class="hint">水平方向放大或缩小印章边框 (1.0 = 默认)</p>
+          </div>
+          <div class="control-row">
+            <label>
+              <span class="label-text">边框高度缩放: {{ borderScaleY.toFixed(2) }}</span>
+              <input v-model.number="borderScaleY" type="range" min="0.5" max="2.0" step="0.01" class="range-input">
+            </label>
+            <p class="hint">垂直方向放大或缩小印章边框 (1.0 = 默认)</p>
           </div>
         </div>
 
@@ -345,25 +355,25 @@ function applyPreset(preset: typeof presets[0]) {
           <div class="control-row">
             <label>
               <span class="label-text">不规则度: {{ noiseAmount }}</span>
-              <input v-model.number="noiseAmount" type="range" min="0" max="20" class="range-input">
+              <input v-model.number="noiseAmount" type="range" min="0" max="50" class="range-input">
             </label>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">边框点数: {{ borderPoints }}</span>
-              <input v-model.number="borderPoints" type="range" min="12" max="48" step="4" class="range-input">
+              <input v-model.number="borderPoints" type="range" min="8" max="96" step="4" class="range-input">
             </label>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">圆角半径: {{ cornerRadius }}</span>
-              <input v-model.number="cornerRadius" type="range" min="0" max="30" class="range-input">
+              <input v-model.number="cornerRadius" type="range" min="0" max="60" class="range-input">
             </label>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">边框宽度: {{ borderWidth }}px</span>
-              <input v-model.number="borderWidth" type="range" min="0.5" max="5" step="0.5" class="range-input">
+              <input v-model.number="borderWidth" type="range" min="0.5" max="15" step="0.5" class="range-input">
             </label>
             <p class="hint">仅阳章 (白底红字) 显示边框</p>
           </div>

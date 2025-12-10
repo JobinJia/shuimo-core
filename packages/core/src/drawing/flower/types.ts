@@ -90,6 +90,8 @@ export interface LeafArgs {
   cof?: (x: number) => number
   /** Bend function: returns rotation delta */
   ben?: (x: number) => Vec3
+  /** Layer type for filter application */
+  layerType?: LayerType
 }
 
 export interface StemArgs {
@@ -109,6 +111,8 @@ export interface StemArgs {
   col?: ColorRange
   /** Bend function */
   ben?: (x: number) => Vec3
+  /** Layer type for filter application */
+  layerType?: LayerType
 }
 
 export interface BranchArgs {
@@ -132,6 +136,8 @@ export interface BranchArgs {
   dep?: number
   /** Fork count */
   frk?: number
+  /** Layer type for filter application */
+  layerType?: LayerType
 }
 
 // ============================================================================
@@ -168,6 +174,9 @@ export interface Bounds {
 // ============================================================================
 
 export type FilterType = 'wispy' | 'fade'
+
+/** Layer type determines which filters to apply */
+export type LayerType = 'lay0' | 'lay1'
 
 export type NoiseFunction = (x: number, y?: number, z?: number) => number
 

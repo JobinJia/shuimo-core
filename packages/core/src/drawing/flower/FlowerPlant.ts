@@ -2,13 +2,16 @@
  * Flower Generator - Plant Structures
  * Leaf, stem, and branch generation functions
  * Original: reference-code/flowers/main.js (Lines 495-713)
+ *
+ * Modified to apply filter effects during generation (pre-computation)
+ * instead of post-processing like Canvas version.
  */
 
-import type { LeafArgs, StemArgs, BranchArgs, Vec3, Vec2 } from './types'
+import type { LeafArgs, StemArgs, BranchArgs, Vec3, Vec2, LayerType } from './types'
 import { v3, PI, sin, abs, grot } from './FlowerMath'
 import { mapval, normRand } from './FlowerMath'
 import { lerpHue } from './FlowerColor'
-import { hsv, rgba } from './FlowerColor'
+import { hsvFiltered, rgbaFiltered } from './FlowerColor'
 import { polygon, stroke, tubify, createSVGElement } from './FlowerShape'
 import { noise } from './FlowerNoise'
 
@@ -35,6 +38,7 @@ export function leaf(args: LeafArgs = {}): { group: SVGGElement, points: Vec3[] 
     col = { min: [90, 0.2, 0.3, 1], max: [90, 0.1, 0.9, 1] },
     cof = (x: number) => x,
     ben = (x: number): Vec3 => [normRand(-10, 10), 0, normRand(-5, 5)],
+    layerType = 'lay0',
   } = args
 
   const group = createSVGElement('g')
@@ -76,7 +80,12 @@ export function leaf(args: LeafArgs = {}): { group: SVGGElement, points: Vec3[] 
       const v = mapval(lt, 0, 1, col.min[2], col.max[2])
       const a = mapval(lt, 0, 1, col.min[3], col.max[3])
 
-      const color = hsv(h, s, v, a)
+      // Calculate center position for filter sampling
+      const centerX = (l[0] + L[L.length - 1][0] + P[P.length - 1][0] + disp[0]) / 4 + xof
+      const centerY = (l[1] + L[L.length - 1][1] + P[P.length - 1][1] + disp[1]) / 4 + yof
+
+      // Apply filter during color generation
+      const color = hsvFiltered(h, s, v, a, centerX, centerY, layerType)
 
       // Left side polygon
       const leftPoly = polygon({
@@ -89,12 +98,16 @@ export function leaf(args: LeafArgs = {}): { group: SVGGElement, points: Vec3[] 
         xof,
         yof,
         fil: true,
-        str: false, // No stroke on body to avoid grid effect
+        str: false,
         col: color,
       })
       group.appendChild(leftPoly)
 
-      // Right side polygon
+      // Right side polygon - use same filter position
+      const rightCenterX = (r[0] + R[R.length - 1][0] + P[P.length - 1][0] + disp[0]) / 4 + xof
+      const rightCenterY = (r[1] + R[R.length - 1][1] + P[P.length - 1][1] + disp[1]) / 4 + yof
+      const rightColor = hsvFiltered(h, s, v, a, rightCenterX, rightCenterY, layerType)
+
       const rightPoly = polygon({
         pts: [
           [r[0], r[1]],
@@ -105,8 +118,8 @@ export function leaf(args: LeafArgs = {}): { group: SVGGElement, points: Vec3[] 
         xof,
         yof,
         fil: true,
-        str: false, // No stroke on body to avoid grid effect
-        col: color,
+        str: false,
+        col: rightColor,
       })
       group.appendChild(rightPoly)
     }
@@ -130,7 +143,11 @@ export function leaf(args: LeafArgs = {}): { group: SVGGElement, points: Vec3[] 
         const q0 = v3.lerp(R[i - 1], P[i - 1], p)
         const q1 = v3.lerp(R[i], P[i], p)
 
-        const veinColor = hsv(0, 0, 0, normRand(0.4, 0.9))
+        // Calculate vein positions for filter
+        const veinX = (p0[0] + p1[0]) / 2 + xof
+        const veinY = (p0[1] + p1[1]) / 2 + yof
+        const veinAlpha = normRand(0.4, 0.9)
+        const veinColor = rgbaFiltered(0, 0, 0, veinAlpha, veinX, veinY, layerType)
 
         const leftVein = polygon({
           pts: [[p0[0], p0[1]], [p1[0], p1[1]]],
@@ -142,37 +159,54 @@ export function leaf(args: LeafArgs = {}): { group: SVGGElement, points: Vec3[] 
         })
         group.appendChild(leftVein)
 
+        const rightVeinX = (q0[0] + q1[0]) / 2 + xof
+        const rightVeinY = (q0[1] + q1[1]) / 2 + yof
+        const rightVeinColor = rgbaFiltered(0, 0, 0, normRand(0.4, 0.9), rightVeinX, rightVeinY, layerType)
+
         const rightVein = polygon({
           pts: [[q0[0], q0[1]], [q1[0], q1[1]]],
           xof,
           yof,
           fil: false,
           str: true,
-          col: veinColor,
+          col: rightVeinColor,
         })
         group.appendChild(rightVein)
       }
     }
+
+    // Center stroke with filter
+    const centerX = P[Math.floor(P.length / 2)][0] + xof
+    const centerY = P[Math.floor(P.length / 2)][1] + yof
+    const centerColor = rgbaFiltered(0, 0, 0, 0.3, centerX, centerY, layerType)
     const centerStroke = stroke({
       pts: P,
       xof,
       yof,
-      col: rgba(0, 0, 0, 0.3),
+      col: centerColor,
     })
     group.appendChild(centerStroke)
   }
   else if (vei[0] === 2) {
     // Vein type 2: branching veins
     for (let i = 1; i < P.length - vei[1]; i += vei[2]) {
+      const leftVeinX = (P[i][0] + L[i + vei[1]][0]) / 2 + xof
+      const leftVeinY = (P[i][1] + L[i + vei[1]][1]) / 2 + yof
+      const leftVeinColor = rgbaFiltered(0, 0, 0, normRand(0.4, 0.9), leftVeinX, leftVeinY, layerType)
+
       const leftVein = polygon({
         pts: [[P[i][0], P[i][1]], [L[i + vei[1]][0], L[i + vei[1]][1]]],
         xof,
         yof,
         fil: false,
         str: true,
-        col: hsv(0, 0, 0, normRand(0.4, 0.9)),
+        col: leftVeinColor,
       })
       group.appendChild(leftVein)
+
+      const rightVeinX = (P[i][0] + R[i + vei[1]][0]) / 2 + xof
+      const rightVeinY = (P[i][1] + R[i + vei[1]][1]) / 2 + yof
+      const rightVeinColor = rgbaFiltered(0, 0, 0, normRand(0.4, 0.9), rightVeinX, rightVeinY, layerType)
 
       const rightVein = polygon({
         pts: [[P[i][0], P[i][1]], [R[i + vei[1]][0], R[i + vei[1]][1]]],
@@ -180,22 +214,34 @@ export function leaf(args: LeafArgs = {}): { group: SVGGElement, points: Vec3[] 
         yof,
         fil: false,
         str: true,
-        col: hsv(0, 0, 0, normRand(0.4, 0.9)),
+        col: rightVeinColor,
       })
       group.appendChild(rightVein)
     }
+
+    const centerX = P[Math.floor(P.length / 2)][0] + xof
+    const centerY = P[Math.floor(P.length / 2)][1] + yof
+    const centerColor = rgbaFiltered(0, 0, 0, 0.3, centerX, centerY, layerType)
     const centerStroke = stroke({
       pts: P,
       xof,
       yof,
-      col: rgba(0, 0, 0, 0.3),
+      col: centerColor,
     })
     group.appendChild(centerStroke)
   }
 
-  // Edge strokes
-  const leftEdge = stroke({ pts: L, xof, yof, col: rgba(120, 100, 0, 0.3) })
-  const rightEdge = stroke({ pts: R, xof, yof, col: rgba(120, 100, 0, 0.3) })
+  // Edge strokes with filter
+  const leftEdgeX = L[Math.floor(L.length / 2)][0] + xof
+  const leftEdgeY = L[Math.floor(L.length / 2)][1] + yof
+  const leftEdgeColor = rgbaFiltered(120, 100, 0, 0.3, leftEdgeX, leftEdgeY, layerType)
+  const leftEdge = stroke({ pts: L, xof, yof, col: leftEdgeColor })
+
+  const rightEdgeX = R[Math.floor(R.length / 2)][0] + xof
+  const rightEdgeY = R[Math.floor(R.length / 2)][1] + yof
+  const rightEdgeColor = rgbaFiltered(120, 100, 0, 0.3, rightEdgeX, rightEdgeY, layerType)
+  const rightEdge = stroke({ pts: R, xof, yof, col: rightEdgeColor })
+
   group.appendChild(leftEdge)
   group.appendChild(rightEdge)
 
@@ -221,6 +267,7 @@ export function stem(args: StemArgs = {}): { group: SVGGElement, points: Vec3[] 
     wid = (x: number) => 6,
     col = { min: [250, 0.2, 0.4, 1], max: [250, 0.3, 0.6, 1] },
     ben = (x: number): Vec3 => [normRand(-10, 10), 0, normRand(-5, 5)],
+    layerType = 'lay0',
   } = args
 
   const group = createSVGElement('g')
@@ -269,6 +316,11 @@ export function stem(args: StemArgs = {}): { group: SVGGElement, points: Vec3[] 
       const v = mapval(lt, 0, 1, col.min[2], col.max[2]) * mapval(noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1)
       const a = mapval(lt, 0, 1, col.min[3], col.max[3])
 
+      // Calculate center for filter
+      const centerX = (p0[0] + p1[0] + p2[0] + p3[0]) / 4 + xof
+      const centerY = (p0[1] + p1[1] + p2[1] + p3[1]) / 4 + yof
+      const color = hsvFiltered(h, s, v, a, centerX, centerY, layerType)
+
       const poly = polygon({
         pts: [
           [p0[0], p0[1]],
@@ -279,16 +331,24 @@ export function stem(args: StemArgs = {}): { group: SVGGElement, points: Vec3[] 
         xof,
         yof,
         fil: true,
-        str: false, // No stroke on body to avoid grid effect
-        col: hsv(h, s, v, a),
+        str: false,
+        col: color,
       })
       group.appendChild(poly)
     }
   }
 
-  // Edge strokes
-  const leftEdge = stroke({ pts: L.map(p => [p[0], p[1], 0]), xof, yof, col: rgba(0, 0, 0, 0.5) })
-  const rightEdge = stroke({ pts: R.map(p => [p[0], p[1], 0]), xof, yof, col: rgba(0, 0, 0, 0.5) })
+  // Edge strokes with filter
+  const leftEdgeX = L[Math.floor(L.length / 2)][0] + xof
+  const leftEdgeY = L[Math.floor(L.length / 2)][1] + yof
+  const leftEdgeColor = rgbaFiltered(0, 0, 0, 0.5, leftEdgeX, leftEdgeY, layerType)
+
+  const rightEdgeX = R[Math.floor(R.length / 2)][0] + xof
+  const rightEdgeY = R[Math.floor(R.length / 2)][1] + yof
+  const rightEdgeColor = rgbaFiltered(0, 0, 0, 0.5, rightEdgeX, rightEdgeY, layerType)
+
+  const leftEdge = stroke({ pts: L.map(p => [p[0], p[1], 0]), xof, yof, col: leftEdgeColor })
+  const rightEdge = stroke({ pts: R.map(p => [p[0], p[1], 0]), xof, yof, col: rightEdgeColor })
   group.appendChild(leftEdge)
   group.appendChild(rightEdge)
 
@@ -316,6 +376,7 @@ export function branch(args: BranchArgs = {}): { group: SVGGElement, branches: A
     col = { min: [50, 0.2, 0.8, 1], max: [50, 0.2, 0.8, 1] },
     dep = 3,
     frk = 4,
+    layerType = 'lay0',
   } = args
 
   const branchGroup = createSVGElement('g')
@@ -359,10 +420,10 @@ export function branch(args: BranchArgs = {}): { group: SVGGElement, branches: A
     }
   }
 
-  // CRITICAL FIX: Get both group AND points from stem
-  const { group: stemGroup, points: P } = stem({ xof, yof, rot, len, seg, wid: wfun, col, ben: bfun })
+  // Pass layerType to stem
+  const { group: stemGroup, points: P } = stem({ xof, yof, rot, len, seg, wid: wfun, col, ben: bfun, layerType })
 
-  // Add stem to branch group (THIS WAS MISSING!)
+  // Add stem to branch group
   branchGroup.appendChild(stemGroup)
 
   const child: Array<[number, Vec3[]]> = []
@@ -387,6 +448,7 @@ export function branch(args: BranchArgs = {}): { group: SVGGElement, branches: A
         dep: dep - 1,
         col,
         frk,
+        layerType,
       })
 
       // Add child branch SVG to our group
