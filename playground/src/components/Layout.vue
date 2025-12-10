@@ -45,9 +45,15 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const expandedGroups = ref(['Flower', 'Shanshui', 'Stamp', 'Experimental', 'WebGPU'])
+const expandedGroups = ref(['Generator', 'Flower', 'Shanshui', 'Stamp', 'Experimental', 'WebGPU'])
 
 const menuItems = [
+  {
+    name: 'Generator',
+    children: [
+      { path: '/painting-generator', name: 'Painting Generator' },
+    ]
+  },
   {
     name: 'Flower',
     children: [

@@ -12,6 +12,7 @@ import InkDiffusion from '../demos/InkDiffusion.vue'
 import WebGPUShanshui from '../demos/WebGPUShanshui.vue'
 import WebGPUShanshuiScroll from '../demos/WebGPUShanshuiScroll.vue'
 import XuanPaperDemo from '../demos/XuanPaperDemo.vue'
+import PaintingGeneratorDemo from '../demos/PaintingGeneratorDemo.vue'
 
 const routes = [
   {
@@ -81,6 +82,11 @@ const routes = [
     path: '/xuan-paper',
     name: 'XuanPaper',
     component: XuanPaperDemo,
+  },
+  {
+    path: '/painting-generator',
+    name: 'PaintingGenerator',
+    component: PaintingGeneratorDemo,
   },
 ]
 
