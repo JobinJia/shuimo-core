@@ -228,24 +228,27 @@ function generateElement(type: ElementType, seed: number): string {
       break
 
     case 'arch02':
-      // Arch02 has multiple stories (sto=3), each hei tall, draws upward from yoff
+      // Arch02 has multiple stories (sto=3), draws upward from yoff
+      // hei is hardcoded to 10, wid defaults to 50
       width = 700
-      height = 900
-      content = Arch.arch02(350, 800, seed, { hei: 100 }) as string
+      height = 300
+      content = Arch.arch02(350, 250, seed, { wid: 100, sto: 3 }) as string
       break
 
     case 'arch03':
-      // Arch03 similar to arch02
+      // Arch03 pagoda style, draws upward from yoff
+      // hei is hardcoded to 10, wid defaults to 50
       width = 700
-      height = 900
-      content = Arch.arch03(350, 800, seed, { hei: 60 }) as string
+      height = 400
+      content = Arch.arch03(350, 350, seed, { wid: 80, sto: 7 }) as string
       break
 
     case 'arch04':
-      // Arch04 similar to arch02
+      // Arch04 transparent multi-story, draws upward from yoff
+      // hei=15, wid=30 are hardcoded
       width = 700
-      height = 900
-      content = Arch.arch04(350, 800, seed, { hei: 160 }) as string
+      height = 200
+      content = Arch.arch04(350, 150, seed, { sto: 2 }) as string
       break
 
     case 'boat':

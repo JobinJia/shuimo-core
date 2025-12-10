@@ -147,6 +147,76 @@ export class MountPlanner {
       }
     }
 
+    // Place arch buildings (arch01 - simple house)
+    // y coordinate: higher value = lower on screen (closer to bottom/ground)
+    for (let i = xmin; i < xmax; i += xstep) {
+      const mtxIdx = Math.floor(i / xstep);
+      if ((planmtx[mtxIdx] ?? 0) > 0 && Math.random() < 0.05) {
+        // Place houses on mountain foothills (high y = low on screen = ground level)
+        const r: PlanItem = {
+          tag: 'arch01',
+          x: i + (Math.random() - 0.5) * 200,
+          y: 680 + Math.random() * 50,  // Near bottom of scene (ground level)
+          h: 0,
+        };
+        this.chadd(reg, r, 150, planmtx);
+      }
+    }
+
+    // Place arch02 buildings (multi-story buildings)
+    for (let i = xmin; i < xmax; i += xstep) {
+      if (Math.random() < 0.02) {
+        const r: PlanItem = {
+          tag: 'arch02',
+          x: i + (Math.random() - 0.5) * 100,
+          y: 700 + Math.random() * 30,  // Ground level
+          h: 0,
+        };
+        this.chadd(reg, r, 200, planmtx);
+      }
+    }
+
+    // Place arch03 pagodas (on scenic spots - can be on higher ground)
+    for (let i = xmin; i < xmax; i += xstep) {
+      const mtxIdx = Math.floor(i / xstep);
+      if ((planmtx[mtxIdx] ?? 0) > 0 && Math.random() < 0.015) {
+        // Place pagodas on elevated positions near mountains
+        const r: PlanItem = {
+          tag: 'arch03',
+          x: i + (Math.random() - 0.5) * 100,
+          y: 620 + Math.random() * 80,  // Slightly elevated
+          h: 0,
+        };
+        this.chadd(reg, r, 300, planmtx);
+      }
+    }
+
+    // Place arch04 buildings (transparent multi-story)
+    for (let i = xmin; i < xmax; i += xstep) {
+      if (Math.random() < 0.015) {
+        const r: PlanItem = {
+          tag: 'arch04',
+          x: i + (Math.random() - 0.5) * 100,
+          y: 690 + Math.random() * 40,  // Ground level
+          h: 0,
+        };
+        this.chadd(reg, r, 250, planmtx);
+      }
+    }
+
+    // Place transmission towers (rare, industrial element)
+    for (let i = xmin; i < xmax; i += xstep) {
+      if (Math.random() < 0.005) {
+        const r: PlanItem = {
+          tag: 'tower',
+          x: i,
+          y: 720 + Math.random() * 30,  // Ground level
+          h: 0,
+        };
+        this.chadd(reg, r, 500, planmtx);
+      }
+    }
+
     return reg;
   }
 }

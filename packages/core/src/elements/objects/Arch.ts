@@ -105,44 +105,24 @@ export interface Arch01Options {
 }
 
 export interface Arch02Options {
-  /** Height of each story */
-  hei?: number;
   /** Width of arch */
   wid?: number;
-  /** Rotation parameter (0-1) */
-  rot?: number;
-  /** Perspective depth */
-  per?: number;
   /** Number of stories */
   sto?: number;
+  /** Rotation parameter (0-1) */
+  rot?: number;
   /** Decoration style (1-3) */
   sty?: number;
-  /** Whether to add rail */
-  rai?: boolean;
 }
 
 export interface Arch03Options {
-  /** Height of each story */
-  hei?: number;
   /** Width of arch */
   wid?: number;
-  /** Rotation parameter (0-1) */
-  rot?: number;
-  /** Perspective depth */
-  per?: number;
   /** Number of stories */
   sto?: number;
 }
 
 export interface Arch04Options {
-  /** Height of each story */
-  hei?: number;
-  /** Width of arch */
-  wid?: number;
-  /** Rotation parameter (0-1) */
-  rot?: number;
-  /** Perspective depth */
-  per?: number;
   /** Number of stories */
   sto?: number;
 }
@@ -856,13 +836,15 @@ export class Arch {
    * Generate arch02 - a multi-story building
    */
   static arch02(xoff: number, yoff: number, seed: number, options: Arch02Options = {}): string {
-    const hei = options.hei ?? 10;
+    // hei, per, rai are hardcoded as in reference implementation
+    const hei = 10;
+    const per = 5;
+    const rai = false;
+    // These can be customized
     const wid = options.wid ?? 50;
-    const rot = options.rot ?? 0.3;
-    const per = options.per ?? 5;
     const sto = options.sto ?? 3;
+    const rot = options.rot ?? 0.3;
     const sty = options.sty ?? 1;
-    const rai = options.rai ?? false;
 
     let canv = '';
     let hoff = 0;
@@ -916,11 +898,13 @@ export class Arch {
   /**
    * Generate arch03 - a pagoda-style building
    */
-  static arch03(xoff: number, yoff: number, seed: number, options: Arch03Options = {}): string {
-    const hei = options.hei ?? 10;
+  static arch03(xoff: number, yoff: number, _seed: number, options: Arch03Options = {}): string {
+    // hei, rot, per are hardcoded as in reference implementation
+    const hei = 10;
+    const rot = 0.7;
+    const per = 5;
+    // These can be customized
     const wid = options.wid ?? 50;
-    const rot = options.rot ?? 0.7;
-    const per = options.per ?? 5;
     const sto = options.sto ?? 7;
 
     let canv = '';
@@ -963,11 +947,13 @@ export class Arch {
   /**
    * Generate arch04 - a transparent multi-story building
    */
-  static arch04(xoff: number, yoff: number, seed: number, options: Arch04Options = {}): string {
-    const hei = options.hei ?? 15;
-    const wid = options.wid ?? 30;
-    const rot = options.rot ?? 0.7;
-    const per = options.per ?? 5;
+  static arch04(xoff: number, yoff: number, _seed: number, options: Arch04Options = {}): string {
+    // hei, wid, rot, per are all hardcoded as in reference implementation
+    const hei = 15;
+    const wid = 30;
+    const rot = 0.7;
+    const per = 5;
+    // Only sto can be customized
     const sto = options.sto ?? 2;
 
     let canv = '';

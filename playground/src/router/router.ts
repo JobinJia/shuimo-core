@@ -63,9 +63,9 @@ const routes = [
     path: '/misty-mount',
     name: 'MistyMount',
     component: MistyMount,
-    path: '/ink-diffusion',
-    name: 'InkDiffusion',
-    component: InkDiffusion,
+    // path: '/ink-diffusion',
+    // name: 'InkDiffusion',
+    // component: InkDiffusion,
   },
   {
     path: '/webgpu-shanshui',

@@ -165,6 +165,60 @@ export class SceneManager {
               fli: randChoice([true, false]),
             }),
           });
+        } else if (plan[i].tag === 'arch01') {
+          // Simple house/building
+          this.addChunk({
+            tag: plan[i].tag,
+            x: plan[i].x,
+            y: plan[i].y,
+            canv: Arch.arch01(plan[i].x, plan[i].y, Math.random() * 1000, {
+              hei: 60 + Math.random() * 40,
+              wid: 80 + Math.random() * 40,
+              per: 3 + Math.random() * 2,
+            }),
+          });
+        } else if (plan[i].tag === 'arch02') {
+          // Multi-story building
+          this.addChunk({
+            tag: plan[i].tag,
+            x: plan[i].x,
+            y: plan[i].y,
+            canv: Arch.arch02(plan[i].x, plan[i].y, Math.random() * 1000, {
+              wid: 40 + Math.random() * 30,
+              sto: 2 + Math.floor(Math.random() * 3),
+            }),
+          });
+        } else if (plan[i].tag === 'arch03') {
+          // Pagoda
+          this.addChunk({
+            tag: plan[i].tag,
+            x: plan[i].x,
+            y: plan[i].y,
+            canv: Arch.arch03(plan[i].x, plan[i].y, Math.random() * 1000, {
+              wid: 40 + Math.random() * 30,
+              sto: 5 + Math.floor(Math.random() * 4),
+            }),
+          });
+        } else if (plan[i].tag === 'arch04') {
+          // Transparent multi-story
+          this.addChunk({
+            tag: plan[i].tag,
+            x: plan[i].x,
+            y: plan[i].y,
+            canv: Arch.arch04(plan[i].x, plan[i].y, Math.random() * 1000, {
+              sto: 1 + Math.floor(Math.random() * 3),
+            }),
+          });
+        } else if (plan[i].tag === 'tower') {
+          // Transmission tower
+          this.addChunk({
+            tag: plan[i].tag,
+            x: plan[i].x,
+            y: plan[i].y,
+            canv: Arch.transmissionTower01(plan[i].x, plan[i].y, Math.random() * 1000, {
+              hei: 150 + Math.random() * 100,
+            }),
+          });
         } else if (plan[i].tag === 'redcirc') {
           this.addChunk({
             tag: plan[i].tag,

@@ -744,17 +744,26 @@ export class Mount {
       // Assume canvas height is approximately len/2 (e.g., 1400 -> 700)
       const canvasHeight = len / 2;
 
-      // 定义山的三个关键点：左山脚、山顶、右山脚
-      // 左山脚 Y (较高的 Y 值 = 较低的位置) - 更低
-      const leftFootY = canvasHeight * 0.95 + (noise.noise(layerSeed, 0.1, 0.2) * 0.05 * canvasHeight);
-      // 右山脚 Y (可以和左边不一样) - 更高，差距更大
-      const rightFootY = canvasHeight * 0.55 + (noise.noise(layerSeed, 0.3, 0.4) * 0.1 * canvasHeight);
-      // 山顶位置 (0-1, 0.5 表示正中间) - 偏右
-      const peakPosition = 0.6 + noise.noise(layerSeed, 0.5, 0.6) * 0.15; // 0.45 ~ 0.75
-      // 山顶 Y
-      const peakY = canvasHeight * 0.2 - hei * (0.5 + layerDepth * 0.5);
+      // Vertical offset for each layer: far mountains higher, near mountains lower
+      // Far mountains (layerDepth=0) pushed up, near mountains (layerDepth=1) at bottom
+      const layerVerticalOffset = -(1 - layerDepth) * hei * 1.5; // Far: -270, Near: 0
 
-      // Generate mountain ridge: 左山脚 → 山顶 → 右山脚
+      // Bottom 1/4 of canvas: from (3/4 * canvasHeight) to canvasHeight
+      // For len=1400, canvasHeight=700, bottom 1/4 is from y=525 to y=700
+      const bottomQuarterTop = canvasHeight * 0.75 + layerVerticalOffset;
+      const bottomQuarterBottom = canvasHeight + layerVerticalOffset;
+      const quarterRange = bottomQuarterBottom - bottomQuarterTop;
+
+      // Random starting point at left edge (within bottom 1/4)
+      // Map noise [-1, 1] to [0, 1] for position within bottom quarter
+      const leftHeightFactor = (noise.noise(layerSeed, 0.1, 0.2) + 1) / 2;
+      const startY = bottomQuarterTop + quarterRange * leftHeightFactor;
+
+      // Random ending point at right edge (within bottom 1/4)
+      const rightHeightFactor = (noise.noise(layerSeed, 0.3, 0.4) + 1) / 2;
+      const endY = bottomQuarterTop + quarterRange * rightHeightFactor;
+
+      // Generate mountain ridge using FBM (linear interpolation baseline)
       const ridgeLine: Polygon = [];
       const resolution = 200;
 
@@ -762,50 +771,31 @@ export class Mount {
         const t = i / resolution; // Progress from 0 to 1
         const x = xoff - len / 2 + t * len; // From left edge to right edge
 
-        // 用平滑曲线连接三个点
-        // 山顶有微小的平缓过渡，但整体有棱角
-        let baseY: number;
-        // 山顶平缓区域范围 (peakPosition 左右各 1%)
-        const flatRange = 0.01;
-        const flatLeft = peakPosition - flatRange;
-        const flatRight = peakPosition + flatRange;
+        // Linear interpolation between start and end points (baseline)
+        const baselineY = startY * (1 - t) + endY * t;
 
-        if (t < flatLeft) {
-          // 左山脚到山顶平缓区
-          const localT = t / flatLeft; // 0 to 1
-          const curve = Math.pow(localT, 1.3);
-          baseY = leftFootY + (peakY - leftFootY) * curve;
-        } else if (t > flatRight) {
-          // 山顶平缓区到右山脚
-          const localT = (t - flatRight) / (1 - flatRight); // 0 to 1
-          const curve = 1 - Math.pow(1 - localT, 1.3);
-          baseY = peakY + (rightFootY - peakY) * curve;
-        } else {
-          // 山顶平缓区域 - 用缓坡而不是完全平
-          const localT = (t - flatLeft) / (flatRange * 2); // 0 to 1
-          // 微微凸起的弧形
-          const curve = Math.sin(localT * Math.PI);
-          baseY = peakY - curve * 3; // 微微凸起 3px
-        }
-
-        // 添加噪声细节
+        // Use Simplex Noise with multiple octaves for rich detail
         let noiseValue = 0;
         let amplitude = 1.0;
-        let frequency = 4.0;
+        let frequency = 2.0;
         let maxValue = 0;
 
-        for (let octave = 0; octave < 4; octave++) {
+        // Combine 6 octaves of Simplex Noise
+        for (let octave = 0; octave < 6; octave++) {
           noiseValue += simplex.noise2D(t * frequency, layerSeed + octave) * amplitude;
           maxValue += amplitude;
-          amplitude *= 0.5;
-          frequency *= 2.0;
+          amplitude *= 0.5;  // Persistence: each octave has half the amplitude
+          frequency *= 2.0;  // Lacunarity: each octave has double the frequency
         }
+
+        // Normalize to [-1, 1]
         noiseValue = noiseValue / maxValue;
 
-        // 噪声幅度在山顶附近较小，山脚附近较大
-        const distFromPeak = Math.abs(t - peakPosition);
-        const noiseScale = 15 + distFromPeak * 30;
-        const mountainY = baseY + noiseValue * noiseScale;
+        // Scale by height parameter with increased amplitude
+        // Mountain peaks go upward (negative Y), so subtract noise value
+        // Far mountains: less dramatic (1.5x), Near mountains: more dramatic (3.5x)
+        const amplitudeScale = 1.5 + layerDepth * 2.0; // 1.5 to 3.5
+        const mountainY = baselineY - Math.abs(noiseValue) * hei * amplitudeScale;
 
         ridgeLine.push([x, mountainY]);
       }
