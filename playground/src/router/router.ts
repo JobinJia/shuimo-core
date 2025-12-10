@@ -7,6 +7,7 @@ import CloudDemo from '../demos/CloudDemo.vue'
 import FlowerCanvasTest from '../FlowerCanvasTest.vue'
 import FlowerSVGTest from '../demos/FlowerSVGTest.vue'
 import StrokeAnimation from '../demos/StrokeAnimation.vue'
+import MistyMount from '../demos/MistyMount.vue'
 import InkDiffusion from '../demos/InkDiffusion.vue'
 import WebGPUShanshui from '../demos/WebGPUShanshui.vue'
 import WebGPUShanshuiScroll from '../demos/WebGPUShanshuiScroll.vue'
@@ -59,6 +60,9 @@ const routes = [
     component: StrokeAnimation,
   },
   {
+    path: '/misty-mount',
+    name: 'MistyMount',
+    component: MistyMount,
     path: '/ink-diffusion',
     name: 'InkDiffusion',
     component: InkDiffusion,
