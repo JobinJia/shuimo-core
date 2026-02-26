@@ -61,7 +61,9 @@ export class StampNoise {
    * Simple seeded random number generator
    */
   private seededRandom(seed: number): () => number {
-    let state = seed;
+    // Reduce seed into [0, 233280) to prevent overflow past Number.MAX_SAFE_INTEGER
+    // when seed is large (e.g. Date.now() ~1.77e12): seed * 9301 ≈ 1.6e16 > 2^53
+    let state = ((seed % 233280) + 233280) % 233280;
     return () => {
       state = (state * 9301 + 49297) % 233280;
       return state / 233280;
