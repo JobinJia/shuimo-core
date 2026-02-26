@@ -1,5 +1,6 @@
 import { Polygon } from '../foundation/geometry';
 import { noise } from '../foundation/noise';
+import { prng } from '../foundation/random';
 import { stroke } from './Stroke';
 
 export interface TextureOptions {
@@ -47,14 +48,14 @@ export class Texture {
     const noi = options.noi ?? ((x: number) => 30 / x);
     const col =
       options.col ??
-      ((progress: number, layerDepth: number) => 'rgba(100,100,100,' + (Math.random() * 0.3).toFixed(3) + ')');
+      ((progress: number, layerDepth: number) => 'rgba(100,100,100,' + (prng.random() * 0.3).toFixed(3) + ')');
     const dis =
       options.dis ??
       (() => {
-        if (Math.random() > 0.5) {
-          return (1 / 3) * Math.random();
+        if (prng.random() > 0.5) {
+          return (1 / 3) * prng.random();
         } else {
-          return (1 * 2) / 3 + (1 / 3) * Math.random();
+          return (1 * 2) / 3 + (1 / 3) * prng.random();
         }
       });
 
@@ -65,7 +66,7 @@ export class Texture {
     // Generate texture strokes
     for (let i = 0; i < tex; i++) {
       const mid = (dis() * reso[1]) | 0;
-      const hlen = Math.floor(Math.random() * (reso[1] * len));
+      const hlen = Math.floor(prng.random() * (reso[1] * len));
 
       let start = mid - hlen;
       let end = mid + hlen;

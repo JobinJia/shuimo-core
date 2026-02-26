@@ -5,6 +5,8 @@
  * 支持多种树型：竖直树、弯曲树、分形树、松树等
  */
 
+import { prng } from '../foundation/random';
+
 export enum TreeType {
   Simple = 0,      // 简单竖直树
   Curved = 1,      // 弯曲树干
@@ -265,7 +267,7 @@ export class TreeRenderer {
       branchLevels = 3,
       leafDensity = 0.6,
       inkDensity = 0.85,
-      seed = Math.random() * 1000,
+      seed = prng.random() * 1000,
     } = options;
 
     // 更新参数

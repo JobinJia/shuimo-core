@@ -10,15 +10,15 @@ const initialText = '水墨\n江南'
 const stampType = ref<StampType>('yang')
 const stampShape = ref<StampShape>('auto')
 const color = ref('#C8102E')
-const fontFamily = ref('beishida, 楷体, serif')
-const fontSize = ref(105)
+const fontFamily = ref('峄山碑篆体')
+const fontSize = ref(100)
 const fontWeight = ref<string | number>('normal')
-const offsetX = ref(-1.90)
-const offsetY = ref(-2.70)
-const columnSpacing = ref(0.24)
-const characterSpacing = ref(-0.20)
+const offsetX = ref(-1.10)
+const offsetY = ref(-0.70)
+const columnSpacing = ref(0.26)
+const characterSpacing = ref(0.04)
 const paddingX = ref(0.04)
-const paddingY = ref(0.04)
+const paddingY = ref(-0.07)
 const borderScaleX = ref(1.24)
 const borderScaleY = ref(1.04)
 const noiseAmount = ref(6)
@@ -80,15 +80,15 @@ function resetDefaults() {
   stampType.value = 'yang'
   stampShape.value = 'auto'
   color.value = '#C8102E'
-  fontFamily.value = 'beishida, 楷体, serif'
-  fontSize.value = 105
+  fontFamily.value = '峄山碑篆体'
+  fontSize.value = 100
   fontWeight.value = 'normal'
-  offsetX.value = -1.90
-  offsetY.value = -2.70
-  columnSpacing.value = 0.24
-  characterSpacing.value = -0.20
+  offsetX.value = -1.10
+  offsetY.value = -0.70
+  columnSpacing.value = 0.26
+  characterSpacing.value = 0.04
   paddingX.value = 0.04
-  paddingY.value = 0.04
+  paddingY.value = -0.07
   borderScaleX.value = 1.24
   borderScaleY.value = 1.04
   noiseAmount.value = 6
@@ -258,7 +258,7 @@ function applyPreset(preset: typeof presets[0]) {
             <label>
               <span class="label-text">字体</span>
               <select v-model="fontFamily" class="select-input">
-                <option value="beishida, 楷体, serif">北师大篆体</option>
+                <option value="峄山碑篆体">峄山碑篆体</option>
                 <option value="'Kaiti SC', 'Kaiti TC', STKaiti, KaiTi, 楷体, serif">楷体</option>
                 <option value="'Songti SC', 'Songti TC', STSong, SimSun, 宋体, serif">宋体</option>
                 <option value="'PingFang SC', 'Microsoft YaHei', 微软雅黑, sans-serif">黑体</option>
@@ -421,13 +421,7 @@ function applyPreset(preset: typeof presets[0]) {
 </template>
 
 <style scoped>
-@font-face {
-  font-family: 'beishida';
-  src: url('/fonts/yishanbeizhuanti.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
+@import url("https://fontsapi.zeoseven.com/236/main/result.css");
 
 .stamp-playground {
   display: flex;

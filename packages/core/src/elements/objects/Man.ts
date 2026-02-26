@@ -1,5 +1,6 @@
 import { Polygon } from '../../foundation/geometry';
 import { noise } from '../../foundation/noise';
+import { prng } from '../../foundation/random';
 import { normRand } from '../../utils/random';
 import { stroke } from '../../drawing/Stroke';
 import { div } from '../../drawing/div';
@@ -109,7 +110,7 @@ export class Man {
     const fli = options.fli ?? false;
 
     let canv = '';
-    const seed = Math.random();
+    const seed = prng.random();
     const f = fli ? (x: Polygon) => Man.flipper(x) : (x: Polygon) => x;
 
     canv += poly(
@@ -180,7 +181,7 @@ export class Man {
     const fli = options.fli ?? false;
 
     let canv = '';
-    const seed = Math.random();
+    const seed = prng.random();
     const f = fli ? (x: Polygon) => Man.flipper(x) : (x: Polygon) => x;
 
     const qlist1: Polygon = [];
@@ -220,11 +221,11 @@ export class Man {
         0,
         -Math.PI / 2,
         normRand(0, 0),
-        (Math.PI / 4) * Math.random(),
-        ((Math.PI * 3) / 4) * Math.random(),
+        (Math.PI / 4) * prng.random(),
+        ((Math.PI * 3) / 4) * prng.random(),
         (Math.PI * 3) / 4,
         -Math.PI / 4,
-        (-Math.PI * 3) / 4 - (Math.PI / 4) * Math.random(),
+        (-Math.PI * 3) / 4 - (Math.PI / 4) * prng.random(),
         -Math.PI / 4,
       ];
     const len = (options.len ?? [0, 30, 20, 30, 30, 30, 30, 30, 30]).map((v) => v * sca);

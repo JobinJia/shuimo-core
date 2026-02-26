@@ -1,5 +1,6 @@
 import { Polygon, PolyTools } from '../../foundation/geometry';
 import { noise, SimplexNoise, WorleyNoise } from '../../foundation/noise';
+import { prng } from '../../foundation/random';
 import { stroke } from '../../drawing/Stroke';
 import { texture } from '../../drawing/Texture';
 import { poly } from '../../utils/svg';
@@ -125,7 +126,7 @@ function foot(ptlist: Polygon[], options: FootOptions = {}): string | Polygon[] 
     canv += stroke(
       ftlist[j].map((x) => [x[0] + xof, x[1] + yof]),
       {
-        col: 'rgba(100,100,100,' + (0.1 + Math.random() * 0.1).toFixed(3) + ')',
+        col: 'rgba(100,100,100,' + (0.1 + prng.random() * 0.1).toFixed(3) + ')',
         wid: 1,
       }
     );
@@ -142,8 +143,8 @@ export class Mount {
    * Generate a main mountain with vegetation
    */
   static mountain(xoff: number, yoff: number, seed: number, options: MountainOptions = {}): string | [Polygon[]] {
-    const hei = options.hei ?? 100 + Math.random() * 400;
-    const wid = options.wid ?? 400 + Math.random() * 200;
+    const hei = options.hei ?? 100 + prng.random() * 400;
+    const wid = options.wid ?? 400 + prng.random() * 200;
     const tex = options.tex ?? 200;
     const veg = options.veg ?? true;
     const ret = options.ret ?? 0;
@@ -160,7 +161,7 @@ export class Mount {
 
     let hoff = 0;
     for (let j = 0; j < reso[0]; j++) {
-      hoff += (Math.random() * yoff) / 100;
+      hoff += (prng.random() * yoff) / 100;
       ptlist.push([]);
       for (let i = 0; i < reso[1]; i++) {
         const x = (i / reso[1] - 0.5) * Math.PI;
@@ -241,7 +242,7 @@ export class Mount {
         // Base opacity ranges from 0.05 at top to 0.6 at bottom
         const baseOpacity = 0.05 + depthFactor * 0.55;
         // Add some randomness for natural variation
-        const opacity = baseOpacity + Math.random() * 0.15;
+        const opacity = baseOpacity + prng.random() * 0.15;
         return `rgba(100,100,100,${opacity.toFixed(3)})`;
       },
     }) as string;
@@ -264,10 +265,10 @@ export class Mount {
       vegetate(
         (x, y) => {
           let ht = ((h + y) / h) * 70;
-          ht = ht * 0.3 + Math.random() * ht * 0.7;
+          ht = ht * 0.3 + prng.random() * ht * 0.7;
           return Tree.tree01(x + xoff, y + yoff, {
             hei: ht,
-            wid: Math.random() * 3 + 1,
+            wid: prng.random() * 3 + 1,
             col: 'rgba(100,100,100,' + (noise.noise(0.01 * x, 0.01 * y) * 0.5 * 0.3 + 0.3).toFixed(3) + ')',
           });
         },
@@ -297,8 +298,8 @@ export class Mount {
       vegetate(
         (x, y) => {
           let ht = ((h + y) / h) * 120;
-          ht = ht * 0.5 + Math.random() * ht * 0.5;
-          const bc = Math.random() * 0.1;
+          ht = ht * 0.5 + prng.random() * ht * 0.5;
+          const bc = prng.random() * 0.1;
           const bp = 1;
           return Tree.tree03(x + xoff, y + yoff, {
             hei: ht,
@@ -328,8 +329,8 @@ export class Mount {
    * Generate a flat-topped mountain
    */
   static flatMount(xoff: number, yoff: number, seed: number, options: FlatMountOptions = {}): string {
-    const hei = options.hei ?? 40 + Math.random() * 400;
-    const wid = options.wid ?? 400 + Math.random() * 200;
+    const hei = options.hei ?? 40 + prng.random() * 400;
+    const wid = options.wid ?? 400 + prng.random() * 200;
     const tex = options.tex ?? 80;
     const cho = options.cho ?? 0.5;
     const ret = options.ret ?? 0;
@@ -343,7 +344,7 @@ export class Mount {
     const flat: Polygon[] = [];
 
     for (let j = 0; j < reso[0]; j++) {
-      hoff += (Math.random() * yoff) / 100;
+      hoff += (prng.random() * yoff) / 100;
       ptlist.push([]);
       flat.push([]);
       for (let i = 0; i < reso[1]; i++) {
@@ -390,10 +391,10 @@ export class Mount {
       tex: tex,
       wid: 2,
       dis: () => {
-        if (Math.random() > 0.5) {
-          return 0.1 + 0.4 * Math.random();
+        if (prng.random() > 0.5) {
+          return 0.1 + 0.4 * prng.random();
         } else {
-          return 0.9 - 0.4 * Math.random();
+          return 0.9 - 0.4 * prng.random();
         }
       },
     }) as string;
@@ -489,14 +490,14 @@ export class Mount {
     const tt = randChoice([0, 0, 1, 2, 3, 4]);
 
     // Background rocks
-    for (let j = 0; j < Math.random() * 5; j++) {
+    for (let j = 0; j < prng.random() * 5; j++) {
       canv += Mount.rock(
         xoff + normRand(grbd.xmin, grbd.xmax),
         yoff + (grbd.ymin + grbd.ymax) / 2 + normRand(-10, 10) + 10,
-        Math.random() * 100,
+        prng.random() * 100,
         {
-          wid: 10 + Math.random() * 20,
-          hei: 10 + Math.random() * 20,
+          wid: 10 + prng.random() * 20,
+          hei: 10 + prng.random() * 20,
           sha: 2,
         }
       );
@@ -506,45 +507,45 @@ export class Mount {
     for (let j = 0; j < randChoice([0, 0, 1, 2]); j++) {
       const xr = xoff + normRand(grbd.xmin, grbd.xmax);
       const yr = yoff + (grbd.ymin + grbd.ymax) / 2 + normRand(-5, 5) + 20;
-      for (let k = 0; k < 2 + Math.random() * 3; k++) {
+      for (let k = 0; k < 2 + prng.random() * 3; k++) {
         canv += Tree.tree08(xr + Math.min(Math.max(normRand(-30, 30), grbd.xmin), grbd.xmax), yr, {
-          hei: 60 + Math.random() * 40,
+          hei: 60 + prng.random() * 40,
         });
       }
     }
 
     // Type-specific decorations
     if (tt === 0) {
-      for (let j = 0; j < Math.random() * 3; j++) {
+      for (let j = 0; j < prng.random() * 3; j++) {
         canv += Mount.rock(
           xoff + normRand(grbd.xmin, grbd.xmax),
           yoff + (grbd.ymin + grbd.ymax) / 2 + normRand(-5, 5) + 20,
-          Math.random() * 100,
+          prng.random() * 100,
           {
-            wid: 50 + Math.random() * 20,
-            hei: 40 + Math.random() * 20,
+            wid: 50 + prng.random() * 20,
+            hei: 40 + prng.random() * 20,
             sha: 5,
           }
         );
       }
     } else if (tt === 1) {
-      const pmin = Math.random() * 0.5;
-      const pmax = Math.random() * 0.5 + 0.5;
+      const pmin = prng.random() * 0.5;
+      const pmax = prng.random() * 0.5 + 0.5;
       const xmin = grbd.xmin * (1 - pmin) + grbd.xmax * pmin;
       const xmax = grbd.xmin * (1 - pmax) + grbd.xmax * pmax;
       for (let i = xmin; i < xmax; i += 30) {
         canv += Tree.tree05(xoff + i + 20 * normRand(-1, 1), yoff + (grbd.ymin + grbd.ymax) / 2 + 20, {
-          hei: 100 + Math.random() * 200,
+          hei: 100 + prng.random() * 200,
         });
       }
-      for (let j = 0; j < Math.random() * 4; j++) {
+      for (let j = 0; j < prng.random() * 4; j++) {
         canv += Mount.rock(
           xoff + normRand(grbd.xmin, grbd.xmax),
           yoff + (grbd.ymin + grbd.ymax) / 2 + normRand(-5, 5) + 20,
-          Math.random() * 100,
+          prng.random() * 100,
           {
-            wid: 50 + Math.random() * 20,
-            hei: 40 + Math.random() * 20,
+            wid: 50 + prng.random() * 20,
+            hei: 40 + prng.random() * 20,
             sha: 5,
           }
         );
@@ -554,14 +555,14 @@ export class Mount {
         const xr = normRand(grbd.xmin, grbd.xmax);
         const yr = (grbd.ymin + grbd.ymax) / 2;
         canv += Tree.tree04(xoff + xr, yoff + yr + 20, {});
-        for (let j = 0; j < Math.random() * 2; j++) {
+        for (let j = 0; j < prng.random() * 2; j++) {
           canv += Mount.rock(
             xoff + Math.max(grbd.xmin, Math.min(grbd.xmax, xr + normRand(-50, 50))),
             yoff + yr + normRand(-5, 5) + 20,
-            j * i * Math.random() * 100,
+            j * i * prng.random() * 100,
             {
-              wid: 50 + Math.random() * 20,
-              hei: 40 + Math.random() * 20,
+              wid: 50 + prng.random() * 20,
+              hei: 40 + prng.random() * 20,
               sha: 5,
             }
           );
@@ -570,12 +571,12 @@ export class Mount {
     } else if (tt === 3) {
       for (let i = 0; i < randChoice([1, 1, 1, 1, 2, 2, 3]); i++) {
         canv += Tree.tree06(xoff + normRand(grbd.xmin, grbd.xmax), yoff + (grbd.ymin + grbd.ymax) / 2, {
-          hei: 60 + Math.random() * 60,
+          hei: 60 + prng.random() * 60,
         });
       }
     } else if (tt === 4) {
-      const pmin = Math.random() * 0.5;
-      const pmax = Math.random() * 0.5 + 0.5;
+      const pmin = prng.random() * 0.5;
+      const pmax = prng.random() * 0.5 + 0.5;
       const xmin = grbd.xmin * (1 - pmin) + grbd.xmax * pmin;
       const xmax = grbd.xmin * (1 - pmax) + grbd.xmax * pmax;
       for (let i = xmin; i < xmax; i += 20) {
@@ -588,7 +589,7 @@ export class Mount {
     }
 
     // Small trees
-    for (let i = 0; i < 50 * Math.random(); i++) {
+    for (let i = 0; i < 50 * prng.random(); i++) {
       canv += Tree.tree02(xoff + normRand(grbd.xmin, grbd.xmax), yoff + normRand(grbd.ymin, grbd.ymax));
     }
 
@@ -677,10 +678,10 @@ export class Mount {
     const worley = new WorleyNoise(seed + 999);
 
     // Add SVG filter definitions for ink wash effect (模拟 Kuwahara Filter + 水墨扩散)
-    const filterId = `ink-wash-${Math.random().toString(36).substr(2, 9)}`;
-    const particleFilterId = `ink-particle-${Math.random().toString(36).substr(2, 9)}`;
+    const filterId = `ink-wash-${prng.random().toString(36).substr(2, 9)}`;
+    const particleFilterId = `ink-particle-${prng.random().toString(36).substr(2, 9)}`;
 
-    const blobFilterId = `ink-blob-${Math.random().toString(36).substr(2, 9)}`;
+    const blobFilterId = `ink-blob-${prng.random().toString(36).substr(2, 9)}`;
 
     canv += `<defs>
       <!-- Main ink wash filter for mountain body (大墨块离散效果) -->
@@ -838,7 +839,7 @@ export class Mount {
       // Second: 山体深色底 + 噪声淡化效果
       if (!filterOnly) {
         const textureFilterId = `texture-${layer}-${layerSeed}`;
-        const gradientId = `mount-gradient-${layer}-${Math.random().toString(36).substr(2, 9)}`;
+        const gradientId = `mount-gradient-${layer}-${prng.random().toString(36).substr(2, 9)}`;
 
         // 噪声滤镜：让部分区域变淡
         canv += `<defs>
@@ -900,7 +901,7 @@ export class Mount {
 
       for (let p = 0; p < particleCount; p++) {
         // Random position along the mountain width
-        const t = Math.random();
+        const t = prng.random();
         const x = xoff - len / 2 + t * len;
 
         // Use Worley noise to determine if particle should appear at this location
@@ -929,11 +930,11 @@ export class Mount {
         // Vertical offset: particles distributed from ridge down to base
         // Use inverted Worley noise to cluster near peaks (low values)
         const maxVerticalOffset = hei * amplitudeScale * 0.6; // Particles spread down from ridge
-        const verticalOffset = (1 - verticalNoise) * maxVerticalOffset * Math.random();
+        const verticalOffset = (1 - verticalNoise) * maxVerticalOffset * prng.random();
         const y = baseY + verticalOffset;
 
         // Particle size with variation
-        const baseSize = particleSize * (0.6 + Math.random() * 0.8);
+        const baseSize = particleSize * (0.6 + prng.random() * 0.8);
 
         // Particle opacity based on layer depth and Worley noise
         // Near mountains: darker particles, far mountains: lighter particles
@@ -961,7 +962,7 @@ export class Mount {
         const strokeCount = Math.floor(len * strokeDensity * 0.08);
 
         for (let s = 0; s < strokeCount; s++) {
-          const t = Math.random();
+          const t = prng.random();
           const x = xoff - len / 2 + t * len;
 
           // Use Worley noise to determine stroke placement
@@ -983,7 +984,7 @@ export class Mount {
           const strokeLength = hei * amplitudeScale * (0.2 + Math.abs(lengthNoise) * 0.5);
 
           // Start position: slightly below ridge (using noise for variation)
-          const startOffset = hei * 0.1 * Math.random();
+          const startOffset = hei * 0.1 * prng.random();
           const startY = ridgeY + startOffset;
           const endY = ridgeY + strokeLength;
 
@@ -994,7 +995,7 @@ export class Mount {
           const strokeOpacity = baseStrokeOpacity * (0.6 + Math.abs(opacityNoise) * 0.4);
 
           // Stroke width with variation
-          const strokeWidth = (0.5 + Math.random() * 1.0) * (1 + layerDepth * 0.5);
+          const strokeWidth = (0.5 + prng.random() * 1.0) * (1 + layerDepth * 0.5);
 
           // Color: slightly darker than mountain base
           const strokeR = Math.max(0, r - 15);
@@ -1082,12 +1083,12 @@ export class Mount {
       tex: tex,
       wid: 3,
       sha: sha,
-      col: (progress: number, layerDepth: number) => 'rgba(180,180,180,' + (0.3 + Math.random() * 0.3).toFixed(3) + ')',
+      col: (progress: number, layerDepth: number) => 'rgba(180,180,180,' + (0.3 + prng.random() * 0.3).toFixed(3) + ')',
       dis: () => {
-        if (Math.random() > 0.5) {
-          return 0.15 + 0.15 * Math.random();
+        if (prng.random() > 0.5) {
+          return 0.15 + 0.15 * prng.random();
         } else {
-          return 0.85 - 0.15 * Math.random();
+          return 0.85 - 0.15 * prng.random();
         }
       },
     }) as string;

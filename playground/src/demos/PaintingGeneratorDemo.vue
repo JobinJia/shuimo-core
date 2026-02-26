@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { PaintingGenerator, type BlankPosition, type PaintingType, overrideMathRandom } from '@shuimo/core'
-
-// Override Math.random for reproducible results
-overrideMathRandom()
+import { PaintingGenerator, type BlankPosition, type PaintingType, XuanPaperColors, GoldFleckColors } from '@shuimo/core'
 
 // Form state
 const paintingType = ref<PaintingType>('landscape')
@@ -17,11 +14,40 @@ const seed = ref(String(Date.now()))
 const flowerType = ref<'woody' | 'herbal' | 'random'>('random')
 
 // Xuan paper options
-const xuanPaperAge = ref(0)
-const xuanPaperGoldFlecks = ref(false)
+const paperColorPreset = ref<'processed' | 'raw' | 'antique' | 'teaStained' | 'moonWhite' | 'custom'>('processed')
+const customPaperColor = ref({ r: 252, g: 250, b: 240 })
+const textureIntensity = ref(0.3)
+const age = ref(0)
+const fiberDensity = ref(1.0)
+const grainDensity = ref(0.5)
+
+// Gold fleck options
+const goldFlecks = ref(false)
+const goldDensity = ref(0.5)
+const goldColorPreset = ref<'gold' | 'paleGold' | 'roseGold' | 'copper' | 'silver' | 'bronze'>('gold')
 
 // Canvas container
 const canvasContainer = ref<HTMLDivElement | null>(null)
+
+// Paper color presets
+const paperColorOptions = [
+  { value: 'processed', label: '熟宣 (暖白)' },
+  { value: 'raw', label: '生宣 (纯白)' },
+  { value: 'antique', label: '古宣 (米黄)' },
+  { value: 'teaStained', label: '茶染 (浅褐)' },
+  { value: 'moonWhite', label: '月白 (冷白)' },
+  { value: 'custom', label: '自定义' },
+]
+
+// Gold color presets
+const goldColorOptions = [
+  { value: 'gold', label: '经典金' },
+  { value: 'paleGold', label: '淡金' },
+  { value: 'roseGold', label: '玫瑰金' },
+  { value: 'copper', label: '古铜' },
+  { value: 'silver', label: '银' },
+  { value: 'bronze', label: '青铜' },
+]
 
 // Blank position options
 const blankPositionOptions: { value: BlankPosition; label: string }[] = [
@@ -37,6 +63,30 @@ const blankPositionOptions: { value: BlankPosition; label: string }[] = [
   { value: 'bottomRight', label: '右下' },
 ]
 
+function getPaperColor(): [number, number, number] {
+  switch (paperColorPreset.value) {
+    case 'raw': return XuanPaperColors.raw
+    case 'antique': return XuanPaperColors.antique
+    case 'teaStained': return XuanPaperColors.teaStained
+    case 'moonWhite': return XuanPaperColors.moonWhite
+    case 'custom': return [customPaperColor.value.r, customPaperColor.value.g, customPaperColor.value.b]
+    case 'processed':
+    default: return XuanPaperColors.processed
+  }
+}
+
+function getGoldColor(): [number, number, number] {
+  switch (goldColorPreset.value) {
+    case 'paleGold': return GoldFleckColors.paleGold
+    case 'roseGold': return GoldFleckColors.roseGold
+    case 'copper': return GoldFleckColors.copper
+    case 'silver': return GoldFleckColors.silver
+    case 'bronze': return GoldFleckColors.bronze
+    case 'gold':
+    default: return GoldFleckColors.gold
+  }
+}
+
 function render() {
   if (!canvasContainer.value) return
 
@@ -49,12 +99,16 @@ function render() {
     onXuanPaper: onXuanPaper.value,
     blankPosition: blankPosition.value,
     seed: seedNum,
-    // Flower options
     flowerType: flowerType.value,
-    // Xuan paper options
     xuanPaperOptions: {
-      age: xuanPaperAge.value,
-      goldFlecks: xuanPaperGoldFlecks.value,
+      baseColor: getPaperColor(),
+      textureIntensity: textureIntensity.value,
+      age: age.value,
+      fiberDensity: fiberDensity.value,
+      grainDensity: grainDensity.value,
+      goldFlecks: goldFlecks.value,
+      goldDensity: goldDensity.value,
+      goldColor: getGoldColor(),
     },
   })
 
@@ -132,16 +186,89 @@ onMounted(() => {
 
         <template v-if="onXuanPaper">
           <div class="control-row">
-            <label>陈旧程度</label>
-            <input v-model.number="xuanPaperAge" type="range" min="0" max="1" step="0.1">
-            <span class="value">{{ xuanPaperAge.toFixed(1) }}</span>
+            <label>纸张颜色</label>
+            <select v-model="paperColorPreset">
+              <option
+                v-for="opt in paperColorOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </option>
+            </select>
           </div>
 
-          <div class="control-row checkbox">
-            <label>
-              <input v-model="xuanPaperGoldFlecks" type="checkbox">
-              洒金效果
-            </label>
+          <template v-if="paperColorPreset === 'custom'">
+            <div class="control-row color-picker">
+              <label>R</label>
+              <input v-model.number="customPaperColor.r" type="range" min="200" max="255">
+              <span class="value">{{ customPaperColor.r }}</span>
+            </div>
+            <div class="control-row color-picker">
+              <label>G</label>
+              <input v-model.number="customPaperColor.g" type="range" min="200" max="255">
+              <span class="value">{{ customPaperColor.g }}</span>
+            </div>
+            <div class="control-row color-picker">
+              <label>B</label>
+              <input v-model.number="customPaperColor.b" type="range" min="180" max="255">
+              <span class="value">{{ customPaperColor.b }}</span>
+            </div>
+          </template>
+
+          <div class="control-row">
+            <label>纹理强度</label>
+            <input v-model.number="textureIntensity" type="range" min="0" max="1" step="0.1">
+            <span class="value">{{ textureIntensity.toFixed(1) }}</span>
+          </div>
+
+          <div class="control-row">
+            <label>陈旧程度</label>
+            <input v-model.number="age" type="range" min="0" max="1" step="0.1">
+            <span class="value">{{ age.toFixed(1) }}</span>
+          </div>
+
+          <div class="control-row">
+            <label>纤维密度</label>
+            <input v-model.number="fiberDensity" type="range" min="0" max="2" step="0.2">
+            <span class="value">{{ fiberDensity.toFixed(1) }}</span>
+          </div>
+
+          <div class="control-row">
+            <label>颗粒密度</label>
+            <input v-model.number="grainDensity" type="range" min="0" max="1" step="0.1">
+            <span class="value">{{ grainDensity.toFixed(1) }}</span>
+          </div>
+
+          <!-- Gold Flecks -->
+          <div class="sub-section">
+            <div class="control-row checkbox">
+              <label>
+                <input v-model="goldFlecks" type="checkbox">
+                洒金效果 (撒金宣)
+              </label>
+            </div>
+
+            <template v-if="goldFlecks">
+              <div class="control-row">
+                <label>金色</label>
+                <select v-model="goldColorPreset">
+                  <option
+                    v-for="opt in goldColorOptions"
+                    :key="opt.value"
+                    :value="opt.value"
+                  >
+                    {{ opt.label }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="control-row">
+                <label>金量</label>
+                <input v-model.number="goldDensity" type="range" min="0.1" max="1" step="0.1">
+                <span class="value">{{ goldDensity.toFixed(1) }}</span>
+              </div>
+            </template>
           </div>
         </template>
       </div>
@@ -217,7 +344,7 @@ onMounted(() => {
 }
 
 .sidebar-controls {
-  width: 280px;
+  width: 300px;
   background: #fff;
   border-right: 1px solid #ddd;
   padding: 16px;
@@ -250,6 +377,12 @@ onMounted(() => {
   font-weight: 600;
 }
 
+.sub-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #ddd;
+}
+
 .control-row {
   display: flex;
   align-items: center;
@@ -259,7 +392,7 @@ onMounted(() => {
 
 .control-row label {
   flex-shrink: 0;
-  width: 80px;
+  width: 70px;
   font-size: 13px;
   color: #555;
 }
@@ -270,6 +403,11 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   cursor: pointer;
+}
+
+.control-row.color-picker label {
+  width: 20px;
+  text-align: center;
 }
 
 .control-row input[type="text"],
@@ -287,7 +425,7 @@ onMounted(() => {
 }
 
 .control-row .value {
-  width: 40px;
+  width: 36px;
   text-align: right;
   font-size: 12px;
   color: #888;

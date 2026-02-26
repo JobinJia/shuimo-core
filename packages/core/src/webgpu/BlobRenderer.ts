@@ -4,6 +4,8 @@
  * 使用 GPU 加速渲染水墨风格的有机墨点/墨斑
  */
 
+import { prng } from '../foundation/random';
+
 export interface BlobOptions {
   /** 长度 */
   length?: number;
@@ -271,7 +273,7 @@ export class BlobRenderer {
       color = [0.1, 0.1, 0.12, 0.9],
       noiseAmount = 0.5,
       softness = 0.3,
-      seed = Math.random() * 1000,
+      seed = prng.random() * 1000,
     } = options;
 
     // 更新参数

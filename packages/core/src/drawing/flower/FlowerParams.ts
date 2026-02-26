@@ -6,6 +6,7 @@
 
 import type { FlowerParams } from './types'
 import { PI, sin, mapval, normRand, randChoice, sigmoid } from './FlowerMath'
+import { prng } from '../../foundation/random'
 import { noise } from './FlowerNoise'
 
 /**
@@ -13,7 +14,7 @@ import { noise } from './FlowerNoise'
  * Creates all the configuration needed for woody or herbal plants
  */
 export function genParams(): FlowerParams {
-  console.log('🌺 SVG genParams: First 5 random:', [Math.random(), Math.random(), Math.random(), Math.random(), Math.random()])
+  console.log('🌺 SVG genParams: First 5 random:', [prng.random(), prng.random(), prng.random(), prng.random(), prng.random()])
 
   const randint = (x: number, y: number) => Math.floor(normRand(x, y))
 
@@ -31,13 +32,13 @@ export function genParams(): FlowerParams {
   ])
 
   // Flower shape
-  const flowerShapeNoiseSeed = Math.random() * PI
+  const flowerShapeNoiseSeed = prng.random() * PI
   const flowerJaggedness = normRand(0.5, 8)
   const flowerShape = (x: number) =>
     noise(x * flowerJaggedness, flowerShapeNoiseSeed) * flowerShapeMask(x)
 
   // Leaf shape
-  const leafShapeNoiseSeed = Math.random() * PI
+  const leafShapeNoiseSeed = prng.random() * PI
   const leafJaggedness = normRand(0.1, 40)
   const leafPointyness = normRand(0.5, 1.5)
   const leafShape = randChoice([
@@ -66,8 +67,8 @@ export function genParams(): FlowerParams {
 
   // Curve coefficients
   const curveCoeff0 = [normRand(-0.5, 0.5), normRand(5, 10)]
-  const curveCoeff2 = [Math.random() * PI, normRand(5, 15)]
-  const curveCoeff4 = [Math.random() * 0.5, normRand(0.8, 1.2)]
+  const curveCoeff2 = [prng.random() * PI, normRand(5, 15)]
+  const curveCoeff4 = [prng.random() * 0.5, normRand(0.8, 1.2)]
 
   // Flower opening curve
   const flowerOpenCurve = randChoice([

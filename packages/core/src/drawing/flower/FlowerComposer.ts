@@ -10,6 +10,7 @@
 
 import type { WoodyArgs, HerbalArgs, Layer, Vec3 } from './types'
 import { PI, sin, mapval, normRand, grot } from './FlowerMath'
+import { prng } from '../../foundation/random'
 import { noise } from './FlowerNoise'
 import { leaf, stem, branch } from './FlowerPlant'
 import * as LayerSystem from './FlowerLayer'
@@ -56,7 +57,7 @@ export function woody(args: WoodyArgs = {}): Layer {
         const pt = PL[i][1][j]
 
         // Add leaves (lay0 - fade + wispy)
-        if (Math.random() < PAR.leafChance) {
+        if (prng.random() < PAR.leafChance) {
           const { group: leafGroup } = leaf({
             xof: pt[0],
             yof: pt[1],
@@ -76,7 +77,7 @@ export function woody(args: WoodyArgs = {}): Layer {
         }
 
         // Add flowers
-        if (Math.random() < PAR.flowerChance) {
+        if (prng.random() < PAR.flowerChance) {
           const hr: Vec3 = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * 0]
 
           // Pedicel (flower stem) - lay0
@@ -91,7 +92,7 @@ export function woody(args: WoodyArgs = {}): Layer {
             layerType: 'lay0',
           })
 
-          const op = Math.random()
+          const op = prng.random()
           const r = grot(P_, P_.length - 1)
           const hhr = r
 
@@ -211,7 +212,7 @@ export function herbal(args: HerbalArgs = {}): Layer {
     // Add leaves along stem (leafPosition == 2)
     if (PAR.leafPosition === 2) {
       for (let j = 0; j < P.length; j++) {
-        if (Math.random() < PAR.leafChance * 2) {
+        if (prng.random() < PAR.leafChance * 2) {
           const { group: leafGroup } = leaf({
             xof: x0 + P[j][0],
             yof: y0 + P[j][1],
@@ -266,7 +267,7 @@ export function herbal(args: HerbalArgs = {}): Layer {
       })
       lay0.group.appendChild(shootGroup)
 
-      const op = Math.random()
+      const op = prng.random()
       const hhr: Vec3 = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * PI]
 
       // Generate flower petals (lay1 - wispy only)

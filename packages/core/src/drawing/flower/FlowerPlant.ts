@@ -10,6 +10,7 @@
 import type { LeafArgs, StemArgs, BranchArgs, Vec3, Vec2, LayerType } from './types'
 import { v3, PI, sin, abs, grot } from './FlowerMath'
 import { mapval, normRand } from './FlowerMath'
+import { prng } from '../../foundation/random'
 import { lerpHue } from './FlowerColor'
 import { hsvFiltered, rgbaFiltered } from './FlowerColor'
 import { polygon, stroke, tubify, createSVGElement } from './FlowerShape'
@@ -384,7 +385,7 @@ export function branch(args: BranchArgs = {}): { group: SVGGElement, branches: A
   // Generate joints for twisting
   const jnt: Array<[number, number]> = []
   for (let i = 0; i < twi; i++) {
-    jnt.push([Math.floor(Math.random() * seg), normRand(-1, 1)])
+    jnt.push([Math.floor(prng.random() * seg), normRand(-1, 1)])
   }
 
   function jntdist(x: number): [number, number] {
@@ -429,7 +430,7 @@ export function branch(args: BranchArgs = {}): { group: SVGGElement, branches: A
   const child: Array<[number, Vec3[]]> = []
 
   if (dep > 0 && wid > 0.1) {
-    for (let i = 0; i < frk * Math.random(); i++) {
+    for (let i = 0; i < frk * prng.random(); i++) {
       const ind = Math.floor(normRand(1, P.length))
 
       const r = grot(P, ind)

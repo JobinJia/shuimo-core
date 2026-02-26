@@ -2,6 +2,7 @@ import { MountPlanner, PlanItem } from './MountPlanner';
 import { Mount } from '../elements/natural/Mount';
 import { water } from '../elements/natural/Water';
 import { Arch } from '../elements/objects/Arch';
+import { prng } from '../foundation/random';
 import { randChoice } from '../utils/random';
 
 export interface Chunk {
@@ -126,7 +127,7 @@ export class SceneManager {
             tag: plan[i].tag,
             x: plan[i].x,
             y: plan[i].y,
-            canv: Mount.mountain(plan[i].x, plan[i].y, i * 2 * Math.random()),
+            canv: Mount.mountain(plan[i].x, plan[i].y, i * 2 * prng.random()),
           });
           this.addChunk({
             tag: plan[i].tag,
@@ -139,10 +140,10 @@ export class SceneManager {
             tag: plan[i].tag,
             x: plan[i].x,
             y: plan[i].y,
-            canv: Mount.flatMount(plan[i].x, plan[i].y, 2 * Math.random() * Math.PI, {
-              wid: 600 + Math.random() * 400,
+            canv: Mount.flatMount(plan[i].x, plan[i].y, 2 * prng.random() * Math.PI, {
+              wid: 600 + prng.random() * 400,
               hei: 100,
-              cho: 0.5 + Math.random() * 0.2,
+              cho: 0.5 + prng.random() * 0.2,
             }),
           });
         } else if (plan[i].tag === 'distmount') {
@@ -150,7 +151,7 @@ export class SceneManager {
             tag: plan[i].tag,
             x: plan[i].x,
             y: plan[i].y,
-            canv: Mount.distMount(plan[i].x, plan[i].y, Math.random() * 100, {
+            canv: Mount.distMount(plan[i].x, plan[i].y, prng.random() * 100, {
               hei: 150,
               len: randChoice([500, 1000, 1500]),
             }),
@@ -160,7 +161,7 @@ export class SceneManager {
             tag: plan[i].tag,
             x: plan[i].x,
             y: plan[i].y,
-            canv: Arch.boat01(plan[i].x, plan[i].y, Math.random(), {
+            canv: Arch.boat01(plan[i].x, plan[i].y, prng.random(), {
               sca: plan[i].y / 800,
               fli: randChoice([true, false]),
             }),
@@ -171,10 +172,10 @@ export class SceneManager {
             tag: plan[i].tag,
             x: plan[i].x,
             y: plan[i].y,
-            canv: Arch.arch01(plan[i].x, plan[i].y, Math.random() * 1000, {
-              hei: 60 + Math.random() * 40,
-              wid: 80 + Math.random() * 40,
-              per: 3 + Math.random() * 2,
+            canv: Arch.arch01(plan[i].x, plan[i].y, prng.random() * 1000, {
+              hei: 60 + prng.random() * 40,
+              wid: 80 + prng.random() * 40,
+              per: 3 + prng.random() * 2,
             }),
           });
         } else if (plan[i].tag === 'arch02') {
@@ -183,9 +184,9 @@ export class SceneManager {
             tag: plan[i].tag,
             x: plan[i].x,
             y: plan[i].y,
-            canv: Arch.arch02(plan[i].x, plan[i].y, Math.random() * 1000, {
-              wid: 40 + Math.random() * 30,
-              sto: 2 + Math.floor(Math.random() * 3),
+            canv: Arch.arch02(plan[i].x, plan[i].y, prng.random() * 1000, {
+              wid: 40 + prng.random() * 30,
+              sto: 2 + Math.floor(prng.random() * 3),
             }),
           });
         } else if (plan[i].tag === 'arch03') {
@@ -194,9 +195,9 @@ export class SceneManager {
             tag: plan[i].tag,
             x: plan[i].x,
             y: plan[i].y,
-            canv: Arch.arch03(plan[i].x, plan[i].y, Math.random() * 1000, {
-              wid: 40 + Math.random() * 30,
-              sto: 5 + Math.floor(Math.random() * 4),
+            canv: Arch.arch03(plan[i].x, plan[i].y, prng.random() * 1000, {
+              wid: 40 + prng.random() * 30,
+              sto: 5 + Math.floor(prng.random() * 4),
             }),
           });
         } else if (plan[i].tag === 'arch04') {
@@ -205,8 +206,8 @@ export class SceneManager {
             tag: plan[i].tag,
             x: plan[i].x,
             y: plan[i].y,
-            canv: Arch.arch04(plan[i].x, plan[i].y, Math.random() * 1000, {
-              sto: 1 + Math.floor(Math.random() * 3),
+            canv: Arch.arch04(plan[i].x, plan[i].y, prng.random() * 1000, {
+              sto: 1 + Math.floor(prng.random() * 3),
             }),
           });
         } else if (plan[i].tag === 'tower') {
@@ -215,8 +216,8 @@ export class SceneManager {
             tag: plan[i].tag,
             x: plan[i].x,
             y: plan[i].y,
-            canv: Arch.transmissionTower01(plan[i].x, plan[i].y, Math.random() * 1000, {
-              hei: 150 + Math.random() * 100,
+            canv: Arch.transmissionTower01(plan[i].x, plan[i].y, prng.random() * 1000, {
+              hei: 150 + prng.random() * 100,
             }),
           });
         } else if (plan[i].tag === 'redcirc') {

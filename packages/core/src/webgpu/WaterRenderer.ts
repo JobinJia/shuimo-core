@@ -4,6 +4,8 @@
  * 使用 GPU 加速渲染水墨风格的水面波纹效果
  */
 
+import { prng } from '../foundation/random';
+
 export interface WaterOptions {
   /** 波高 */
   waveHeight?: number;
@@ -295,7 +297,7 @@ export class WaterRenderer {
       clusters = 15,
       density = 8,
       inkDensity = 0.6,
-      seed = Math.random() * 1000,
+      seed = prng.random() * 1000,
       time = 0,
     } = options;
 

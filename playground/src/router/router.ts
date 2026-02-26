@@ -13,6 +13,7 @@ import WebGPUShanshui from '../demos/WebGPUShanshui.vue'
 import WebGPUShanshuiScroll from '../demos/WebGPUShanshuiScroll.vue'
 import XuanPaperDemo from '../demos/XuanPaperDemo.vue'
 import PaintingGeneratorDemo from '../demos/PaintingGeneratorDemo.vue'
+import FourGentlemenDemo from '../demos/FourGentlemenDemo.vue'
 
 const routes = [
   {
@@ -87,6 +88,11 @@ const routes = [
     path: '/painting-generator',
     name: 'PaintingGenerator',
     component: PaintingGeneratorDemo,
+  },
+  {
+    path: '/four-gentlemen',
+    name: 'FourGentlemen',
+    component: FourGentlemenDemo,
   },
 ]
 

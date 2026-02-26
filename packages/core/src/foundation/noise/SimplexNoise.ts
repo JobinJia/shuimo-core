@@ -7,6 +7,8 @@
  * Based on Stefan Gustavson's implementation
  */
 
+import { prng } from '../random';
+
 export class SimplexNoise {
   // Simplex skewing constants for 2D
   private readonly F2 = 0.5 * (Math.sqrt(3.0) - 1.0);
@@ -24,7 +26,7 @@ export class SimplexNoise {
   private permMod12: number[] = [];
 
   constructor(seed?: number) {
-    this.seed(seed ?? Math.random() * 65536);
+    this.seed(seed ?? prng.random() * 65536);
   }
 
   /**

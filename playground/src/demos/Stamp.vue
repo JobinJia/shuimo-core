@@ -26,7 +26,7 @@ onMounted(async () => {
     text: ['落梅听', '风雪'],
     type: 'yin' as const,
     color: '#C8102E',
-    fontFamily: 'Heiti SC, sans-serif',
+    fontFamily: '峄山碑篆体',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
@@ -44,7 +44,6 @@ onMounted(async () => {
     ...yinOptions,
     measuredColumnWidths: yinMeasure?.columnWidths,
     measuredColumnHeights: yinMeasure?.columnHeights,
-    measuredColumnHeights: yinMeasure?.columnHeights,
   })
 
   // 阳章 - 白底红字红边框 (默认自动形状)
@@ -52,7 +51,7 @@ onMounted(async () => {
     text: ['落梅', '听风雪'],
     type: 'yang' as const,
     color: '#C8102E',
-    fontFamily: 'Heiti SC, sans-serif',
+    fontFamily: '峄山碑篆体',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
@@ -71,7 +70,6 @@ onMounted(async () => {
     ...yangOptions,
     measuredColumnWidths: yangMeasure?.columnWidths,
     measuredColumnHeights: yangMeasure?.columnHeights,
-    measuredColumnHeights: yangMeasure?.columnHeights,
   })
 
   // 正方形印章 - 阴章
@@ -80,7 +78,7 @@ onMounted(async () => {
     type: 'yin' as const,
     shape: 'square' as const,
     color: '#C8102E',
-    fontFamily: 'Heiti SC, sans-serif',
+    fontFamily: '峄山碑篆体',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
@@ -98,7 +96,6 @@ onMounted(async () => {
     ...squareYinOptions,
     measuredColumnWidths: squareYinMeasure?.columnWidths,
     measuredColumnHeights: squareYinMeasure?.columnHeights,
-    measuredColumnHeights: squareYinMeasure?.columnHeights,
   })
 
   // 正方形印章 - 阳章
@@ -107,7 +104,7 @@ onMounted(async () => {
     type: 'yang' as const,
     shape: 'square' as const,
     color: '#C8102E',
-    fontFamily: 'Heiti SC, sans-serif',
+    fontFamily: '峄山碑篆体',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
@@ -134,7 +131,7 @@ onMounted(async () => {
     type: 'yin' as const,
     shape: 'rectangle' as const,
     color: '#C8102E',
-    fontFamily: 'Heiti SC, sans-serif',
+    fontFamily: '峄山碑篆体',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
@@ -160,7 +157,7 @@ onMounted(async () => {
     type: 'yang' as const,
     shape: 'rectangle' as const,
     color: '#C8102E',
-    fontFamily: 'Heiti SC, sans-serif',
+    fontFamily: '峄山碑篆体',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
@@ -187,7 +184,7 @@ onMounted(async () => {
     type: 'yin' as const,
     shape: 'circle' as const,
     color: '#C8102E',
-    fontFamily: 'Heiti SC, sans-serif',
+    fontFamily: '峄山碑篆体',
     fontSize: 70,
     paddingXPx: 15,
     paddingYPx: 15,
@@ -211,7 +208,7 @@ onMounted(async () => {
     type: 'yang' as const,
     shape: 'circle' as const,
     color: '#C8102E',
-    fontFamily: 'Heiti SC, sans-serif',
+    fontFamily: '峄山碑篆体',
     fontSize: 70,
     paddingXPx: 15,
     paddingYPx: 15,
@@ -236,7 +233,7 @@ onMounted(async () => {
     type: 'yin' as const,
     shape: 'ellipse' as const,
     color: '#C8102E',
-    fontFamily: 'Heiti SC, sans-serif',
+    fontFamily: '峄山碑篆体',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
@@ -262,7 +259,7 @@ onMounted(async () => {
     type: 'yang' as const,
     shape: 'ellipse' as const,
     color: '#C8102E',
-    fontFamily: 'Heiti SC, sans-serif',
+    fontFamily: '峄山碑篆体',
     fontSize: 70,
     columnSpacingPx: 1.4,
     characterSpacingPx: 3.5,
@@ -457,13 +454,7 @@ onMounted(async () => {
 </template>
 
 <style scoped lang="css">
- @font-face {
-        font-family: 'beishida';
-        src: url('@/assets/fonts/jinlong.ttf') format('truetype');
-        font-weight: normal;
-        font-style: normal;
-        font-display: swap;
-      }
+@import url("https://fontsapi.zeoseven.com/236/main/result.css");
 
       .stamp-container {
         background: #f5f5f5;

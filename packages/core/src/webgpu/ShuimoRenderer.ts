@@ -5,6 +5,8 @@
  * 核心算法：多层轮廓线 + 皴法纹理采样
  */
 
+import { prng } from '../foundation/random';
+
 type Point = [number, number];
 type Polygon = Point[];
 
@@ -69,7 +71,7 @@ class PerlinNoiseGen {
     if (this.perlin == null) {
       this.perlin = new Array(this.PERLIN_SIZE + 1);
       for (let i = 0; i < this.PERLIN_SIZE + 1; i++) {
-        this.perlin[i] = Math.random();
+        this.perlin[i] = prng.random();
       }
     }
 
@@ -361,7 +363,7 @@ export class ShuimoRenderer {
   drawStroke(points: Point[], width: number, color: [number, number, number, number], noiseAmount: number = 0.5): void {
     if (points.length < 2) return;
 
-    const n0 = Math.random() * 10;
+    const n0 = prng.random() * 10;
     const widthFunc = (t: number) => Math.sin(t * Math.PI);
 
     const leftSide: Point[] = [];
@@ -426,7 +428,7 @@ export class ShuimoRenderer {
 
     let hoff = 0;
     for (let j = 0; j < reso[0]; j++) {
-      hoff += (Math.random() * yoff) / 100;
+      hoff += (prng.random() * yoff) / 100;
       ptlist.push([]);
       for (let i = 0; i < reso[1]; i++) {
         const x = (i / reso[1] - 0.5) * Math.PI;
@@ -555,8 +557,8 @@ export class ShuimoRenderer {
         const y = veglist[i][1];
 
         let ht = ((h + y) / h) * 70;
-        ht = ht * 0.3 + Math.random() * ht * 0.7;
-        const wid = Math.random() * 3 + 1; // 随机宽度
+        ht = ht * 0.3 + prng.random() * ht * 0.7;
+        const wid = prng.random() * 3 + 1; // 随机宽度
 
         this.drawTree01(x + xoff, y + yoff, seed + i, {
           height: ht,
@@ -580,8 +582,8 @@ export class ShuimoRenderer {
           const y = ptlist[i][j][1];
 
           let ht = ((h + y) / h) * 120;
-          ht = ht * 0.5 + Math.random() * ht * 0.5;
-          const bc = Math.random() * 0.1; // 弯曲系数
+          ht = ht * 0.5 + prng.random() * ht * 0.5;
+          const bc = prng.random() * 0.1; // 弯曲系数
 
           this.drawTree03(x + xoff, y + yoff, seed + i * 100 + j, {
             height: ht,
@@ -602,7 +604,7 @@ export class ShuimoRenderer {
 
     for (let i = 0; i < ptlist.length - 2; i += 1) {
       if (i === ni) {
-        ni = Math.min(ni + (Math.random() > 0.5 ? 1 : 2), ptlist.length - 1);
+        ni = Math.min(ni + (prng.random() > 0.5 ? 1 : 2), ptlist.length - 1);
 
         ftlist.push([]);
         ftlist.push([]);
@@ -650,7 +652,7 @@ export class ShuimoRenderer {
 
     // 绘制山脚轮廓线
     for (let j = 0; j < ftlist.length; j++) {
-      const opacity = 0.1 + Math.random() * 0.1;
+      const opacity = 0.1 + prng.random() * 0.1;
       this.drawStroke(
         ftlist[j].map(p => [p[0] + xoff, p[1] + yoff]),
         1,
@@ -673,17 +675,17 @@ export class ShuimoRenderer {
 
     // 分布函数 - 两侧密集，中间稀疏
     const dis = () => {
-      if (Math.random() > 0.5) {
-        return (1 / 3) * Math.random();
+      if (prng.random() > 0.5) {
+        return (1 / 3) * prng.random();
       } else {
-        return (2 / 3) + (1 / 3) * Math.random();
+        return (2 / 3) + (1 / 3) * prng.random();
       }
     };
 
     // 生成纹理笔触点
     for (let i = 0; i < tex; i++) {
       const mid = Math.floor(dis() * reso[1]);
-      const hlen = Math.floor(Math.random() * (reso[1] * len));
+      const hlen = Math.floor(prng.random() * (reso[1] * len));
 
       let start = mid - hlen;
       let end = mid + hlen;
@@ -718,7 +720,7 @@ export class ShuimoRenderer {
       // 颜色渐变：顶部浅，底部深
       const depthFactor = Math.pow(layerDepth, 1.5);
       const baseOpacity = 0.05 + depthFactor * 0.55;
-      const opacity = baseOpacity + Math.random() * 0.15;
+      const opacity = baseOpacity + prng.random() * 0.15;
 
       this.drawStroke(
         texlist[j].map(p => [p[0] + xoff, p[1] + yoff]),
@@ -747,9 +749,9 @@ export class ShuimoRenderer {
     // 生成波纹 clusters
     for (let i = 0; i < clu; i++) {
       ptlist.push([]);
-      const xk = (Math.random() - 0.5) * (len / 8);
-      yk += Math.random() * 5;
-      const lk = len / 4 + Math.random() * (len / 4);
+      const xk = (prng.random() - 0.5) * (len / 8);
+      yk += prng.random() * 5;
+      const lk = len / 4 + prng.random() * (len / 4);
       const reso = 5;
 
       for (let j = -lk; j < lk; j += reso) {
@@ -762,7 +764,7 @@ export class ShuimoRenderer {
 
     // 绘制波纹笔触
     for (let j = 1; j < ptlist.length; j += 1) {
-      const opacity = 0.3 + Math.random() * 0.3;
+      const opacity = 0.3 + prng.random() * 0.3;
       this.drawStroke(
         ptlist[j].map(p => [p[0] + xoff, p[1] + yoff]),
         1,
@@ -781,8 +783,8 @@ export class ShuimoRenderer {
     texture?: number;
     cho?: number;
   } = {}): void {
-    const hei = options.height ?? 40 + Math.random() * 400;
-    const wid = options.width ?? 400 + Math.random() * 200;
+    const hei = options.height ?? 40 + prng.random() * 400;
+    const wid = options.width ?? 400 + prng.random() * 200;
     const tex = options.texture ?? 80;
     const cho = options.cho ?? 0.5; // 平顶比例
 
@@ -792,7 +794,7 @@ export class ShuimoRenderer {
     const flat: Polygon[] = [];
 
     for (let j = 0; j < reso[0]; j++) {
-      hoff += (Math.random() * yoff) / 100;
+      hoff += (prng.random() * yoff) / 100;
       ptlist.push([]);
       flat.push([]);
 
@@ -857,16 +859,16 @@ export class ShuimoRenderer {
 
     const noi = (x: number) => 30 / x;
     const dis = () => {
-      if (Math.random() > 0.5) {
-        return 0.1 + 0.4 * Math.random();
+      if (prng.random() > 0.5) {
+        return 0.1 + 0.4 * prng.random();
       } else {
-        return 0.9 - 0.4 * Math.random();
+        return 0.9 - 0.4 * prng.random();
       }
     };
 
     for (let i = 0; i < tex; i++) {
       const mid = Math.floor(dis() * reso[1]);
-      const hlen = Math.floor(Math.random() * (reso[1] * len));
+      const hlen = Math.floor(prng.random() * (reso[1] * len));
 
       let start = mid - hlen;
       let end = mid + hlen;
@@ -892,7 +894,7 @@ export class ShuimoRenderer {
       }
 
       if (texPoints.length >= 2) {
-        const opacity = 0.2 + Math.random() * 0.2;
+        const opacity = 0.2 + prng.random() * 0.2;
         this.drawStroke(texPoints, wid, [0.39, 0.39, 0.39, opacity], 0.5);
       }
     }
@@ -998,14 +1000,14 @@ export class ShuimoRenderer {
    * 辅助函数：从数组中随机选择一个元素
    */
   private randChoice<T>(arr: T[]): T {
-    return arr[Math.floor(arr.length * Math.random())];
+    return arr[Math.floor(arr.length * prng.random())];
   }
 
   /**
    * 辅助函数：在范围内生成随机数
    */
   private normRand(m: number, M: number): number {
-    return m + Math.random() * (M - m);
+    return m + prng.random() * (M - m);
   }
 
   /**
@@ -1021,14 +1023,14 @@ export class ShuimoRenderer {
     const tt = this.randChoice([0, 0, 1, 2, 3, 4]);
 
     // 背景岩石
-    for (let j = 0; j < Math.random() * 5; j++) {
+    for (let j = 0; j < prng.random() * 5; j++) {
       this.drawRock(
         xoff + this.normRand(grbd.xmin, grbd.xmax),
         yoff + (grbd.ymin + grbd.ymax) / 2 + this.normRand(-10, 10) + 10,
-        Math.random() * 100,
+        prng.random() * 100,
         {
-          width: 10 + Math.random() * 20,
-          height: 10 + Math.random() * 20,
+          width: 10 + prng.random() * 20,
+          height: 10 + prng.random() * 20,
           shadow: 2,
         }
       );
@@ -1038,12 +1040,12 @@ export class ShuimoRenderer {
     for (let j = 0; j < this.randChoice([0, 0, 1, 2]); j++) {
       const xr = xoff + this.normRand(grbd.xmin, grbd.xmax);
       const yr = yoff + (grbd.ymin + grbd.ymax) / 2 + this.normRand(-5, 5) + 20;
-      for (let k = 0; k < 2 + Math.random() * 3; k++) {
+      for (let k = 0; k < 2 + prng.random() * 3; k++) {
         this.drawTree08(
           xr + Math.min(Math.max(this.normRand(-30, 30), grbd.xmin), grbd.xmax),
           yr,
           seed + j * 10 + k,
-          { height: 60 + Math.random() * 40 }
+          { height: 60 + prng.random() * 40 }
         );
       }
     }
@@ -1051,22 +1053,22 @@ export class ShuimoRenderer {
     // 类型特定装饰
     if (tt === 0) {
       // 类型 0: 大岩石
-      for (let j = 0; j < Math.random() * 3; j++) {
+      for (let j = 0; j < prng.random() * 3; j++) {
         this.drawRock(
           xoff + this.normRand(grbd.xmin, grbd.xmax),
           yoff + (grbd.ymin + grbd.ymax) / 2 + this.normRand(-5, 5) + 20,
-          Math.random() * 100,
+          prng.random() * 100,
           {
-            width: 50 + Math.random() * 20,
-            height: 40 + Math.random() * 20,
+            width: 50 + prng.random() * 20,
+            height: 40 + prng.random() * 20,
             shadow: 5,
           }
         );
       }
     } else if (tt === 1) {
       // 类型 1: tree05 成排 + 岩石
-      const pmin = Math.random() * 0.5;
-      const pmax = Math.random() * 0.5 + 0.5;
+      const pmin = prng.random() * 0.5;
+      const pmax = prng.random() * 0.5 + 0.5;
       const xmin = grbd.xmin * (1 - pmin) + grbd.xmax * pmin;
       const xmax = grbd.xmin * (1 - pmax) + grbd.xmax * pmax;
       for (let i = xmin; i < xmax; i += 30) {
@@ -1074,17 +1076,17 @@ export class ShuimoRenderer {
           xoff + i + 20 * this.normRand(-1, 1),
           yoff + (grbd.ymin + grbd.ymax) / 2 + 20,
           seed + Math.floor(i),
-          { height: 100 + Math.random() * 200 }
+          { height: 100 + prng.random() * 200 }
         );
       }
-      for (let j = 0; j < Math.random() * 4; j++) {
+      for (let j = 0; j < prng.random() * 4; j++) {
         this.drawRock(
           xoff + this.normRand(grbd.xmin, grbd.xmax),
           yoff + (grbd.ymin + grbd.ymax) / 2 + this.normRand(-5, 5) + 20,
-          Math.random() * 100,
+          prng.random() * 100,
           {
-            width: 50 + Math.random() * 20,
-            height: 40 + Math.random() * 20,
+            width: 50 + prng.random() * 20,
+            height: 40 + prng.random() * 20,
             shadow: 5,
           }
         );
@@ -1095,14 +1097,14 @@ export class ShuimoRenderer {
         const xr = this.normRand(grbd.xmin, grbd.xmax);
         const yr = (grbd.ymin + grbd.ymax) / 2;
         this.drawTree04(xoff + xr, yoff + yr + 20, seed + i, {});
-        for (let j = 0; j < Math.random() * 2; j++) {
+        for (let j = 0; j < prng.random() * 2; j++) {
           this.drawRock(
             xoff + Math.max(grbd.xmin, Math.min(grbd.xmax, xr + this.normRand(-50, 50))),
             yoff + yr + this.normRand(-5, 5) + 20,
-            j * i * Math.random() * 100,
+            j * i * prng.random() * 100,
             {
-              width: 50 + Math.random() * 20,
-              height: 40 + Math.random() * 20,
+              width: 50 + prng.random() * 20,
+              height: 40 + prng.random() * 20,
               shadow: 5,
             }
           );
@@ -1115,13 +1117,13 @@ export class ShuimoRenderer {
           xoff + this.normRand(grbd.xmin, grbd.xmax),
           yoff + (grbd.ymin + grbd.ymax) / 2,
           seed + i,
-          { height: 60 + Math.random() * 60 }
+          { height: 60 + prng.random() * 60 }
         );
       }
     } else if (tt === 4) {
       // 类型 4: tree07 成排
-      const pmin = Math.random() * 0.5;
-      const pmax = Math.random() * 0.5 + 0.5;
+      const pmin = prng.random() * 0.5;
+      const pmax = prng.random() * 0.5 + 0.5;
       const xmin = grbd.xmin * (1 - pmin) + grbd.xmax * pmin;
       const xmax = grbd.xmin * (1 - pmax) + grbd.xmax * pmax;
       for (let i = xmin; i < xmax; i += 20) {
@@ -1135,7 +1137,7 @@ export class ShuimoRenderer {
     }
 
     // 小树点缀
-    for (let i = 0; i < 50 * Math.random(); i++) {
+    for (let i = 0; i < 50 * prng.random(); i++) {
       this.drawTree02(
         xoff + this.normRand(grbd.xmin, grbd.xmax),
         yoff + this.normRand(grbd.ymin, grbd.ymax),
@@ -1260,7 +1262,7 @@ export class ShuimoRenderer {
       const particleCount = Math.floor(len * particleDensity * 0.35); // 与原版一致
 
       for (let p = 0; p < particleCount; p++) {
-        const t = Math.random();
+        const t = prng.random();
         const x = xoff - len / 2 + t * len;
 
         // 使用噪声决定是否放置墨点
@@ -1274,11 +1276,11 @@ export class ShuimoRenderer {
 
         // 墨点分布在山脊下方
         const maxVerticalOffset = hei * amplitudeScale * 0.6;
-        const verticalOffset = (1 - worleyValue) * maxVerticalOffset * Math.random();
+        const verticalOffset = (1 - worleyValue) * maxVerticalOffset * prng.random();
         const particleY = baseRidgeY + verticalOffset + yoff;
 
         // 墨点大小
-        const pSize = particleSize * (0.6 + Math.random() * 0.8);
+        const pSize = particleSize * (0.6 + prng.random() * 0.8);
 
         // 墨点透明度
         const baseOpacity = 0.15 + layerDepth * 0.25;
@@ -1308,7 +1310,7 @@ export class ShuimoRenderer {
         const strokeCount = Math.floor(len * strokeDensity * 0.08); // 与原版一致
 
         for (let s = 0; s < strokeCount; s++) {
-          const t = Math.random();
+          const t = prng.random();
           const x = xoff - len / 2 + t * len;
 
           const worleyValue = simpleNoise(x * 0.015, seed + layer * 0.015);
@@ -1321,7 +1323,7 @@ export class ShuimoRenderer {
           const lengthNoise = fbmNoise(x * 0.02, layer * 0.1, seed + layer);
           const strokeLength = hei * amplitudeScale * (0.2 + Math.abs(lengthNoise) * 0.5);
 
-          const startOffset = hei * 0.1 * Math.random();
+          const startOffset = hei * 0.1 * prng.random();
           const startStrokeY = ridgeY + startOffset + yoff;
           const endStrokeY = ridgeY + strokeLength + yoff;
 
@@ -1331,7 +1333,7 @@ export class ShuimoRenderer {
           const strokeOpacity = baseStrokeOpacity * (0.6 + Math.abs(opacityNoise) * 0.4);
 
           // 纹理宽度
-          const strokeWidth = (0.5 + Math.random() * 1.0) * (1 + layerDepth * 0.5);
+          const strokeWidth = (0.5 + prng.random() * 1.0) * (1 + layerDepth * 0.5);
 
           // 绘制垂直线条
           this.drawStroke(
@@ -1498,13 +1500,13 @@ export class ShuimoRenderer {
       // 绘制叶子 (blob)
       if (i >= reso / 4) {
         for (let j = 0; j < (reso - i) / 5; j++) {
-          const blobX = nx + (Math.random() - 0.5) * wid * 1.2 * (reso - i);
-          const blobY = ny + (Math.random() - 0.5) * wid;
+          const blobX = nx + (prng.random() - 0.5) * wid * 1.2 * (reso - i);
+          const blobY = ny + (prng.random() - 0.5) * wid;
           this.drawBlob(blobX, blobY, seed + i * 10 + j, {
-            length: Math.random() * 20 * (reso - i) * 0.2 + 10,
-            width: Math.random() * 6 + 3,
-            angle: (Math.random() - 0.5) * Math.PI / 6,
-            opacity: Math.random() * 0.2 + 0.5
+            length: prng.random() * 20 * (reso - i) * 0.2 + 10,
+            width: prng.random() * 6 + 3,
+            angle: (prng.random() - 0.5) * Math.PI / 6,
+            opacity: prng.random() * 0.2 + 0.5
           });
         }
       }
@@ -1533,8 +1535,8 @@ export class ShuimoRenderer {
       const bx = x + this.randGaussian(seed + i) * clu * 4;
       const by = y + this.randGaussian(seed + i + 100) * clu * 4;
       this.drawBlob(bx, by, seed + i, {
-        width: Math.random() * wid * 0.75 + wid * 0.5,
-        length: Math.random() * hei * 0.75 + hei * 0.5,
+        width: prng.random() * wid * 0.75 + wid * 0.5,
+        length: prng.random() * hei * 0.75 + hei * 0.5,
         angle: Math.PI / 2,
         opacity: 0.5
       });
@@ -1573,13 +1575,13 @@ export class ShuimoRenderer {
       if (i >= reso / 5) {
         for (let j = 0; j < (reso - i) * 2; j++) {
           const shape = (t: number) => Math.log(50 * t + 1) / 3.95;
-          const ox = Math.random() * wid * 2 * shape((reso - i) / reso);
-          const dir = Math.random() > 0.5 ? 1 : -1;
-          this.drawBlob(nx + ox * dir, ny + (Math.random() - 0.5) * wid * 2, seed + i * 10 + j, {
+          const ox = prng.random() * wid * 2 * shape((reso - i) / reso);
+          const dir = prng.random() > 0.5 ? 1 : -1;
+          this.drawBlob(nx + ox * dir, ny + (prng.random() - 0.5) * wid * 2, seed + i * 10 + j, {
             length: ox * 2,
-            width: Math.random() * 6 + 3,
-            angle: (Math.random() - 0.5) * Math.PI / 6,
-            opacity: Math.random() * 0.2 + 0.5
+            width: prng.random() * 6 + 3,
+            angle: (prng.random() - 0.5) * Math.PI / 6,
+            opacity: prng.random() * 0.2 + 0.5
           });
         }
       }
@@ -1617,7 +1619,7 @@ export class ShuimoRenderer {
     this.drawStroke(
       trunkPolygon.map(p => [p[0] + x, p[1] + y]),
       2.5,
-      [0.39, 0.39, 0.39, 0.4 + Math.random() * 0.1],
+      [0.39, 0.39, 0.39, 0.4 + prng.random() * 0.1],
       0.9
     );
 
@@ -1631,11 +1633,11 @@ export class ShuimoRenderer {
       if (
         (i >= trlistMerged.length * 0.3 &&
           i <= trlistMerged.length * 0.7 &&
-          Math.random() < 0.1) ||
+          prng.random() < 0.1) ||
         i === Math.floor(trlistMerged.length / 2) - 1
       ) {
         const ba = Math.PI * 0.2 - Math.PI * 1.4 * (i > trlistMerged.length / 2 ? 1 : 0);
-        const brlist = this.generateBranch(hei * (Math.random() + 1) * 0.3, wid * 0.5, ba, Math.PI * 0.2, 5);
+        const brlist = this.generateBranch(hei * (prng.random() + 1) * 0.3, wid * 0.5, ba, Math.PI * 0.2, 5);
 
         // 绘制分枝
         const brPolygon: Polygon = [...brlist[0], ...brlist[1].reverse()];
@@ -1649,7 +1651,7 @@ export class ShuimoRenderer {
 
         // 绘制树枝和叶子
         for (let j = 0; j < brlist[0].length; j++) {
-          if (Math.random() < 0.2 || j === brlist[0].length - 1) {
+          if (prng.random() < 0.2 || j === brlist[0].length - 1) {
             this.drawTwig(
               brlist[0][j][0] + trlistMerged[i][0] + x,
               brlist[0][j][1] + trlistMerged[i][1] + y,
@@ -1690,7 +1692,7 @@ export class ShuimoRenderer {
     this.drawStroke(
       trunkPolygon.map(p => [p[0] + x, p[1] + y]),
       2.5,
-      [0.39, 0.39, 0.39, 0.4 + Math.random() * 0.1],
+      [0.39, 0.39, 0.39, 0.4 + prng.random() * 0.1],
       0.9
     );
 
@@ -1704,11 +1706,11 @@ export class ShuimoRenderer {
         i >= trlistMerged.length * 0.2 &&
         i <= trlistMerged.length * 0.8 &&
         i % 3 === 0 &&
-        Math.random() > p
+        prng.random() > p
       ) {
-        const bar = Math.random() * 0.2;
+        const bar = prng.random() * 0.2;
         const ba = -bar * Math.PI - (1 - bar * 2) * Math.PI * (i > trlistMerged.length / 2 ? 1 : 0);
-        const brlist = this.generateBranch(hei * (0.3 * p - Math.random() * 0.05), wid * 0.5, ba, 0.5, 5);
+        const brlist = this.generateBranch(hei * (0.3 * p - prng.random() * 0.05), wid * 0.5, ba, 0.5, 5);
 
         // 绘制分枝上的松针（叶子）
         for (let j = 0; j < brlist[0].length; j++) {
@@ -1781,14 +1783,14 @@ export class ShuimoRenderer {
     for (let i = 0; i < trlistMerged.length; i++) {
       const p = Math.abs(i - trlistMerged.length * 0.5) / (trlistMerged.length * 0.5);
       if (
-        ((Math.random() < 0.025 &&
+        ((prng.random() < 0.025 &&
           i >= trlistMerged.length * 0.2 &&
           i <= trlistMerged.length * 0.8) ||
           i === Math.floor(trlistMerged.length / 2) - 1 ||
           i === Math.floor(trlistMerged.length / 2) + 1) &&
         dep > 0
       ) {
-        const bar = 0.02 + Math.random() * 0.08;
+        const bar = 0.02 + prng.random() * 0.08;
         const ba = bar * Math.PI - bar * 2 * Math.PI * (i > trlistMerged.length / 2 ? 1 : 0);
 
         const brlist = this.drawFractalTree(
@@ -1797,7 +1799,7 @@ export class ShuimoRenderer {
           dep - 1,
           seed + i,
           {
-            hei: hei * (0.7 + Math.random() * 0.2),
+            hei: hei * (0.7 + prng.random() * 0.2),
             wid: wid * 0.6,
             ang: ang + ba,
             ben: 0.55,
@@ -1806,14 +1808,14 @@ export class ShuimoRenderer {
 
         // 添加树枝装饰
         for (let j = 0; j < brlist.length; j++) {
-          if (Math.random() < 0.03) {
+          if (prng.random() < 0.03) {
             this.drawTwig(
               brlist[j][0] + trlistMerged[i][0] + xoff,
               brlist[j][1] + trlistMerged[i][1] + yoff,
               2,
               seed + i * 100 + j,
               {
-                ang: ba * (Math.random() * 0.5 + 0.75),
+                ang: ba * (prng.random() * 0.5 + 0.75),
                 sca: 0.3,
                 dir: ba > 0 ? 1 : -1,
                 hasLeaf: false
@@ -1834,7 +1836,7 @@ export class ShuimoRenderer {
     this.drawStroke(
       trmlist.map(v => [v[0] + xoff, v[1] + yoff]),
       2.5,
-      [0.39, 0.39, 0.39, 0.4 + Math.random() * 0.1],
+      [0.39, 0.39, 0.39, 0.4 + prng.random() * 0.1],
       0.9
     );
 
@@ -1868,11 +1870,11 @@ export class ShuimoRenderer {
 
       // 绘制三角化叶子
       if (i >= reso / 4) {
-        const blobX = nx + (Math.random() - 0.5) * wid * 1.2 * (reso - i) * 0.5;
-        const blobY = ny + (Math.random() - 0.5) * wid * 0.5;
-        const blobLen = Math.random() * 50 + 20;
-        const blobWid = Math.random() * 12 + 12;
-        const blobAng = -Math.random() * Math.PI / 6;
+        const blobX = nx + (prng.random() - 0.5) * wid * 1.2 * (reso - i) * 0.5;
+        const blobY = ny + (prng.random() - 0.5) * wid * 0.5;
+        const blobLen = prng.random() * 50 + 20;
+        const blobWid = prng.random() * 12 + 12;
+        const blobAng = -prng.random() * Math.PI / 6;
 
         // 绘制三角化的叶子形状
         this.drawTriangulatedBlob(blobX, blobY, blobLen, blobWid, blobAng, seed + i);
@@ -1911,20 +1913,20 @@ export class ShuimoRenderer {
     this.drawStroke(
       trlistMerged.map(v => [v[0] + x, v[1] + y]),
       2.5,
-      [0.39, 0.39, 0.39, 0.6 + Math.random() * 0.1],
+      [0.39, 0.39, 0.39, 0.6 + prng.random() * 0.1],
       0.9
     );
 
     // 在主干上添加分形分枝
     for (let i = 0; i < trlistMerged.length; i++) {
-      if (Math.random() < 0.2) {
+      if (prng.random() < 0.2) {
         this.drawFracTree08(
           x + trlistMerged[i][0],
           y + trlistMerged[i][1],
-          Math.floor(4 * Math.random()),
+          Math.floor(4 * prng.random()),
           seed + i,
           {
-            ang: -Math.PI / 2 - ang * Math.random(),
+            ang: -Math.PI / 2 - ang * prng.random(),
           }
         );
       } else if (i === Math.floor(trlistMerged.length / 2)) {
@@ -1955,7 +1957,7 @@ export class ShuimoRenderer {
       [xoff + len, yoff],
     ];
 
-    const bfun = Math.random() > 0.5
+    const bfun = prng.random() > 0.5
       ? (t: number) => Math.sin(t * Math.PI)
       : (t: number) => -Math.sin(t * Math.PI);
 
@@ -1977,25 +1979,25 @@ export class ShuimoRenderer {
     this.drawStroke(trmlist, 0.8 * fun(0.5), [0.39, 0.39, 0.39, 0.5], 0.3);
 
     if (dep !== 0) {
-      const nben = ben + (Math.random() > 0.5 ? 1 : -1) * Math.PI * 0.001 * dep * dep;
-      if (Math.random() < 0.5) {
-        const randDir1 = Math.random() < 0.5 ? -1 + Math.random() * 1.5 : 0.5 + Math.random() * 0.5;
-        const randDir2 = Math.random() < 0.5 ? -1 + Math.random() * 0.5 : 0.5 + Math.random() * 0.5;
+      const nben = ben + (prng.random() > 0.5 ? 1 : -1) * Math.PI * 0.001 * dep * dep;
+      if (prng.random() < 0.5) {
+        const randDir1 = prng.random() < 0.5 ? -1 + prng.random() * 1.5 : 0.5 + prng.random() * 0.5;
+        const randDir2 = prng.random() < 0.5 ? -1 + prng.random() * 0.5 : 0.5 + prng.random() * 0.5;
 
         this.drawFracTree08(ept[0], ept[1], dep - 1, seed + 1, {
           ang: ang + ben + Math.PI * randDir1 * 0.2,
-          len: len * (0.8 + Math.random() * 0.1),
+          len: len * (0.8 + prng.random() * 0.1),
           ben: nben,
         });
         this.drawFracTree08(ept[0], ept[1], dep - 1, seed + 2, {
           ang: ang + ben + Math.PI * randDir2 * 0.2,
-          len: len * (0.8 + Math.random() * 0.1),
+          len: len * (0.8 + prng.random() * 0.1),
           ben: nben,
         });
       } else {
         this.drawFracTree08(ept[0], ept[1], dep - 1, seed + 1, {
           ang: ang + ben,
-          len: len * (0.8 + Math.random() * 0.1),
+          len: len * (0.8 + prng.random() * 0.1),
           ben: nben,
         });
       }
@@ -2015,7 +2017,7 @@ export class ShuimoRenderer {
     const g = 3;
 
     for (let i = 0; i < g; i++) {
-      a0 += (ben / 2 + (Math.random() * ben) / 2) * (Math.random() > 0.5 ? 1 : -1);
+      a0 += (ben / 2 + (prng.random() * ben) / 2) * (prng.random() > 0.5 ? 1 : -1);
       nx += (Math.cos(a0) * hei) / g;
       ny -= (Math.sin(a0) * hei) / g;
       tlist.push([nx, ny]);
@@ -2049,7 +2051,7 @@ export class ShuimoRenderer {
 
       let b = 0;
       if (p === 0) {
-        b = Math.random() * wid;
+        b = prng.random() * wid;
       }
 
       const nw = wid * (((tl - i) / tl) * 0.5 + 0.5);
@@ -2081,11 +2083,11 @@ export class ShuimoRenderer {
         trlist[1][i][1] - trlist[1][i - 1][1],
         trlist[1][i][0] - trlist[1][i - 1][0]
       );
-      const p = Math.random();
+      const p = prng.random();
       const nx = trlist[0][i][0] * (1 - p) + trlist[1][i][0] * p;
       const ny = trlist[0][i][1] * (1 - p) + trlist[1][i][1] * p;
 
-      if (Math.random() < 0.2) {
+      if (prng.random() < 0.2) {
         this.drawBlob(nx + x, ny + y, i, {
           length: 15,
           width: 6 - Math.abs(p - 0.5) * 10,
@@ -2116,10 +2118,10 @@ export class ShuimoRenderer {
 
     const twlist: Polygon = [];
     const tl = 10;
-    const hs = Math.random() * 0.5 + 0.5;
+    const hs = prng.random() * 0.5 + 0.5;
 
     const tfun = (t: number, i: number) => -1 / Math.pow(i / tl + 1, 5) + 1;
-    const a0 = ((Math.random() * Math.PI) / 6) * dir + ang;
+    const a0 = ((prng.random() * Math.PI) / 6) * dir + ang;
 
     for (let i = 0; i < tl; i++) {
       const mx = dir * tfun(i / tl, i) * 50 * sca * hs;
@@ -2138,7 +2140,7 @@ export class ShuimoRenderer {
           ang: ang,
           sca: sca * 0.8,
           wid: wid,
-          dir: dir * (Math.random() > 0.5 ? 1 : -1),
+          dir: dir * (prng.random() > 0.5 ? 1 : -1),
           hasLeaf: hasLeaf,
           leafSize: leafSize
         });
@@ -2152,9 +2154,9 @@ export class ShuimoRenderer {
             ny + ty + (Math.sin(ang) * dj - leafSize / (dep + 1)) * wid,
             seed + i * 10 + j,
             {
-              width: (6 + 3 * Math.random()) * wid,
-              length: (15 + 12 * Math.random()) * wid,
-              angle: ang / 2 + Math.PI / 2 + Math.PI * 0.2 * (Math.random() - 0.5),
+              width: (6 + 3 * prng.random()) * wid,
+              length: (15 + 12 * prng.random()) * wid,
+              angle: ang / 2 + Math.PI / 2 + Math.PI * 0.2 * (prng.random() - 0.5),
               opacity: 0.5 + dep * 0.2
             }
           );
@@ -2334,10 +2336,10 @@ export class ShuimoRenderer {
 
     const noi = (x: number) => 30 / x;
     const dis = () => {
-      if (Math.random() > 0.5) {
-        return 0.15 + 0.15 * Math.random();
+      if (prng.random() > 0.5) {
+        return 0.15 + 0.15 * prng.random();
       } else {
-        return 0.85 - 0.15 * Math.random();
+        return 0.85 - 0.15 * prng.random();
       }
     };
 
@@ -2347,7 +2349,7 @@ export class ShuimoRenderer {
 
     for (let i = 0; i < tex; i++) {
       const mid = Math.floor(dis() * reso[1]);
-      const hlen = Math.floor(Math.random() * (reso[1] * len));
+      const hlen = Math.floor(prng.random() * (reso[1] * len));
 
       let start = mid - hlen;
       let end = mid + hlen;
@@ -2390,7 +2392,7 @@ export class ShuimoRenderer {
     // 第二步：绘制主纹理
     for (let j = sha > 0 ? 1 : 0; j < texlist.length; j += 1 + (sha > 0 ? 1 : 0)) {
       if (texlist[j].length >= 2) {
-        const opacity = 0.3 + Math.random() * 0.3;
+        const opacity = 0.3 + prng.random() * 0.3;
         // 颜色使用 rgba(180,180,180,...) = (0.706, 0.706, 0.706)
         this.drawStroke(texlist[j], wid, [0.706, 0.706, 0.706, opacity], 0.5);
       }

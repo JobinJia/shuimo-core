@@ -102,39 +102,11 @@ export class FlowerPRNG {
 }
 
 // ============================================================================
-// Global PRNG Instance and Math.random Override
+// Global PRNG Instance
 // ============================================================================
 
 /** Global PRNG instance */
 export const flowerPRNG = new FlowerPRNG()
-
-/**
- * Override Math.random with seeded PRNG
- * Note: This modifies the global Math object!
- */
-export function installGlobalPRNG(): void {
-  const originalRandom = Math.random
-
-  // Store original for potential restoration
-  ;(Math as any).oldRandom = originalRandom
-
-  // Override Math.random
-  Math.random = () => flowerPRNG.next()
-
-  // Add seed method to Math
-  ;(Math as any).seed = (x?: number | string) => flowerPRNG.seed(x)
-}
-
-/**
- * Restore original Math.random
- */
-export function restoreOriginalRandom(): void {
-  if ((Math as any).oldRandom) {
-    Math.random = (Math as any).oldRandom
-    delete (Math as any).oldRandom
-    delete (Math as any).seed
-  }
-}
 
 // ============================================================================
 // Standalone Functions (without global override)

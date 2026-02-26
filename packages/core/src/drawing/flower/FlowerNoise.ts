@@ -4,6 +4,8 @@
  * Migrated from reference-code/flowers/main.js (Lines 102-166)
  */
 
+import { prng } from '../../foundation/random'
+
 /**
  * Perlin Noise Generator
  * Generates smooth, continuous noise for natural-looking variations
@@ -35,11 +37,11 @@ export class FlowerNoise {
    */
   noise(x: number, y: number = 0, z: number = 0): number {
     if (this.perlin == null) {
-      console.log('🔧 Noise: Initializing perlin array (4096 Math.random calls)')
+      console.log('🔧 Noise: Initializing perlin array (4096 prng.random calls)')
       console.trace('🔧 Noise: Call stack:')
       this.perlin = Array.from({ length: this.PERLIN_SIZE + 1 })
       for (let i = 0; i < this.PERLIN_SIZE + 1; i++) {
-        this.perlin[i] = Math.random()
+        this.perlin[i] = prng.random()
       }
       console.log('🔧 Noise: Perlin array initialized')
     }
@@ -142,7 +144,7 @@ export class FlowerNoise {
 
       return {
         setSeed(val: number) {
-          z = s = (val == null ? Math.random() * m : val) >>> 0
+          z = s = (val == null ? prng.random() * m : val) >>> 0
         },
         getSeed() {
           return s

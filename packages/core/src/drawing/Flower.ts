@@ -9,7 +9,8 @@
 
 import type { FlowerOptions } from './flower/types'
 import { SVG_NS } from './flower/types'
-import { installGlobalPRNG, seed as seedPRNG } from './flower/FlowerPRNG'
+import { prng } from '../foundation/random'
+import { seed as seedPRNG } from './flower/FlowerPRNG'
 import { resetNoise } from './flower/FlowerNoise'
 import { woody, herbal } from './flower/FlowerComposer'
 import { squircle } from './flower/FlowerMath'
@@ -55,14 +56,14 @@ export function generateFlower(options: FlowerOptions = {}): SVGSVGElement {
   // 1. Initialize PRNG with seed
   // 2. makeBG() calls paper({ col: PAPER_COL0, tex: 10, spr: 0 })
   // 3. paper({ col: PAPER_COL1 }) for visible background
-  // 4. Math.random() <= 0.5 to decide plant type
+  // 4. prng.random() <= 0.5 to decide plant type
   // 5. woody() or herbal() → genParams()
   // ============================================================================
 
   const finalSeed = seed !== undefined ? seed : new Date().getTime().toString()
 
-  // Step 1: Install PRNG and set seed
-  installGlobalPRNG()
+  // Step 1: Set seed for PRNG
+  prng.seed(finalSeed)
   resetNoise()
   seedPRNG(finalSeed)
 
@@ -118,7 +119,7 @@ export function generateFlower(options: FlowerOptions = {}): SVGSVGElement {
   // Step 4: Determine plant type
   let plantType: 'woody' | 'herbal'
   if (type === 'random') {
-    plantType = Math.random() <= 0.5 ? 'woody' : 'herbal'
+    plantType = prng.random() <= 0.5 ? 'woody' : 'herbal'
   }
   else {
     plantType = type

@@ -67,6 +67,14 @@ export class PRNG {
   }
 
   /**
+   * Alias for next() - generates a random number between 0 and 1
+   * @returns A random number between 0 and 1
+   */
+  random(): number {
+    return this.next();
+  }
+
+  /**
    * Test the distribution quality of the random number generator
    * @param f - Optional custom random function to test
    */
@@ -83,15 +91,8 @@ export class PRNG {
     console.log('finished in ' + (new Date().getTime() - t0));
     return chart;
   }
+
 }
 
 // Global instance
 export const prng = new PRNG();
-
-/**
- * Override Math.random with our PRNG
- */
-export function overrideMathRandom(): void {
-  Math.random = () => prng.next();
-  (Math as any).seed = (x?: any) => prng.seed(x);
-}

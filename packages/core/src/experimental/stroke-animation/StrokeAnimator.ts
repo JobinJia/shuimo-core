@@ -3,6 +3,7 @@
  * 基于论文第4.2节的渲染方法
  */
 
+import { prng } from '../../foundation/random'
 import type { BrushFootprint, DrawingTrajectory, AnimationState, RenderConfig } from './types'
 
 /**
@@ -251,14 +252,14 @@ export class StrokeAnimator {
     const numDots = Math.floor(20 * strength)
 
     for (let i = 0; i < numDots; i++) {
-      const angle = Math.random() * Math.PI * 2
-      const distance = Math.random() * majorAxis / 2
+      const angle = prng.random() * Math.PI * 2
+      const distance = prng.random() * majorAxis / 2
       const x = Math.cos(angle) * distance
       const y = Math.sin(angle) * distance * (minorAxis / majorAxis)
 
-      this.ctx.fillStyle = `rgba(60, 60, 60, ${alpha * pressure * 0.3 * Math.random()})`
+      this.ctx.fillStyle = `rgba(60, 60, 60, ${alpha * pressure * 0.3 * prng.random()})`
       this.ctx.beginPath()
-      this.ctx.arc(x, y, Math.random() * 2 + 0.5, 0, Math.PI * 2)
+      this.ctx.arc(x, y, prng.random() * 2 + 0.5, 0, Math.PI * 2)
       this.ctx.fill()
     }
   }

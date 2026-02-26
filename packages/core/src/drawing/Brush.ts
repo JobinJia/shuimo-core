@@ -1,5 +1,6 @@
 import { Point, Polygon } from '../foundation/geometry';
 import { noise } from '../foundation/noise';
+import { prng } from '../foundation/random';
 import { poly } from '../utils/svg';
 
 export interface BrushStrokeOptions {
@@ -60,7 +61,7 @@ export class Brush {
     const textureCount = options.texture ?? 5;
 
     let svg = '';
-    const n0 = Math.random() * 10;
+    const n0 = prng.random() * 10;
 
     // Parse color components
     const colorMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
@@ -102,7 +103,7 @@ export class Brush {
         const flyingWhiteFactor = (t - 0.7) / 0.3;
         const flyingWhiteNoise = noise.noise(i * 0.5, n0 + 5);
         if (flyingWhiteNoise < flyingWhite * flyingWhiteFactor) {
-          currentWidth *= 0.3 + Math.random() * 0.4; // Random gaps
+          currentWidth *= 0.3 + prng.random() * 0.4; // Random gaps
         }
       }
 
@@ -154,20 +155,20 @@ export class Brush {
 
     // Add texture marks for paper absorption effect (渗透效果)
     for (let i = 0; i < textureCount; i++) {
-      const t = Math.random();
+      const t = prng.random();
       const idx = Math.floor(t * (points.length - 1));
       const point = points[idx];
 
       const ink = inkStart + (inkEnd - inkStart) * t;
-      const texAlpha = ink * baseAlpha * (0.1 + Math.random() * 0.2);
+      const texAlpha = ink * baseAlpha * (0.1 + prng.random() * 0.2);
 
-      const offsetX = (Math.random() - 0.5) * width * 0.6;
-      const offsetY = (Math.random() - 0.5) * width * 0.6;
+      const offsetX = (prng.random() - 0.5) * width * 0.6;
+      const offsetY = (prng.random() - 0.5) * width * 0.6;
 
       svg += this.generateTextureBlob(
         point[0] + offsetX,
         point[1] + offsetY,
-        width * (0.2 + Math.random() * 0.3),
+        width * (0.2 + prng.random() * 0.3),
         `rgba(${r},${g},${b},${texAlpha.toFixed(3)})`
       );
     }
@@ -192,7 +193,7 @@ export class Brush {
     }
     segments.push(`L${points[points.length - 1][0].toFixed(2)},${points[points.length - 1][1].toFixed(2)}`);
 
-    return `<path d="${segments.join(' ')}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" opacity="${0.6 + Math.random() * 0.2}"/>`;
+    return `<path d="${segments.join(' ')}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" opacity="${0.6 + prng.random() * 0.2}"/>`;
   }
 
   /**
@@ -206,7 +207,7 @@ export class Brush {
   ): string {
     const points: Point[] = [];
     const sides = 8;
-    const n0 = Math.random() * 10;
+    const n0 = prng.random() * 10;
 
     for (let i = 0; i < sides; i++) {
       const angle = (i / sides) * Math.PI * 2;
@@ -235,7 +236,7 @@ export class Brush {
     const textureCount = options.texture ?? 3;
 
     let svg = '';
-    const n0 = Math.random() * 10;
+    const n0 = prng.random() * 10;
 
     // Parse color
     const colorMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
@@ -266,12 +267,12 @@ export class Brush {
 
     // Add texture blobs
     for (let i = 0; i < textureCount; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const dist = Math.random() * width * 0.3;
+      const angle = prng.random() * Math.PI * 2;
+      const dist = prng.random() * width * 0.3;
       const texX = x + Math.cos(angle) * dist;
       const texY = y + Math.sin(angle) * dist;
-      const texSize = width * (0.15 + Math.random() * 0.2);
-      const texAlpha = baseAlpha * (0.2 + Math.random() * 0.3);
+      const texSize = width * (0.15 + prng.random() * 0.2);
+      const texAlpha = baseAlpha * (0.2 + prng.random() * 0.3);
 
       svg += this.generateTextureBlob(
         texX,

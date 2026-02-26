@@ -4,6 +4,8 @@
  * 统一管理 WebGPU 设备和上下文，提供完整的水墨画渲染能力
  */
 
+import { prng } from '../foundation/random';
+
 export interface ShuimoEngineOptions {
   /** 画布背景色 */
   backgroundColor?: [number, number, number, number];
@@ -576,7 +578,7 @@ export class ShuimoEngine {
       color = [0.1, 0.1, 0.12, 0.9],
       noiseAmount = 0.5,
       softness = 0.3,
-      seed = Math.random() * 1000,
+      seed = prng.random() * 1000,
     } = options;
 
     const params = new Float32Array([
@@ -626,7 +628,7 @@ export class ShuimoEngine {
       width = 400,
       layers = 3,
       inkDensity = 0.8,
-      seed = Math.random() * 1000,
+      seed = prng.random() * 1000,
     } = options;
 
     // Noise functions
@@ -831,7 +833,7 @@ export class ShuimoEngine {
       clusters = 15,
       density = 5,
       inkDensity = 0.5,
-      seed = Math.random() * 1000,
+      seed = prng.random() * 1000,
     } = options;
 
     const hash = (a: number, b: number) => {
@@ -879,7 +881,7 @@ export class ShuimoEngine {
       type = TreeType.Simple,
       leafDensity = 0.6,
       inkDensity = 0.85,
-      seed = Math.random() * 1000,
+      seed = prng.random() * 1000,
     } = options;
 
     const hash = (a: number, b: number) => {
@@ -941,7 +943,7 @@ export class ShuimoEngine {
       inkDensity = 0.6,
       direction = -Math.PI / 4,
       noiseAmount = 0.5,
-      seed = Math.random() * 1000,
+      seed = prng.random() * 1000,
     } = options;
 
     const hash = (a: number, b: number) => {

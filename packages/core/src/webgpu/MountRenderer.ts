@@ -5,6 +5,8 @@
  * 包含轮廓生成、纹理绘制、墨色渲染
  */
 
+import { prng } from '../foundation/random';
+
 export interface MountOptions {
   /** 山峰高度 */
   height?: number;
@@ -385,7 +387,7 @@ export class MountRenderer {
       layers = 3,
       textureDensity = 0.5,
       inkDensity = 0.8,
-      seed = Math.random() * 1000,
+      seed = prng.random() * 1000,
       mistAmount = 0.3,
     } = options;
 

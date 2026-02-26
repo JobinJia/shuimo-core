@@ -5,6 +5,7 @@
  */
 
 import { noise } from './FlowerNoise'
+import { prng } from '../../foundation/random'
 import { rgba } from './FlowerColor'
 
 // ============================================================================
@@ -60,7 +61,7 @@ export function generatePaperCanvas(options: PaperOptions = {}): HTMLCanvasEleme
       // Base brightness from Perlin noise
       let c = 255 - noise(i * 0.1, j * 0.1) * tex * 0.5
       // Add random grain
-      c -= Math.random() * tex
+      c -= prng.random() * tex
 
       // Default paper color
       let r = c * col[0]
@@ -69,8 +70,8 @@ export function generatePaperCanvas(options: PaperOptions = {}): HTMLCanvasEleme
 
       // Add brown speckles (imperfections)
       if (
-        noise(i * 0.04, j * 0.04, 2) * Math.random() * spr > 0.7
-        || Math.random() < 0.005 * spr
+        noise(i * 0.04, j * 0.04, 2) * prng.random() * spr > 0.7
+        || prng.random() < 0.005 * spr
       ) {
         r = c * 0.7
         g = c * 0.5

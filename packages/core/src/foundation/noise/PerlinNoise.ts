@@ -1,3 +1,5 @@
+import { prng } from '../random';
+
 /**
  * Linear Congruential Generator for noise seeding
  * Used internally by PerlinNoise for reproducible noise generation
@@ -10,7 +12,7 @@ class LCG {
   private z: number = 0;
 
   setSeed(val: number | null): void {
-    this.z = this.seed = (val == null ? Math.random() * this.m : val) >>> 0;
+    this.z = this.seed = (val == null ? prng.random() * this.m : val) >>> 0;
   }
 
   getSeed(): number {
@@ -58,7 +60,7 @@ export class PerlinNoise {
     if (this.perlin == null) {
       this.perlin = new Array(this.PERLIN_SIZE + 1);
       for (let i = 0; i < this.PERLIN_SIZE + 1; i++) {
-        this.perlin[i] = Math.random();
+        this.perlin[i] = prng.random();
       }
     }
 

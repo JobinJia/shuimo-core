@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { Mount, overrideMathRandom, prng } from '@shuimo/core'
-
-overrideMathRandom()
+import { Mount, prng } from '@shuimo/core'
 
 const seedInput = ref(String(Date.now()))
 const canvasContainer = ref<HTMLDivElement | null>(null)

@@ -1,5 +1,6 @@
 import { Polygon } from '../../foundation/geometry';
 import { noise } from '../../foundation/noise';
+import { prng } from '../../foundation/random';
 import { stroke } from '../../drawing/Stroke';
 
 export interface WaterOptions {
@@ -36,9 +37,9 @@ export class Water {
     // Generate wave clusters
     for (let i = 0; i < clu; i++) {
       ptlist.push([]);
-      const xk = (Math.random() - 0.5) * (len / 8);
-      yk += Math.random() * 5;
-      const lk = len / 4 + Math.random() * (len / 4);
+      const xk = (prng.random() - 0.5) * (len / 8);
+      yk += prng.random() * 5;
+      const lk = len / 4 + prng.random() * (len / 4);
       const reso = 5;
 
       for (let j = -lk; j < lk; j += reso) {
@@ -54,7 +55,7 @@ export class Water {
       canv += stroke(
         ptlist[j].map((x) => [x[0] + xoff, x[1] + yoff]),
         {
-          col: 'rgba(100,100,100,' + (0.3 + Math.random() * 0.3).toFixed(3) + ')',
+          col: 'rgba(100,100,100,' + (0.3 + prng.random() * 0.3).toFixed(3) + ')',
           wid: 1,
         }
       );

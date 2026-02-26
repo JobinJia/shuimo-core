@@ -5,6 +5,8 @@
  * 模拟传统国画中的皴法技法
  */
 
+import { prng } from '../foundation/random';
+
 export interface TextureOptions {
   /** 纹理线数量 */
   lineCount?: number;
@@ -311,7 +313,7 @@ export class TextureRenderer {
       inkDensity = 0.7,
       direction = -Math.PI / 4, // 默认斜向下
       noiseAmount = 0.5,
-      seed = Math.random() * 1000,
+      seed = prng.random() * 1000,
     } = options;
 
     const depth = region.depth ?? 0.5;

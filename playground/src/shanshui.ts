@@ -2,10 +2,7 @@
  * Shanshui Generator - Uses @shuimo/core to generate traditional Chinese landscape
  */
 
-import { overrideMathRandom, prng, SceneManager } from '@shuimo/core'
-
-// Initialize Math.random override
-overrideMathRandom()
+import { prng, SceneManager } from '@shuimo/core'
 
 // Global scene manager instance
 let sceneManager: SceneManager | null = null

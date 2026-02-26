@@ -6,7 +6,7 @@
  * Reference: reference-code/flowers/main.js
  */
 
-import { PRNG } from '../foundation/random'
+import { prng } from '../foundation/random'
 import { PerlinNoise } from '../foundation/noise/PerlinNoise'
 
 type Vec3 = [number, number, number]
@@ -87,16 +87,16 @@ function mapval(value: number, istart: number, istop: number, ostart: number, os
 }
 
 function randChoice<T>(arr: T[]): T {
-  return arr[Math.floor(arr.length * Math.random())]
+  return arr[Math.floor(arr.length * prng.random())]
 }
 
 function normRand(m: number, M: number): number {
-  return mapval(Math.random(), 0, 1, m, M)
+  return mapval(prng.random(), 0, 1, m, M)
 }
 
 function wtrand(func: (x: number) => number): number {
-  const x = Math.random()
-  const y = Math.random()
+  const x = prng.random()
+  const y = prng.random()
   if (y < func(x)) {
     return x
   }
@@ -405,12 +405,12 @@ function paper(args: PaperArgs = {}): HTMLCanvasElement {
   for (let i = 0; i < reso / 2 + 1; i++) {
     for (let j = 0; j < reso / 2 + 1; j++) {
       let c = 255 - Noise.noise(i * 0.1, j * 0.1) * tex * 0.5
-      c -= Math.random() * tex
+      c -= prng.random() * tex
       let r = c * col[0]
       let g = c * col[1]
       let b = c * col[2]
-      if (Noise.noise(i * 0.04, j * 0.04, 2) * Math.random() * spr > 0.7
-        || Math.random() < 0.005 * spr) {
+      if (Noise.noise(i * 0.04, j * 0.04, 2) * prng.random() * spr > 0.7
+        || prng.random() < 0.005 * spr) {
         r = c * 0.7
         g = c * 0.5
         b = c * 0.2
@@ -635,7 +635,7 @@ function branch(args: BranchArgs = {}): BranchResult[] {
 
   const jnt: [number, number][] = []
   for (let i = 0; i < twi; i++) {
-    jnt.push([Math.floor(Math.random() * seg), normRand(-1, 1)])
+    jnt.push([Math.floor(prng.random() * seg), normRand(-1, 1)])
   }
 
   function jntdist(x: number): [number, number] {
@@ -675,7 +675,7 @@ function branch(args: BranchArgs = {}): BranchResult[] {
 
   const child: BranchResult[] = []
   if (dep > 0 && wid > 0.1) {
-    for (let i = 0; i < frk * Math.random(); i++) {
+    for (let i = 0; i < frk * prng.random(); i++) {
       const ind = Math.floor(normRand(1, P.length))
       const r = grot(P, ind)
       const L = branch({
@@ -720,11 +720,11 @@ export function genParams(): FlowerParams {
     [2, randint(3, 7), randint(3, 8)],
   ])
 
-  const flowerShapeNoiseSeed = Math.random() * PI
+  const flowerShapeNoiseSeed = prng.random() * PI
   const flowerJaggedness = normRand(0.5, 8)
   PAR.flowerShape = (x: number) => Noise.noise(x * flowerJaggedness, flowerShapeNoiseSeed) * flowerShapeMask(x)
 
-  const leafShapeNoiseSeed = Math.random() * PI
+  const leafShapeNoiseSeed = prng.random() * PI
   const leafJaggedness = normRand(0.1, 40)
   const leafPointyness = normRand(0.5, 1.5)
   PAR.leafShape = randChoice([
@@ -749,8 +749,8 @@ export function genParams(): FlowerParams {
   }
 
   const curveCoeff0 = [normRand(-0.5, 0.5), normRand(5, 10)]
-  const curveCoeff2 = [Math.random() * PI, normRand(5, 15)]
-  const curveCoeff4 = [Math.random() * 0.5, normRand(0.8, 1.2)]
+  const curveCoeff2 = [prng.random() * PI, normRand(5, 15)]
+  const curveCoeff4 = [prng.random() * 0.5, normRand(0.8, 1.2)]
 
   PAR.flowerOpenCurve = randChoice([
     (x: number, op: number) => (x < 0.1)
@@ -940,7 +940,7 @@ function woody(args: WoodyArgs = {}): CanvasRenderingContext2D {
   for (let i = 0; i < PL.length; i++) {
     if (i / PL.length > 0.1) {
       for (let j = 0; j < PL[i][1].length; j++) {
-        if (Math.random() < PAR.leafChance) {
+        if (prng.random() < PAR.leafChance) {
           leaf({
             ctx: lay0.ctx,
             xof: PL[i][1][j][0],
@@ -958,7 +958,7 @@ function woody(args: WoodyArgs = {}): CanvasRenderingContext2D {
           })
         }
 
-        if (Math.random() < PAR.flowerChance) {
+        if (prng.random() < PAR.flowerChance) {
           const hr: Vec3 = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * 0]
 
           const P_ = stem({
@@ -972,7 +972,7 @@ function woody(args: WoodyArgs = {}): CanvasRenderingContext2D {
             ben: (x: number) => [0, 0, 0],
           })
 
-          const op = Math.random()
+          const op = prng.random()
           const r = grot(P_, P_.length - 1)
           const hhr = r
           for (let k = 0; k < PAR.flowerPetal; k++) {
@@ -1074,7 +1074,7 @@ function herbal(args: HerbalArgs = {}): CanvasRenderingContext2D {
 
     if (PAR.leafPosition === 2) {
       for (let j = 0; j < P.length; j++) {
-        if (Math.random() < PAR.leafChance * 2) {
+        if (prng.random() < PAR.leafChance * 2) {
           leaf({
             ctx: lay0.ctx,
             xof: x0 + P[j][0],
@@ -1124,7 +1124,7 @@ function herbal(args: HerbalArgs = {}): CanvasRenderingContext2D {
         ],
       })
 
-      const op = Math.random()
+      const op = prng.random()
       const hhr: Vec3 = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * PI]
       for (let k = 0; k < PAR.flowerPetal; k++) {
         leaf({
@@ -1217,12 +1217,7 @@ export function generateFlowerCanvas(options: FlowerCanvasOptions = {}): HTMLCan
 
   // Initialize PRNG
   const finalSeed = seed !== undefined ? seed : new Date().getTime().toString()
-  const prng = new PRNG()
   prng.seed(finalSeed)
-
-  // Replace Math.random globally
-  const oldRandom = Math.random
-  Math.random = () => prng.next()
 
   // Reset noise - it will reinitialize on first use
 
@@ -1250,7 +1245,7 @@ export function generateFlowerCanvas(options: FlowerCanvasOptions = {}): HTMLCan
   // Determine plant type
   let plantType: 'woody' | 'herbal'
   if (type === 'random') {
-    plantType = Math.random() <= 0.5 ? 'woody' : 'herbal'
+    plantType = prng.random() <= 0.5 ? 'woody' : 'herbal'
   }
   else {
     plantType = type
@@ -1266,9 +1261,6 @@ export function generateFlowerCanvas(options: FlowerCanvasOptions = {}): HTMLCan
 
   // Apply border
   Layer.border(ctx, squircle(0.98, 3))
-
-  // Restore Math.random
-  Math.random = oldRandom
 
   return canvas
 }

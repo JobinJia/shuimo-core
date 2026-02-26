@@ -1,4 +1,5 @@
 import { mapval } from './math';
+import { prng } from '../foundation/random';
 
 /**
  * Randomly choose an element from an array
@@ -6,7 +7,7 @@ import { mapval } from './math';
  * @returns Random element from array
  */
 export function randChoice<T>(arr: T[]): T {
-  return arr[Math.floor(arr.length * Math.random())];
+  return arr[Math.floor(arr.length * prng.random())];
 }
 
 /**
@@ -16,7 +17,7 @@ export function randChoice<T>(arr: T[]): T {
  * @returns Random number in range [m, M]
  */
 export function normRand(m: number, M: number): number {
-  return mapval(Math.random(), 0, 1, m, M);
+  return mapval(prng.random(), 0, 1, m, M);
 }
 
 /**
@@ -26,8 +27,8 @@ export function normRand(m: number, M: number): number {
  * @returns Random value weighted by the function
  */
 export function wtrand(func: (x: number) => number): number {
-  const x = Math.random();
-  const y = Math.random();
+  const x = prng.random();
+  const y = prng.random();
   if (y < func(x)) {
     return x;
   } else {

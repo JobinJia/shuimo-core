@@ -1,5 +1,6 @@
 import { Polygon, Point } from '../../foundation/geometry';
 import { noise } from '../../foundation/noise';
+import { prng } from '../../foundation/random';
 import { randChoice, normRand, wtrand } from '../../utils/random';
 import { stroke } from '../../drawing/Stroke';
 import { texture } from '../../drawing/Texture';
@@ -179,7 +180,7 @@ export class Arch {
 
     for (let i = 0; i < reso[0]; i++) {
       ptlist.push([]);
-      const heir = hei + hei * 0.2 * Math.random();
+      const heir = hei + hei * 0.2 * prng.random();
       for (let j = 0; j < reso[1]; j++) {
         const nx = wid * (i / (reso[0] - 1) - 0.5) * Math.pow(j / (reso[1] - 1), 0.7);
         const ny = heir * (j / (reso[1] - 1));
@@ -218,7 +219,7 @@ export class Arch {
       tex: tex,
       wid: 1,
       len: 0.25,
-      col: (x: number) => 'rgba(120,120,120,' + (0.3 + Math.random() * 0.3).toFixed(3) + ')',
+      col: (x: number) => 'rgba(120,120,120,' + (0.3 + prng.random() * 0.3).toFixed(3) + ')',
       dis: () => wtrand((a) => a * a),
       noi: (x: number) => 5,
     });
@@ -539,7 +540,7 @@ export class Arch {
     }
 
     if (tra) {
-      const open = Math.floor(Math.random() * ptlist.length);
+      const open = Math.floor(prng.random() * ptlist.length);
       ptlist[open] = ptlist[open].slice(0, -1);
       ptlist[(open + ptlist.length) % ptlist.length] = ptlist[
         (open + ptlist.length) % ptlist.length
@@ -563,7 +564,7 @@ export class Arch {
           ],
           2
         );
-        ln[0][0] += (Math.random() - 0.5) * hei * 0.5;
+        ln[0][0] += (prng.random() - 0.5) * hei * 0.5;
         canv += poly(ln, {
           xof: xoff,
           yof: yoff,
@@ -781,7 +782,7 @@ export class Arch {
     const rot = options.rot ?? 0.7;
     const per = options.per ?? 5;
 
-    const p = 0.4 + Math.random() * 0.2;
+    const p = 0.4 + prng.random() * 0.2;
     const h0 = hei * p;
     const h1 = hei * (1 - p);
 
@@ -800,7 +801,7 @@ export class Arch {
       hei: 10,
       wid: wid,
       per: per * 2,
-      seg: (3 + Math.random() * 3) | 0,
+      seg: (3 + prng.random() * 3) | 0,
     });
 
     const mcnt = randChoice([0, 1, 1, 2]);
@@ -826,7 +827,7 @@ export class Arch {
       hei: 10,
       wid: wid,
       per: per * 2,
-      seg: (3 + Math.random() * 3) | 0,
+      seg: (3 + prng.random() * 3) | 0,
     });
 
     return canv;
@@ -877,7 +878,7 @@ export class Arch {
         : '';
 
       let pla: [number, string] | undefined = undefined;
-      if (sto === 1 && Math.random() < 1 / 3) {
+      if (sto === 1 && prng.random() < 1 / 3) {
         pla = [1, 'Pizza Hut'];
       }
 

@@ -4,7 +4,7 @@
  * Supports:
  * - Landscape paintings (山水画) using SceneManager
  * - Flower-bird paintings (花鸟画) with procedural flowers
- * - Optional Xuan paper (宣纸) background
+ * - Optional Xuan paper (宣纸) background with full customization
  * - Configurable blank space (留白) positioning - affects element generation
  */
 
@@ -15,7 +15,7 @@ import { Arch } from '../elements/objects/Arch';
 import { randChoice } from '../utils/random';
 import { prng } from '../foundation/random';
 import { generateFlower } from '../drawing/Flower';
-import type { XuanPaperOptions } from '../elements/natural/XuanPaper';
+import { XuanPaper, XuanPaperColors, GoldFleckColors } from '../elements/natural/XuanPaper';
 
 /**
  * Blank space position for composition
@@ -41,6 +41,28 @@ export type PaintingType =
   | 'flowerBird';  // 花鸟画
 
 /**
+ * Xuan paper configuration for painting
+ */
+export interface PaintingXuanPaperOptions {
+  /** Base color [r, g, b] in range 0-255 */
+  baseColor?: [number, number, number];
+  /** Texture intensity (0-1, default: 0.3) */
+  textureIntensity?: number;
+  /** Age effect - adds yellowing and spots (0-1, default: 0) */
+  age?: number;
+  /** Whether to add gold flecks (撒金效果) */
+  goldFlecks?: boolean;
+  /** Gold fleck density (0-1, default: 0.5) */
+  goldDensity?: number;
+  /** Gold color [r, g, b] */
+  goldColor?: [number, number, number];
+  /** Fiber density (default: 1.0) */
+  fiberDensity?: number;
+  /** Grain density (0-1, default: 0.5) */
+  grainDensity?: number;
+}
+
+/**
  * Options for generating a painting
  */
 export interface PaintingOptions {
@@ -57,7 +79,7 @@ export interface PaintingOptions {
   onXuanPaper?: boolean;
 
   /** Xuan paper options (only used when onXuanPaper is true) */
-  xuanPaperOptions?: Partial<XuanPaperOptions>;
+  xuanPaperOptions?: PaintingXuanPaperOptions;
 
   /** Blank space position for composition (留白位置) - affects element generation */
   blankPosition?: BlankPosition;
@@ -88,50 +110,53 @@ export interface PaintingResult {
 }
 
 /**
- * Blank area definition
+ * Blank area definition with margin
  */
 interface BlankArea {
   xMin: number;  // 0-1 normalized
   xMax: number;
   yMin: number;
   yMax: number;
+  margin: number; // Extra margin for elements near the edge
 }
 
 /**
  * Get blank area bounds based on position
- * Returns normalized coordinates (0-1)
+ * Returns normalized coordinates (0-1) with margin for smoother transitions
  */
 function getBlankArea(position: BlankPosition): BlankArea | null {
-  // Blank area takes about 35% of the canvas
-  const size = 0.35;
+  // Blank area takes about 40% of the canvas for better visibility
+  const size = 0.40;
+  // Extra margin to prevent elements from appearing right at the edge
+  const margin = 0.08;
 
   switch (position) {
     case 'topLeft':
-      return { xMin: 0, xMax: size + 0.1, yMin: 0, yMax: size + 0.1 };
+      return { xMin: -0.1, xMax: size + 0.05, yMin: -0.1, yMax: size + 0.15, margin };
 
     case 'top':
-      return { xMin: 0.2, xMax: 0.8, yMin: 0, yMax: size };
+      return { xMin: 0.1, xMax: 0.9, yMin: -0.1, yMax: size, margin };
 
     case 'topRight':
-      return { xMin: 1 - size - 0.1, xMax: 1, yMin: 0, yMax: size + 0.1 };
+      return { xMin: 1 - size - 0.05, xMax: 1.1, yMin: -0.1, yMax: size + 0.15, margin };
 
     case 'left':
-      return { xMin: 0, xMax: size, yMin: 0.15, yMax: 0.85 };
+      return { xMin: -0.1, xMax: size, yMin: 0.1, yMax: 0.9, margin };
 
     case 'center':
-      return { xMin: 0.3, xMax: 0.7, yMin: 0.3, yMax: 0.7 };
+      return { xMin: 0.25, xMax: 0.75, yMin: 0.25, yMax: 0.75, margin };
 
     case 'right':
-      return { xMin: 1 - size, xMax: 1, yMin: 0.15, yMax: 0.85 };
+      return { xMin: 1 - size, xMax: 1.1, yMin: 0.1, yMax: 0.9, margin };
 
     case 'bottomLeft':
-      return { xMin: 0, xMax: size + 0.1, yMin: 1 - size - 0.1, yMax: 1 };
+      return { xMin: -0.1, xMax: size + 0.05, yMin: 1 - size - 0.15, yMax: 1.1, margin };
 
     case 'bottom':
-      return { xMin: 0.2, xMax: 0.8, yMin: 1 - size, yMax: 1 };
+      return { xMin: 0.1, xMax: 0.9, yMin: 1 - size, yMax: 1.1, margin };
 
     case 'bottomRight':
-      return { xMin: 1 - size - 0.1, xMax: 1, yMin: 1 - size - 0.1, yMax: 1 };
+      return { xMin: 1 - size - 0.05, xMax: 1.1, yMin: 1 - size - 0.15, yMax: 1.1, margin };
 
     case 'none':
     default:
@@ -140,7 +165,7 @@ function getBlankArea(position: BlankPosition): BlankArea | null {
 }
 
 /**
- * Check if a point is in the blank area
+ * Check if a point is in the blank area (with margin consideration)
  */
 function isInBlankArea(
   x: number,
@@ -154,12 +179,37 @@ function isInBlankArea(
   const normalizedX = x / width;
   const normalizedY = y / height;
 
-  return (
+  // Check if in core blank area
+  const inCore = (
     normalizedX >= blankArea.xMin &&
     normalizedX <= blankArea.xMax &&
     normalizedY >= blankArea.yMin &&
     normalizedY <= blankArea.yMax
   );
+
+  if (inCore) return true;
+
+  // Check margin area with probability-based filtering
+  const margin = blankArea.margin;
+  const inMargin = (
+    normalizedX >= blankArea.xMin - margin &&
+    normalizedX <= blankArea.xMax + margin &&
+    normalizedY >= blankArea.yMin - margin &&
+    normalizedY <= blankArea.yMax + margin
+  );
+
+  if (inMargin) {
+    // Calculate distance from blank area
+    const distX = Math.max(0, blankArea.xMin - normalizedX, normalizedX - blankArea.xMax);
+    const distY = Math.max(0, blankArea.yMin - normalizedY, normalizedY - blankArea.yMax);
+    const dist = Math.sqrt(distX * distX + distY * distY);
+
+    // Probability increases as we get closer to blank area
+    const probability = 1 - (dist / margin);
+    return prng.random() < probability * 0.8;
+  }
+
+  return false;
 }
 
 /**
@@ -174,10 +224,7 @@ function filterPlanByBlankArea(
   if (!blankArea) return plan;
 
   return plan.filter(item => {
-    // Convert x position to be relative to canvas (plan uses absolute x)
-    // For static painting, we center the content
-    const relativeX = item.x;
-    return !isInBlankArea(relativeX, item.y, width, height, blankArea);
+    return !isInBlankArea(item.x, item.y, width, height, blankArea);
   });
 }
 
@@ -190,13 +237,13 @@ function renderPlanItem(item: PlanItem, seed: number): string {
   switch (item.tag) {
     case 'mount':
       // ret defaults to 0, which returns string
-      return Mount.mountain(item.x, item.y, randomSeed * Math.random()) as string;
+      return Mount.mountain(item.x, item.y, randomSeed * prng.random()) as string;
 
     case 'flatmount':
       return Mount.flatMount(item.x, item.y, randomSeed * Math.PI, {
-        wid: 600 + Math.random() * 400,
+        wid: 600 + prng.random() * 400,
         hei: 100,
-        cho: 0.5 + Math.random() * 0.2,
+        cho: 0.5 + prng.random() * 0.2,
       });
 
     case 'distmount':
@@ -206,38 +253,38 @@ function renderPlanItem(item: PlanItem, seed: number): string {
       });
 
     case 'boat':
-      return Arch.boat01(item.x, item.y, Math.random(), {
+      return Arch.boat01(item.x, item.y, prng.random(), {
         sca: item.y / 800,
         fli: randChoice([true, false]),
       });
 
     case 'arch01':
       return Arch.arch01(item.x, item.y, randomSeed, {
-        hei: 60 + Math.random() * 40,
-        wid: 80 + Math.random() * 40,
-        per: 3 + Math.random() * 2,
+        hei: 60 + prng.random() * 40,
+        wid: 80 + prng.random() * 40,
+        per: 3 + prng.random() * 2,
       });
 
     case 'arch02':
       return Arch.arch02(item.x, item.y, randomSeed, {
-        wid: 40 + Math.random() * 30,
-        sto: 2 + Math.floor(Math.random() * 3),
+        wid: 40 + prng.random() * 30,
+        sto: 2 + Math.floor(prng.random() * 3),
       });
 
     case 'arch03':
       return Arch.arch03(item.x, item.y, randomSeed, {
-        wid: 40 + Math.random() * 30,
-        sto: 5 + Math.floor(Math.random() * 4),
+        wid: 40 + prng.random() * 30,
+        sto: 5 + Math.floor(prng.random() * 4),
       });
 
     case 'arch04':
       return Arch.arch04(item.x, item.y, randomSeed, {
-        sto: 1 + Math.floor(Math.random() * 3),
+        sto: 1 + Math.floor(prng.random() * 3),
       });
 
     case 'tower':
       return Arch.transmissionTower01(item.x, item.y, randomSeed, {
-        hei: 150 + Math.random() * 100,
+        hei: 150 + prng.random() * 100,
       });
 
     default:
@@ -276,10 +323,12 @@ function generateLandscapeContent(
   // Render all items
   let content = '';
 
-  // Add water for mounts
+  // Add water for mounts (filter by blank area too)
   for (const item of plan) {
     if (item.tag === 'mount') {
-      content += water(item.x, item.y, seed + item.x);
+      if (!isInBlankArea(item.x, item.y, width, height, blankArea)) {
+        content += water(item.x, item.y, seed + item.x);
+      }
     }
   }
 
@@ -316,6 +365,54 @@ function generateFlowerBirdContent(
 }
 
 /**
+ * Generate Xuan paper background as SVG string
+ */
+function generateXuanPaperBackground(
+  width: number,
+  height: number,
+  seed: number,
+  options: PaintingXuanPaperOptions
+): { defs: string; background: string } {
+  const baseColor = options.baseColor ?? XuanPaperColors.processed;
+  const textureIntensity = options.textureIntensity ?? 0.3;
+  const age = options.age ?? 0;
+  const goldFlecks = options.goldFlecks ?? false;
+  const goldDensity = options.goldDensity ?? 0.5;
+  const goldColor = options.goldColor ?? GoldFleckColors.gold;
+  const fiberDensity = options.fiberDensity ?? 1.0;
+  const grainDensity = options.grainDensity ?? 0.5;
+
+  // Generate Xuan paper SVG
+  const paperSvg = XuanPaper.generateSVG({
+    width,
+    height,
+    baseColor,
+    textureIntensity,
+    age,
+    fiberDensity,
+    grainDensity,
+    seed,
+    goldFlecks,
+    goldDensity,
+    goldColor,
+  });
+
+  // Extract defs and content from generated SVG
+  const defsElement = paperSvg.querySelector('defs');
+  const defs = defsElement ? defsElement.innerHTML : '';
+
+  // Get all content except defs
+  let background = '';
+  for (const child of Array.from(paperSvg.children)) {
+    if (child.tagName.toLowerCase() !== 'defs') {
+      background += child.outerHTML;
+    }
+  }
+
+  return { defs, background };
+}
+
+/**
  * PaintingGenerator - Main class for generating Chinese paintings
  */
 export class PaintingGenerator {
@@ -334,17 +431,12 @@ export class PaintingGenerator {
    *   height: 800,
    *   onXuanPaper: true,
    *   blankPosition: 'topLeft',
+   *   xuanPaperOptions: {
+   *     baseColor: [252, 248, 230],
+   *     goldFlecks: true,
+   *   },
    * });
    * document.body.innerHTML = result.svg;
-   *
-   * // Generate flower-bird painting
-   * const result = PaintingGenerator.generate({
-   *   type: 'flowerBird',
-   *   width: 600,
-   *   height: 600,
-   *   onXuanPaper: true,
-   *   flowerType: 'woody',
-   * });
    * ```
    */
   static generate(options: PaintingOptions): PaintingResult {
@@ -359,33 +451,14 @@ export class PaintingGenerator {
     } = options;
 
     // SVG defs
-    const svgDefs: string[] = [];
+    let svgDefs = '';
+    let paperBackground = '';
 
     // Generate Xuan paper background if requested
-    let paperBackground = '';
     if (onXuanPaper) {
-      const filterId = `xuan-filter-${seed}`;
-      const baseColor = xuanPaperOptions.baseColor ?? [252, 250, 240];
-      const textureIntensity = xuanPaperOptions.textureIntensity ?? 0.3;
-      const intensity = textureIntensity * 0.12;
-
-      svgDefs.push(`
-        <filter id="${filterId}" x="0%" y="0%" width="100%" height="100%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.04 0.08" numOctaves="4" seed="${seed}" result="noise" />
-          <feColorMatrix in="noise" type="matrix" values="
-            0 0 0 0 ${1 - intensity}
-            0 0 0 0 ${1 - intensity}
-            0 0 0 0 ${1 - intensity}
-            0 0 0 1 0
-          " result="monoNoise" />
-          <feFlood flood-color="rgb(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]})" result="baseColor" />
-          <feBlend in="baseColor" in2="monoNoise" mode="multiply" result="paper" />
-        </filter>
-      `);
-
-      paperBackground = `
-        <rect width="${width}" height="${height}" fill="rgb(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]})" filter="url(#${filterId})" />
-      `;
+      const paper = generateXuanPaperBackground(width, height, seed, xuanPaperOptions);
+      svgDefs = paper.defs;
+      paperBackground = paper.background;
     }
 
     // Generate painting content based on type
@@ -399,7 +472,7 @@ export class PaintingGenerator {
     // Assemble final SVG
     const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="mix-blend-mode:multiply;">
       <defs>
-        ${svgDefs.join('\n')}
+        ${svgDefs}
       </defs>
       ${paperBackground}
       <g>
@@ -450,6 +523,9 @@ export class PaintingGenerator {
     return new Blob([result.svg], { type: 'image/svg+xml' });
   }
 }
+
+// Re-export color presets for convenience
+export { XuanPaperColors, GoldFleckColors };
 
 // Convenience function exports
 export function generatePainting(options: PaintingOptions): PaintingResult {

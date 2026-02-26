@@ -1,3 +1,5 @@
+import { prng } from '../random';
+
 /**
  * Worley Noise Generator (Cellular Noise / Voronoi Noise)
  *
@@ -24,7 +26,7 @@ export class WorleyNoise {
   private seed: number;
 
   constructor(seed?: number) {
-    this.seed = seed ?? Math.random() * 65536;
+    this.seed = seed ?? prng.random() * 65536;
   }
 
   /**

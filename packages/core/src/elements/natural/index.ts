@@ -26,3 +26,19 @@ export {
   GoldFleckColors,
   type XuanPaperOptions,
 } from './XuanPaper';
+
+// Four Gentlemen (四君子)
+export { Bamboo, bamboo, bambooLeaves, type BambooOptions } from './Bamboo';
+export { Orchid, orchid, orchidLeaves, type OrchidOptions } from './Orchid';
+export {
+  WinterPlum,
+  winterPlum,
+  plumBlossoms,
+  type WinterPlumOptions,
+} from './WinterPlum';
+export {
+  Chrysanthemum,
+  chrysanthemum,
+  chrysanthemumFlower,
+  type ChrysanthemumOptions,
+} from './Chrysanthemum';

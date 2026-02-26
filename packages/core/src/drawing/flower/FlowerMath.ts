@@ -4,6 +4,7 @@
  * Migrated from reference-code/flowers/main.js (Lines 28-355)
  */
 
+import { prng } from '../../foundation/random'
 import type { Vec2, Vec3 } from './types'
 
 // ============================================================================
@@ -54,18 +55,18 @@ export function mapval(
 
 /** Get random element from array */
 export function randChoice<T>(arr: T[]): T {
-  return arr[Math.floor(arr.length * Math.random())]
+  return arr[Math.floor(arr.length * prng.random())]
 }
 
 /** Normalized random number between m and M */
 export function normRand(m: number, M: number): number {
-  return mapval(Math.random(), 0, 1, m, M)
+  return mapval(prng.random(), 0, 1, m, M)
 }
 
 /** Weighted random using accept-reject method */
 export function wtrand(func: (x: number) => number): number {
-  const x = Math.random()
-  const y = Math.random()
+  const x = prng.random()
+  const y = prng.random()
   if (y < func(x)) {
     return x
   }

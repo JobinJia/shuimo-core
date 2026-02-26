@@ -1,5 +1,6 @@
 import { Point, Polygon, PolyTools } from '../../foundation/geometry';
 import { noise } from '../../foundation/noise';
+import { prng } from '../../foundation/random';
 import { blob } from '../../drawing/Blob';
 import { stroke } from '../../drawing/Stroke';
 import { poly } from '../../utils/svg';
@@ -109,7 +110,7 @@ function branch(options: BranchOptions = {}): [Polygon, Polygon] {
   const g = 3;
 
   for (let i = 0; i < g; i++) {
-    a0 += (ben / 2 + (Math.random() * ben) / 2) * randChoice([-1, 1]);
+    a0 += (ben / 2 + (prng.random() * ben) / 2) * randChoice([-1, 1]);
     nx += (Math.cos(a0) * hei) / g;
     ny -= (Math.sin(a0) * hei) / g;
     tlist.push([nx, ny]);
@@ -143,7 +144,7 @@ function branch(options: BranchOptions = {}): [Polygon, Polygon] {
 
     let b = 0;
     if (p === 0) {
-      b = Math.random() * wid;
+      b = prng.random() * wid;
     }
 
     const nw = wid * (((tl - i) / tl) * 0.5 + 0.5);
@@ -175,11 +176,11 @@ function twig(tx: number, ty: number, dep: number, options: TwigOptions = {}): s
   let canv = '';
   const twlist: Polygon = [];
   const tl = 10;
-  const hs = Math.random() * 0.5 + 0.5;
+  const hs = prng.random() * 0.5 + 0.5;
 
   const fun2 = (x: number, i: number) => -1 / Math.pow(i / tl + 1, 5) + 1;
   const tfun = fun2;
-  const a0 = ((Math.random() * Math.PI) / 6) * dir + ang;
+  const a0 = ((prng.random() * Math.PI) / 6) * dir + ang;
 
   for (let i = 0; i < tl; i++) {
     const mx = dir * tfun(i / tl, i) * 50 * sca * hs;
@@ -210,9 +211,9 @@ function twig(tx: number, ty: number, dep: number, options: TwigOptions = {}): s
           nx + tx + Math.cos(ang) * dj * wid,
           ny + ty + (Math.sin(ang) * dj - lea[1] / (dep + 1)) * wid,
           {
-            wid: (6 + 3 * Math.random()) * wid,
-            len: (15 + 12 * Math.random()) * wid,
-            ang: ang / 2 + Math.PI / 2 + Math.PI * 0.2 * (Math.random() - 0.5),
+            wid: (6 + 3 * prng.random()) * wid,
+            len: (15 + 12 * prng.random()) * wid,
+            ang: ang / 2 + Math.PI / 2 + Math.PI * 0.2 * (prng.random() - 0.5),
             col: 'rgba(100,100,100,' + (0.5 + dep * 0.2).toFixed(3) + ')',
             fun: (x: number) =>
               x <= 1
@@ -238,7 +239,7 @@ function twig(tx: number, ty: number, dep: number, options: TwigOptions = {}): s
  */
 function barkify(x: number, y: number, trlist: [Polygon, Polygon]): string {
   function bark(x: number, y: number, wid: number, ang: number): string {
-    const len = 10 + 10 * Math.random();
+    const len = 10 + 10 * prng.random();
     const noi = 0.5;
     const fun = (x: number) =>
       x <= 1 ? Math.pow(Math.sin(x * Math.PI), 0.5) : -Math.pow(Math.sin((x + 1) * Math.PI), 0.5);
@@ -255,7 +256,7 @@ function barkify(x: number, y: number, trlist: [Polygon, Polygon]): string {
     }
 
     const nslist: number[] = [];
-    const n0 = Math.random() * 10;
+    const n0 = prng.random() * 10;
     for (let i = 0; i < reso + 1; i++) {
       nslist.push(noise.noise(i * 0.05, n0));
     }
@@ -269,7 +270,7 @@ function barkify(x: number, y: number, trlist: [Polygon, Polygon]): string {
       brklist.push([nx, ny]);
     }
 
-    const fr = Math.random();
+    const fr = prng.random();
     return stroke(brklist, {
       wid: 0.8,
       noi: 0,
@@ -290,11 +291,11 @@ function barkify(x: number, y: number, trlist: [Polygon, Polygon]): string {
       trlist[1][i][1] - trlist[1][i - 1][1],
       trlist[1][i][0] - trlist[1][i - 1][0]
     );
-    const p = Math.random();
+    const p = prng.random();
     const nx = trlist[0][i][0] * (1 - p) + trlist[1][i][0] * p;
     const ny = trlist[0][i][1] * (1 - p) + trlist[1][i][1] * p;
 
-    if (Math.random() < 0.2) {
+    if (prng.random() < 0.2) {
       canv += blob(nx + x, ny + y, {
         noi: 1,
         len: 15,
@@ -306,8 +307,8 @@ function barkify(x: number, y: number, trlist: [Polygon, Polygon]): string {
       canv += bark(nx + x, ny + y, 5 - Math.abs(p - 0.5) * 10, (a0 + a1) / 2);
     }
 
-    if (Math.random() < 0.05) {
-      const jl = Math.random() * 2 + 2;
+    if (prng.random() < 0.05) {
+      const jl = prng.random() * 2 + 2;
       const xya = randChoice([
         [trlist[0][i][0], trlist[0][i][1], a0],
         [trlist[1][i][0], trlist[1][i][1], a1],
@@ -318,7 +319,7 @@ function barkify(x: number, y: number, trlist: [Polygon, Polygon]): string {
           xya[1] + y + Math.sin(xya[2]) * (j - jl / 2) * 4,
           {
             wid: 4,
-            len: 4 + 6 * Math.random(),
+            len: 4 + 6 * prng.random(),
             ang: a0 + Math.PI / 2,
             col: 'rgba(100,100,100,0.6)',
           }
@@ -330,7 +331,7 @@ function barkify(x: number, y: number, trlist: [Polygon, Polygon]): string {
   const trflist = trlist[0].concat(trlist[1].slice().reverse());
   const rglist: Polygon[] = [[]];
   for (let i = 0; i < trflist.length; i++) {
-    if (Math.random() < 0.5) {
+    if (prng.random() < 0.5) {
       rglist.push([]);
     } else {
       rglist[rglist.length - 1].push(trflist[i]);
@@ -383,12 +384,12 @@ export class Tree {
       if (i >= reso / 4) {
         for (let j = 0; j < (reso - i) / 5; j++) {
           canv += blob(
-            nx + (Math.random() - 0.5) * wid * 1.2 * (reso - i),
-            ny + (Math.random() - 0.5) * wid,
+            nx + (prng.random() - 0.5) * wid * 1.2 * (reso - i),
+            ny + (prng.random() - 0.5) * wid,
             {
-              len: Math.random() * 20 * (reso - i) * 0.2 + 10,
-              wid: Math.random() * 6 + 3,
-              ang: ((Math.random() - 0.5) * Math.PI) / 6,
+              len: prng.random() * 20 * (reso - i) * 0.2 + 10,
+              wid: prng.random() * 6 + 3,
+              ang: ((prng.random() - 0.5) * Math.PI) / 6,
               col:
                 'rgba(' +
                 leafcol[0] +
@@ -397,7 +398,7 @@ export class Tree {
                 ',' +
                 leafcol[2] +
                 ',' +
-                (Math.random() * 0.2 + parseFloat(leafcol[3])).toFixed(1) +
+                (prng.random() * 0.2 + parseFloat(leafcol[3])).toFixed(1) +
                 ')',
             }
           );
@@ -429,8 +430,8 @@ export class Tree {
           x <= 1
             ? Math.pow(Math.sin(x * Math.PI) * x, 0.5)
             : -Math.pow(Math.sin((x - 2) * Math.PI * (x - 2)), 0.5),
-        wid: Math.random() * wid * 0.75 + wid * 0.5,
-        len: Math.random() * hei * 0.75 + hei * 0.5,
+        wid: prng.random() * wid * 0.75 + wid * 0.5,
+        len: prng.random() * hei * 0.75 + hei * 0.5,
         col: col,
       });
     }
@@ -465,11 +466,11 @@ export class Tree {
       if (i >= reso / 5) {
         for (let j = 0; j < (reso - i) * 2; j++) {
           const shape = (x: number) => Math.log(50 * x + 1) / 3.95;
-          const ox = Math.random() * wid * 2 * shape((reso - i) / reso);
-          blobs += blob(nx + ox * randChoice([-1, 1]), ny + (Math.random() - 0.5) * wid * 2, {
+          const ox = prng.random() * wid * 2 * shape((reso - i) / reso);
+          blobs += blob(nx + ox * randChoice([-1, 1]), ny + (prng.random() - 0.5) * wid * 2, {
             len: ox * 2,
-            wid: Math.random() * 6 + 3,
-            ang: ((Math.random() - 0.5) * Math.PI) / 6,
+            wid: prng.random() * 6 + 3,
+            ang: ((prng.random() - 0.5) * Math.PI) / 6,
             col:
               'rgba(' +
               leafcol[0] +
@@ -478,7 +479,7 @@ export class Tree {
               ',' +
               leafcol[2] +
               ',' +
-              (Math.random() * 0.2 + parseFloat(leafcol[3])).toFixed(3) +
+              (prng.random() * 0.2 + parseFloat(leafcol[3])).toFixed(3) +
               ')',
           });
         }
@@ -515,12 +516,12 @@ export class Tree {
       if (
         (i >= trlistMerged.length * 0.3 &&
           i <= trlistMerged.length * 0.7 &&
-          Math.random() < 0.1) ||
+          prng.random() < 0.1) ||
         i === trlistMerged.length / 2 - 1
       ) {
         const ba = Math.PI * 0.2 - Math.PI * 1.4 * (i > trlistMerged.length / 2 ? 1 : 0);
         const brlist = branch({
-          hei: hei * (Math.random() + 1) * 0.3,
+          hei: hei * (prng.random() + 1) * 0.3,
           wid: wid * 0.5,
           ang: ba,
         });
@@ -531,7 +532,7 @@ export class Tree {
         txcanv += barkify(x, y, [brlist[0].map(foff), brlist[1].map(foff)]);
 
         for (let j = 0; j < brlist[0].length; j++) {
-          if (Math.random() < 0.2 || j === brlist[0].length - 1) {
+          if (prng.random() < 0.2 || j === brlist[0].length - 1) {
             twcanv += twig(
               brlist[0][j][0] + trlistMerged[i][0] + x,
               brlist[0][j][1] + trlistMerged[i][1] + y,
@@ -562,7 +563,7 @@ export class Tree {
     canv += stroke(
       trmlist.map((v) => [v[0] + x, v[1] + y]),
       {
-        col: 'rgba(100,100,100,' + (0.4 + Math.random() * 0.1).toFixed(3) + ')',
+        col: 'rgba(100,100,100,' + (0.4 + prng.random() * 0.1).toFixed(3) + ')',
         wid: 2.5,
         fun: (x: number) => Math.sin(1),
         noi: 0.9,
@@ -599,13 +600,13 @@ export class Tree {
         (i >= trlistMerged.length * 0.2 &&
           i <= trlistMerged.length * 0.8 &&
           i % 3 === 0 &&
-          Math.random() > p) ||
+          prng.random() > p) ||
         i === trlistMerged.length / 2 - 1
       ) {
-        const bar = Math.random() * 0.2;
+        const bar = prng.random() * 0.2;
         const ba = -bar * Math.PI - (1 - bar * 2) * Math.PI * (i > trlistMerged.length / 2 ? 1 : 0);
         const brlist = branch({
-          hei: hei * (0.3 * p - Math.random() * 0.05),
+          hei: hei * (0.3 * p - prng.random() * 0.05),
           wid: wid * 0.5,
           ang: ba,
           ben: 0.5,
@@ -648,7 +649,7 @@ export class Tree {
     canv += stroke(
       trmlist.map((v) => [v[0] + x, v[1] + y]),
       {
-        col: 'rgba(100,100,100,' + (0.4 + Math.random() * 0.1).toFixed(3) + ')',
+        col: 'rgba(100,100,100,' + (0.4 + prng.random() * 0.1).toFixed(3) + ')',
         wid: 2.5,
         fun: (x: number) => Math.sin(1),
         noi: 0.9,
@@ -699,31 +700,31 @@ export class Tree {
       for (let i = 0; i < trlistMerged.length; i++) {
         const p = Math.abs(i - trlistMerged.length * 0.5) / (trlistMerged.length * 0.5);
         if (
-          ((Math.random() < 0.025 &&
+          ((prng.random() < 0.025 &&
             i >= trlistMerged.length * 0.2 &&
             i <= trlistMerged.length * 0.8) ||
             i === ((trlistMerged.length / 2) | 0) - 1 ||
             i === ((trlistMerged.length / 2) | 0) + 1) &&
           dep > 0
         ) {
-          const bar = 0.02 + Math.random() * 0.08;
+          const bar = 0.02 + prng.random() * 0.08;
           const ba = bar * Math.PI - bar * 2 * Math.PI * (i > trlistMerged.length / 2 ? 1 : 0);
 
           const brlist = fracTree(trlistMerged[i][0] + xoff, trlistMerged[i][1] + yoff, dep - 1, {
-            hei: hei * (0.7 + Math.random() * 0.2),
+            hei: hei * (0.7 + prng.random() * 0.2),
             wid: wid * 0.6,
             ang: ang + ba,
             ben: 0.55,
           });
 
           for (let j = 0; j < brlist.length; j++) {
-            if (Math.random() < 0.03) {
+            if (prng.random() < 0.03) {
               twcanv += twig(
                 brlist[j][0] + trlistMerged[i][0] + xoff,
                 brlist[j][1] + trlistMerged[i][1] + yoff,
                 2,
                 {
-                  ang: ba * (Math.random() * 0.5 + 0.75),
+                  ang: ba * (prng.random() * 0.5 + 0.75),
                   sca: 0.3,
                   dir: ba > 0 ? 1 : -1,
                   lea: [false, 0],
@@ -756,7 +757,7 @@ export class Tree {
     canv += stroke(
       trmlist.map((v) => [v[0] + x, v[1] + y]),
       {
-        col: 'rgba(100,100,100,' + (0.4 + Math.random() * 0.1).toFixed(3) + ')',
+        col: 'rgba(100,100,100,' + (0.4 + prng.random() * 0.1).toFixed(3) + ')',
         wid: 2.5,
         fun: (x: number) => Math.sin(1),
         noi: 0.9,
@@ -797,12 +798,12 @@ export class Tree {
       if (i >= reso / 4) {
         for (let j = 0; j < 1; j++) {
           const bpl = blob(
-            nx + (Math.random() - 0.5) * wid * 1.2 * (reso - i) * 0.5,
-            ny + (Math.random() - 0.5) * wid * 0.5,
+            nx + (prng.random() - 0.5) * wid * 1.2 * (reso - i) * 0.5,
+            ny + (prng.random() - 0.5) * wid * 0.5,
             {
-              len: Math.random() * 50 + 20,
-              wid: Math.random() * 12 + 12,
-              ang: (-Math.random() * Math.PI) / 6,
+              len: prng.random() * 50 + 20,
+              wid: prng.random() * 12 + 12,
+              ang: (-prng.random() * Math.PI) / 6,
               col:
                 'rgba(' +
                 leafcol[0] +
@@ -921,7 +922,7 @@ export class Tree {
 
       if (dep !== 0) {
         const nben = ben + randChoice([-1, 1]) * Math.PI * 0.001 * dep * dep;
-        if (Math.random() < 0.5) {
+        if (prng.random() < 0.5) {
           tcanv += fracTree(ept[0], ept[1], dep - 1, {
             ang: ang + ben + Math.PI * randChoice([normRand(-1, 0.5), normRand(0.5, 1)]) * 0.2,
             len: len * normRand(0.8, 0.9),
@@ -944,13 +945,13 @@ export class Tree {
     }
 
     for (let i = 0; i < trlistMerged.length; i++) {
-      if (Math.random() < 0.2) {
+      if (prng.random() < 0.2) {
         twcanv += fracTree(
           x + trlistMerged[i][0],
           y + trlistMerged[i][1],
-          Math.floor(4 * Math.random()),
+          Math.floor(4 * prng.random()),
           {
-            ang: -Math.PI / 2 - ang * Math.random(),
+            ang: -Math.PI / 2 - ang * prng.random(),
           }
         );
       } else if (i === Math.floor(trlistMerged.length / 2)) {
@@ -965,7 +966,7 @@ export class Tree {
     canv += stroke(
       trlistMerged.map((v) => [v[0] + x, v[1] + y]),
       {
-        col: 'rgba(100,100,100,' + (0.6 + Math.random() * 0.1).toFixed(3) + ')',
+        col: 'rgba(100,100,100,' + (0.6 + prng.random() * 0.1).toFixed(3) + ')',
         wid: 2.5,
         fun: (x: number) => Math.sin(1),
         noi: 0.9,

@@ -1,5 +1,6 @@
 import { Point, Polygon } from '../foundation/geometry';
 import { noise } from '../foundation/noise';
+import { prng } from '../foundation/random';
 import { poly } from '../utils/svg';
 import { loopNoise } from '../utils/math';
 
@@ -62,7 +63,7 @@ export class Blob {
 
     // Generate noise for organic variation
     const nslist: number[] = [];
-    const n0 = Math.random() * 10;
+    const n0 = prng.random() * 10;
     for (let i = 0; i < reso + 1; i++) {
       nslist.push(noise.noise(i * 0.05, n0));
     }

@@ -1,5 +1,6 @@
 import { Point, Polygon } from '../foundation/geometry';
 import { noise } from '../foundation/noise';
+import { prng } from '../foundation/random';
 import { poly } from '../utils/svg';
 
 export interface StrokeOptions {
@@ -47,7 +48,7 @@ export class Stroke {
 
     const vtxlist0: Point[] = [];
     const vtxlist1: Point[] = [];
-    const n0 = Math.random() * 10;
+    const n0 = prng.random() * 10;
 
     // Generate vertices along both sides of the stroke
     for (let i = 1; i < ptlist.length - 1; i++) {

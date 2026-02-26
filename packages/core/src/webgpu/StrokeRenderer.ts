@@ -4,6 +4,8 @@
  * 使用 GPU 加速的毛笔笔触渲染
  */
 
+import { prng } from '../foundation/random';
+
 // 宽度函数类型
 export enum WidthFuncType {
   Sin = 0,      // 正弦波（默认毛笔效果）
@@ -243,7 +245,7 @@ export class StrokeRenderer {
   private maxPoints = 1000;  // 最大路径点数
 
   private isInitialized = false;
-  private seed = Math.random() * 1000;
+  private seed = prng.random() * 1000;
 
   /**
    * 初始化渲染器

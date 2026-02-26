@@ -6,6 +6,7 @@
 
 import type { Layer, BlitOptions, Bounds } from './types'
 import { SVG_NS } from './types'
+import { prng } from '../../foundation/random'
 import { distance } from './FlowerMath'
 
 // ============================================================================
@@ -119,7 +120,7 @@ export function border(layer: Layer, radiusFunc: (theta: number) => number): voi
   const h = layer.height
 
   // Create clip path
-  const clipPathId = `clip-${Math.random().toString(36).substr(2, 9)}`
+  const clipPathId = `clip-${prng.random().toString(36).substr(2, 9)}`
   const clipPath = document.createElementNS(SVG_NS, 'clipPath')
   clipPath.setAttribute('id', clipPathId)
 
