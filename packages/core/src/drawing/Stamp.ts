@@ -8,6 +8,19 @@
 import { createStampNoise } from './StampNoise';
 import { dsin, dcos, fmtNum } from '../utils/math';
 
+// ─── Reference constants ────────────────────────────────────────────
+// All distance defaults are expressed as ratios of fontSize.
+// The reference font size (70px) is used to derive ratios from the
+// original fixed pixel defaults so that `ratio × 70` recovers the
+// legacy value exactly.
+
+const REFERENCE_FONT_SIZE = 70;
+const DEFAULT_NOISE_AMOUNT = 12 / REFERENCE_FONT_SIZE;
+const DEFAULT_CORNER_RADIUS = 15 / REFERENCE_FONT_SIZE;
+const DEFAULT_BORDER_WIDTH = 1 / REFERENCE_FONT_SIZE;
+const DEFAULT_BORDER_POINTS = 24 / REFERENCE_FONT_SIZE;
+const MEASURED_HEIGHT_BUFFER = 0.05;
+
 /**
  * Stamp type: 阴章 (Yin) or 阳章 (Yang)
  * - yin: Red background with white text (default)
@@ -24,6 +37,13 @@ export type StampType = 'yin' | 'yang';
  * - ellipse: Elliptical shape (non-standard ellipse)
  */
 export type StampShape = 'auto' | 'square' | 'rectangle' | 'circle' | 'ellipse';
+
+export interface MeasuredColumnBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export interface StampOptions {
   /** Text lines to display in reading order (will be displayed right to left as vertical columns) */
@@ -56,16 +76,16 @@ export interface StampOptions {
   /** Vertical offset of text within the stamp bounds. Range: -1 to 1, where -1 is top edge, 0 is center, 1 is bottom edge (default: 0) */
   offsetY?: number;
 
-  /** Spacing between columns (horizontal spacing), as a multiplier of fontSize (default: 0.05) */
+  /** Spacing between columns (horizontal spacing), as a multiplier of fontSize (default: 0.02) */
   columnSpacing?: number;
 
   /** Spacing between characters within a column (vertical spacing), as a multiplier of fontSize (default: 0.05) */
   characterSpacing?: number;
 
-  /** Horizontal padding around text (left and right), as a multiplier of fontSize (default: 0.05) */
+  /** Horizontal padding around text (left and right), as a multiplier of fontSize (default: 0.02) */
   paddingX?: number;
 
-  /** Vertical padding around text (top and bottom), as a multiplier of fontSize (default: 0.05) */
+  /** Vertical padding around text (top and bottom), as a multiplier of fontSize (default: 0.02) */
   paddingY?: number;
 
   /** Absolute column spacing in pixels. If provided, overrides columnSpacing */
@@ -89,6 +109,9 @@ export interface StampOptions {
   /** Measured column heights in pixels for each column. If provided, uses actual measured heights instead of estimation. Array length should match text.length. */
   measuredColumnHeights?: number[];
 
+  /** Measured SVG bounding boxes for each column. Used to correct visual centering based on the real glyph box. */
+  measuredColumnBoxes?: MeasuredColumnBox[];
+
   /** Border scale factor - scales the entire stamp border relative to text (default: 1.0, range: 0.8-1.5). If borderScaleX/Y are provided, this is ignored. */
   borderScale?: number;
 
@@ -98,17 +121,29 @@ export interface StampOptions {
   /** Vertical border scale factor - scales stamp border height relative to text (default: 1.0) */
   borderScaleY?: number;
 
-  /** Amount of irregularity (0-20, default: 12) */
+  /** Amount of irregularity as a multiplier of fontSize (default: 12/70 ≈ 0.171) */
   noiseAmount?: number;
 
-  /** Number of points on the border path (default: 24) */
+  /** Number of border path points as a multiplier of fontSize (default: 24/70 ≈ 0.343) */
   borderPoints?: number;
 
-  /** Corner radius for rounded corners (default: 15, set 0 for sharp corners) */
+  /** Corner radius as a multiplier of fontSize (default: 15/70 ≈ 0.214, set 0 for sharp corners) */
   cornerRadius?: number;
 
-  /** Border width/stroke width in pixels (default: 1). Only applies to yang stamps (阳章) */
+  /** Border width as a multiplier of fontSize (default: 1/70 ≈ 0.014). Only applies to yang stamps (阳章) */
   borderWidth?: number;
+
+  /** Absolute noise amount in pixels. If provided, overrides noiseAmount */
+  noiseAmountPx?: number;
+
+  /** Absolute border points count. If provided, overrides borderPoints */
+  borderPointsPx?: number;
+
+  /** Absolute corner radius in pixels. If provided, overrides cornerRadius */
+  cornerRadiusPx?: number;
+
+  /** Absolute border width in pixels. If provided, overrides borderWidth */
+  borderWidthPx?: number;
 
   /** Whether to generate regular geometric shapes without noise (default: false). Only applies to non-auto shapes (square, rectangle, circle, ellipse) */
   regularShape?: boolean;
@@ -144,6 +179,16 @@ interface CornerRadii {
 }
 
 type NoiseFn = (x: number, y: number, edgeProgress: number) => { x: number; y: number };
+
+interface TextLayout {
+  width: number;
+  height: number;
+  columnCount: number;
+  maxChars: number;
+  columnHeights: number[];
+  columnWidth: number;
+  columnWidths: number[];
+}
 
 /**
  * SVG path builder that uses fmtNum for all coordinates,
@@ -276,19 +321,11 @@ function calculateTextBounds(
   text: string[],
   fontSize: number,
   characterSpacing: number = 0.05,
-  columnSpacing: number = 0.05,
+  columnSpacing: number = 0.02,
   columnWidthPx?: number,
   measuredColumnWidths?: number[],
   measuredColumnHeights?: number[]
-): {
-  width: number;
-  height: number;
-  columnCount: number;
-  maxChars: number;
-  columnHeights: number[];
-  columnWidth: number;
-  columnWidths: number[];
-} {
+): TextLayout {
   // For vertical text with writing-mode: vertical-rl
   // Traditional stamps have minimal spacing between characters and columns
 
@@ -346,6 +383,59 @@ function calculateTextBounds(
     columnWidth,
     columnWidths
   };
+}
+
+function getMeasuredHeightBuffer(fontSize: number): number {
+  return fontSize * MEASURED_HEIGHT_BUFFER;
+}
+
+function getPathTextBounds(
+  text: string[],
+  fontSize: number,
+  characterSpacing: number,
+  columnSpacing: number,
+  columnWidthPx: number | undefined,
+  measuredColumnWidths: number[] | undefined,
+  measuredColumnHeights: number[] | undefined,
+): TextLayout {
+  const bufferedHeights = measuredColumnHeights?.length === text.length
+    ? measuredColumnHeights.map(height => height + getMeasuredHeightBuffer(fontSize))
+    : undefined;
+
+  return calculateTextBounds(
+    text,
+    fontSize,
+    characterSpacing,
+    columnSpacing,
+    columnWidthPx,
+    measuredColumnWidths,
+    bufferedHeights,
+  );
+}
+
+interface ProfilePoint {
+  x: number;
+  y: number;
+}
+
+function interpolateProfileY(points: ProfilePoint[], x: number): number {
+  if (points.length === 0)
+    return 0;
+
+  if (x <= points[0].x)
+    return points[0].y;
+
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    if (x <= curr.x) {
+      const span = curr.x - prev.x || 1;
+      const t = (x - prev.x) / span;
+      return prev.y + (curr.y - prev.y) * t;
+    }
+  }
+
+  return points[points.length - 1].y;
 }
 
 // ─── Shape generators ───────────────────────────────────────────────
@@ -629,10 +719,10 @@ export function generateStampPath(options: StampOptions): StampResult {
     text,
     shape = 'auto',
     fontSize = 70,
-    columnSpacing = 0.05,
+    columnSpacing = 0.02,
     characterSpacing = 0.05,
-    paddingX = 0.05,
-    paddingY = 0.05,
+    paddingX = 0.02,
+    paddingY = 0.02,
     columnSpacingPx,
     characterSpacingPx,
     paddingXPx,
@@ -641,18 +731,24 @@ export function generateStampPath(options: StampOptions): StampResult {
     borderScale = 1.0,
     borderScaleX,
     borderScaleY,
-    noiseAmount = 12,
-    borderPoints = 24,
-    cornerRadius = 15,
+    noiseAmount = DEFAULT_NOISE_AMOUNT,
+    borderPoints = DEFAULT_BORDER_POINTS,
+    cornerRadius = DEFAULT_CORNER_RADIUS,
+    noiseAmountPx,
+    borderPointsPx,
+    cornerRadiusPx,
     regularShape = false,
     seed = Date.now()
   } = options;
 
-  // Use absolute pixel values if provided, otherwise calculate from relative values
+  // Resolve actual pixel values — *Px takes precedence over fontSize-relative values
   const actualColumnSpacing = columnSpacingPx !== undefined ? columnSpacingPx / fontSize : columnSpacing;
   const actualCharacterSpacing = characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
   const actualPaddingX = paddingXPx !== undefined ? paddingXPx : fontSize * paddingX;
   const actualPaddingY = paddingYPx !== undefined ? paddingYPx : fontSize * paddingY;
+  const actualNoiseAmount = noiseAmountPx ?? fontSize * noiseAmount;
+  const actualBorderPoints = Math.round(borderPointsPx ?? fontSize * borderPoints);
+  const actualCornerRadius = cornerRadiusPx ?? fontSize * cornerRadius;
 
   // Early return if no valid text
   if (!text || text.length === 0 || text.every(t => !t || t.trim().length === 0)) {
@@ -678,14 +774,14 @@ export function generateStampPath(options: StampOptions): StampResult {
   // Calculate actual text dimensions with custom spacing
   // For stamp path (border), use estimated heights to ensure enough space
   // Don't use measuredColumnHeights here to avoid text overflow
-  const textDims = calculateTextBounds(
+  const textDims = getPathTextBounds(
     displayText,
     fontSize,
     actualCharacterSpacing,
     actualColumnSpacing,
     columnWidthPx,
     options.measuredColumnWidths,
-    undefined // Don't use measured heights for border calculation
+    options.measuredColumnHeights
   );
   // Calculate column positions and heights
   const columnData = displayText.map((line, index) => ({
@@ -701,6 +797,7 @@ export function generateStampPath(options: StampOptions): StampResult {
   const baseWidth = textDims.width + horizontalPadding * 2;
   const baseRightHeight = columnData[0].height + verticalPadding * 2;
   const baseLeftHeight = columnData[columnData.length - 1].height + verticalPadding * 2;
+  const tallestColumnHeight = Math.max(...columnData.map(column => column.height)) + verticalPadding * 2;
 
   // Apply border scale to expand/shrink the border relative to text
   // Scale from the center, so text stays centered
@@ -708,8 +805,8 @@ export function generateStampPath(options: StampOptions): StampResult {
   const scaleX = borderScaleX ?? borderScale;
   const scaleY = borderScaleY ?? borderScale;
   const maxWidth = baseWidth * scaleX;
-  const rightHeight = baseRightHeight * scaleY;
-  const leftHeight = baseLeftHeight * scaleY;
+  let rightHeight = baseRightHeight * scaleY;
+  let leftHeight = baseLeftHeight * scaleY;
 
   // Simple PRNG for reproducible noise — reduce seed to prevent overflow
   let seedValue = ((seed % 233280) + 233280) % 233280;
@@ -738,8 +835,8 @@ export function generateStampPath(options: StampOptions): StampResult {
 
     // Apply noise amount and corner factor
     // Noise is in range [-1, 1] already
-    const totalNoiseX = noiseX * noiseAmount * cornerFactor;
-    const totalNoiseY = noiseY * noiseAmount * cornerFactor;
+    const totalNoiseX = noiseX * actualNoiseAmount * cornerFactor;
+    const totalNoiseY = noiseY * actualNoiseAmount * cornerFactor;
 
     return { x: x + totalNoiseX, y: y + totalNoiseY };
   };
@@ -757,7 +854,7 @@ export function generateStampPath(options: StampOptions): StampResult {
     const avgScale = (scaleX + scaleY) / 2;
     const size = baseSize * avgScale;
 
-    path = generateSquarePath(size, borderPoints, cornerRadius, random, applyNoise, regularShape);
+    path = generateSquarePath(size, actualBorderPoints, actualCornerRadius, random, applyNoise, regularShape);
     bounds = {
       left: 0,
       right: size,
@@ -773,7 +870,7 @@ export function generateStampPath(options: StampOptions): StampResult {
     const width = (textWidth + horizontalPadding * 2) * scaleX;
     const height = (textHeight + verticalPadding * 2) * scaleY;
 
-    path = generateRectanglePath(width, height, borderPoints, cornerRadius, random, applyNoise, regularShape);
+    path = generateRectanglePath(width, height, actualBorderPoints, actualCornerRadius, random, applyNoise, regularShape);
     bounds = {
       left: 0,
       right: width,
@@ -792,7 +889,7 @@ export function generateStampPath(options: StampOptions): StampResult {
     const diameter = baseDiameter * avgScale;
     const radius = diameter / 2;
 
-    path = generateCirclePath(radius, borderPoints, applyNoise, regularShape);
+    path = generateCirclePath(radius, actualBorderPoints, applyNoise, regularShape);
     bounds = {
       left: 0,
       right: diameter,
@@ -825,7 +922,7 @@ export function generateStampPath(options: StampOptions): StampResult {
       height = (baseHeight + shortSide * 0.15) * scaleY;
     }
 
-    path = generateEllipsePath(width, height, borderPoints, applyNoise, regularShape);
+    path = generateEllipsePath(width, height, actualBorderPoints, applyNoise, regularShape);
     bounds = {
       left: 0,
       right: width,
@@ -836,17 +933,36 @@ export function generateStampPath(options: StampOptions): StampResult {
     };
   } else {
     // Auto (default): trapezoid based on text layout
+    const textBlockLeft = (maxWidth - textDims.width) / 2;
+    const textBlockRight = maxWidth - textBlockLeft;
+    const autoProfile: ProfilePoint[] = [{ x: 0, y: leftHeight }];
+    let currentRight = textBlockRight;
+
+    for (let index = 0; index < columnData.length; index++) {
+      const columnWidth = textDims.columnWidths[index];
+      const columnLeft = currentRight - columnWidth;
+      const columnCenter = (columnLeft + currentRight) / 2;
+      const columnBottom = (columnData[index].height + verticalPadding * 2) * scaleY;
+
+      autoProfile.push({ x: columnCenter, y: columnBottom });
+
+      currentRight = columnLeft - (index < columnData.length - 1 ? fontSize * actualColumnSpacing : 0);
+    }
+
+    autoProfile.push({ x: maxWidth, y: rightHeight });
+    autoProfile.sort((a, b) => a.x - b.x);
+
     bounds = {
       left: 0,
       right: maxWidth,
       top: 0,
-      bottom: Math.max(rightHeight, leftHeight),
+      bottom: tallestColumnHeight * scaleY,
       width: maxWidth,
-      height: Math.max(rightHeight, leftHeight)
+      height: tallestColumnHeight * scaleY
     };
 
-    const cr = randomizeCornerRadii(cornerRadius, random, false);
-    const pointsPerEdge = Math.floor(borderPoints / 4);
+    const cr = randomizeCornerRadii(actualCornerRadius, random, false);
+    const pointsPerEdge = Math.floor(actualBorderPoints / 4);
 
     const b = new PathBuilder();
 
@@ -871,7 +987,7 @@ export function generateStampPath(options: StampOptions): StampResult {
       const t = i / pointsPerEdge;
       const edgeProgress = dsin(t * PI);
       const xPos = (maxWidth - cr.bottomRight) - t * (maxWidth - cr.bottomRight - cr.bottomLeft);
-      const yPos = rightHeight + (leftHeight - rightHeight) * t;
+      const yPos = interpolateProfileY(autoProfile, xPos);
       const pt = applyNoise(xPos, yPos, edgeProgress);
       b.lineTo(pt.x, pt.y);
     }
@@ -905,18 +1021,23 @@ export function generateStamp(options: StampOptions): string {
     fontWeight = 'normal',
     offsetX = 0,
     offsetY = 0,
-    columnSpacing = 0.05,
+    columnSpacing = 0.02,
     characterSpacing = 0.05,
     columnSpacingPx,
     characterSpacingPx,
     columnWidthPx,
-    borderWidth = 1,
+    borderWidth = DEFAULT_BORDER_WIDTH,
     seed = Date.now()
   } = options;
 
-  // Use absolute pixel values if provided, otherwise use relative values
+  // Resolve actual pixel values — *Px takes precedence over fontSize-relative values
+  const actualBorderWidth = options.borderWidthPx ?? fontSize * borderWidth;
   const actualColumnSpacing = columnSpacingPx !== undefined ? columnSpacingPx / fontSize : columnSpacing;
   const actualCharacterSpacing = characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
+
+  // SVG filter scaling — keep visual texture density consistent across font sizes
+  const filterScale = fontSize / REFERENCE_FONT_SIZE;
+  const filterScaleInv = REFERENCE_FONT_SIZE / fontSize;
 
   // Early return if no valid text
   if (!text || text.length === 0 || text.every(t => !t || t.trim().length === 0)) {
@@ -944,39 +1065,60 @@ export function generateStamp(options: StampOptions): string {
     options.measuredColumnHeights
   );
   const columnWidths = textDims.columnWidths;
+  const columnHeights = textDims.columnHeights;
   const columnGap = fontSize * actualColumnSpacing;
+  const measuredBoxes = options.measuredColumnBoxes?.length === displayText.length ? options.measuredColumnBoxes : undefined;
 
-  // Calculate text position using offset
-  // offsetX and offsetY range from -1 to 1
-  // -1: left/top edge, 0: center, 1: right/bottom edge
-
-  // Calculate available space for offset
-  const horizontalSpace = bounds.width - textDims.width;
-  const maxTextHeight = Math.max(...textDims.columnHeights);
-  const verticalSpace = bounds.height - maxTextHeight;
-
-  // Apply offset
-  const horizontalOffset = (offsetX + 1) / 2 * horizontalSpace;
-  const verticalOffset = (offsetY + 1) / 2 * verticalSpace;
-
-  // Start position (no font margin compensation needed for vertical-rl with dominant-baseline: text-before-edge)
-  const startY = verticalOffset;
-  const firstColumnX = bounds.width - horizontalOffset;
-
-  const textElements = displayText.map((line, index) => {
-    // In vertical-rl mode, columns flow right to left
-    // x represents the RIGHT edge of the column
-    // First column (index 0) is rightmost, each subsequent column moves left
-    // Calculate x position by summing up all previous column widths and gaps
-    let x = firstColumnX;
+  const columnPlacements = displayText.map((line, index) => {
+    let x = textDims.width;
     for (let i = 0; i < index; i++) {
       x -= columnWidths[i] + columnGap;
     }
 
-    // For vertical-rl text, textLength controls the INLINE size (height in vertical mode)
-    // We don't set textLength because it would stretch characters vertically, which looks bad
-    // Instead, we rely on accurate columnWidth calculation
-    return `<text x="${x}" y="${startY}"
+    const y = 0;
+    const box = measuredBoxes?.[index];
+    const visualLeft = x + (box ? box.x : -columnWidths[index]);
+    const visualTop = y + (box ? box.y : 0);
+    const visualWidth = box?.width ?? columnWidths[index];
+    const visualHeight = box?.height ?? columnHeights[index];
+
+    return {
+      line,
+      x,
+      y,
+      visualLeft,
+      visualTop,
+      visualRight: visualLeft + visualWidth,
+      visualBottom: visualTop + visualHeight,
+    };
+  });
+
+  const visualBounds = columnPlacements.reduce((acc, placement) => ({
+    left: Math.min(acc.left, placement.visualLeft),
+    top: Math.min(acc.top, placement.visualTop),
+    right: Math.max(acc.right, placement.visualRight),
+    bottom: Math.max(acc.bottom, placement.visualBottom),
+  }), {
+    left: Number.POSITIVE_INFINITY,
+    top: Number.POSITIVE_INFINITY,
+    right: Number.NEGATIVE_INFINITY,
+    bottom: Number.NEGATIVE_INFINITY,
+  });
+
+  const visualWidth = visualBounds.right - visualBounds.left;
+  const visualHeight = visualBounds.bottom - visualBounds.top;
+  const horizontalSpace = bounds.width - visualWidth;
+  const verticalSpace = bounds.height - visualHeight;
+  const targetLeft = (offsetX + 1) / 2 * horizontalSpace;
+  const targetTop = (offsetY + 1) / 2 * verticalSpace;
+  const shiftX = targetLeft - visualBounds.left;
+  const shiftY = targetTop - visualBounds.top;
+
+  const textElements = columnPlacements.map(({ line, x, y }) => {
+    const shiftedX = x + shiftX;
+    const shiftedY = y + shiftY;
+
+    return `<text x="${shiftedX}" y="${shiftedY}"
       style="
         writing-mode: vertical-rl;
         text-orientation: upright;
@@ -984,7 +1126,7 @@ export function generateStamp(options: StampOptions): string {
         font-size: ${fontSize}px;
         font-weight: ${fontWeight};
         fill: ${stampTextColor};
-        letter-spacing: ${characterSpacing}em;
+        letter-spacing: ${actualCharacterSpacing}em;
         dominant-baseline: text-before-edge;
         text-anchor: start;
       "
@@ -1002,7 +1144,7 @@ export function generateStamp(options: StampOptions): string {
   <path d="${path}" fill="${stampBgColor}" filter="url(#stamp-ink-texture)" />
 
   <!-- Yang stamp border (阳章 - red border with custom width) -->
-  <path d="${path}" fill="none" stroke="${stampColor}" stroke-width="${borderWidth}" filter="url(#stamp-border-texture)" />
+  <path d="${path}" fill="none" stroke="${stampColor}" stroke-width="${fmtNum(actualBorderWidth)}" filter="url(#stamp-border-texture)" />
 
   <!-- Text -->
   ${textElements}`;
@@ -1012,14 +1154,14 @@ export function generateStamp(options: StampOptions): string {
     <!-- Realistic ink stamp texture - simulates paper fiber absorption and ink splatter -->
     <filter id="stamp-ink-texture" x="-20%" y="-20%" width="140%" height="140%">
       <!-- Step 1: Edge displacement for irregular border -->
-      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="4" seed="${seed + 123}" result="borderNoise"/>
-      <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="18" xChannelSelector="R" yChannelSelector="G" result="displacedShape"/>
+      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.04 * filterScaleInv)}" numOctaves="4" seed="${seed + 123}" result="borderNoise"/>
+      <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmtNum(18 * filterScale)}" xChannelSelector="R" yChannelSelector="G" result="displacedShape"/>
 
       <!-- Step 2: Create granular texture (paper fibers) - increased visibility -->
-      <feTurbulence type="fractalNoise" baseFrequency="0.4" numOctaves="4" seed="${seed + 456}" result="grainNoise"/>
+      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.4 * filterScaleInv)}" numOctaves="4" seed="${seed + 456}" result="grainNoise"/>
 
       <!-- Step 3: Create larger blotchy patterns (ink distribution) - more pronounced -->
-      <feTurbulence type="turbulence" baseFrequency="0.08" numOctaves="2" seed="${seed + 789}" result="blotchNoise"/>
+      <feTurbulence type="turbulence" baseFrequency="${fmtNum(0.08 * filterScaleInv)}" numOctaves="2" seed="${seed + 789}" result="blotchNoise"/>
 
       <!-- Step 4: Combine grain and blotches using blend multiply -->
       <feBlend in="grainNoise" in2="blotchNoise" mode="multiply" result="combinedNoise"/>
@@ -1040,7 +1182,7 @@ export function generateStamp(options: StampOptions): string {
       <feComposite in="displacedShape" in2="contrastMask" operator="in" result="texturedShape"/>
 
       <!-- Step 8: Slight blur for natural ink spread -->
-      <feGaussianBlur in="texturedShape" stdDeviation="0.5" result="blurredInk"/>
+      <feGaussianBlur in="texturedShape" stdDeviation="${fmtNum(0.5 * filterScale)}" result="blurredInk"/>
 
       <!-- Step 9: Final opacity adjustment -->
       <feColorMatrix in="blurredInk" type="matrix"
@@ -1053,24 +1195,24 @@ export function generateStamp(options: StampOptions): string {
     <!-- Border texture for yang stamp - similar to ink texture but for stroke -->
     <filter id="stamp-border-texture" x="-20%" y="-20%" width="140%" height="140%">
       <!-- Edge displacement -->
-      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" seed="${seed + 123}" result="borderNoise"/>
-      <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="8" xChannelSelector="R" yChannelSelector="G" result="displacedBorder"/>
+      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.04 * filterScaleInv)}" numOctaves="3" seed="${seed + 123}" result="borderNoise"/>
+      <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmtNum(8 * filterScale)}" xChannelSelector="R" yChannelSelector="G" result="displacedBorder"/>
 
       <!-- Slight blur for natural ink spread -->
-      <feGaussianBlur in="displacedBorder" stdDeviation="0.3" result="blurredBorder"/>
+      <feGaussianBlur in="displacedBorder" stdDeviation="${fmtNum(0.3 * filterScale)}" result="blurredBorder"/>
     </filter>
 
     <!-- Text engraving texture - simulates carved/chiseled effect -->
     <filter id="stamp-text-texture" x="-10%" y="-10%" width="120%" height="120%">
       <!-- Primary noise for edge variation -->
-      <feTurbulence type="fractalNoise" baseFrequency="0.15" numOctaves="4" seed="${seed}" result="textNoise"/>
+      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.15 * filterScaleInv)}" numOctaves="4" seed="${seed}" result="textNoise"/>
       <!-- Reduced displacement to prevent text breaking apart -->
-      <feDisplacementMap in="SourceGraphic" in2="textNoise" scale="1.2" xChannelSelector="R" yChannelSelector="G" result="roughEdges"/>
+      <feDisplacementMap in="SourceGraphic" in2="textNoise" scale="${fmtNum(1.2 * filterScale)}" xChannelSelector="R" yChannelSelector="G" result="roughEdges"/>
       <!-- Secondary noise layer for more variation -->
-      <feTurbulence type="turbulence" baseFrequency="0.05" numOctaves="2" seed="${seed + 999}" result="coarseNoise"/>
-      <feDisplacementMap in="roughEdges" in2="coarseNoise" scale="0.8" xChannelSelector="R" yChannelSelector="G" result="carvedText"/>
+      <feTurbulence type="turbulence" baseFrequency="${fmtNum(0.05 * filterScaleInv)}" numOctaves="2" seed="${seed + 999}" result="coarseNoise"/>
+      <feDisplacementMap in="roughEdges" in2="coarseNoise" scale="${fmtNum(0.8 * filterScale)}" xChannelSelector="R" yChannelSelector="G" result="carvedText"/>
       <!-- Slight blur to smooth sharp artifacts -->
-      <feGaussianBlur in="carvedText" stdDeviation="0.3" result="smoothedText"/>
+      <feGaussianBlur in="carvedText" stdDeviation="${fmtNum(0.3 * filterScale)}" result="smoothedText"/>
       <!-- Enhance contrast for crisp edges -->
       <feColorMatrix in="smoothedText" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1.2 -0.1" result="finalCarvedText"/>
     </filter>
@@ -1086,7 +1228,7 @@ ${stampContent}
  * Stamp class for object-oriented usage
  */
 export class Stamp {
-  private options: Required<StampOptions>;
+  private options: Required<Pick<StampOptions, 'text' | 'type' | 'shape' | 'color' | 'textColor' | 'fontFamily' | 'fontSize' | 'fontWeight' | 'offsetX' | 'offsetY' | 'columnSpacing' | 'characterSpacing' | 'paddingX' | 'paddingY' | 'borderScale' | 'noiseAmount' | 'borderPoints' | 'cornerRadius' | 'borderWidth' | 'regularShape' | 'seed'>> & Pick<StampOptions, 'columnSpacingPx' | 'characterSpacingPx' | 'paddingXPx' | 'paddingYPx' | 'columnWidthPx' | 'measuredColumnWidths' | 'measuredColumnHeights' | 'measuredColumnBoxes' | 'borderScaleX' | 'borderScaleY' | 'noiseAmountPx' | 'borderPointsPx' | 'cornerRadiusPx' | 'borderWidthPx'>;
 
   constructor(options: StampOptions) {
     const type = options.type || 'yin';
@@ -1101,10 +1243,10 @@ export class Stamp {
       fontWeight: options.fontWeight || 'normal',
       offsetX: options.offsetX ?? 0,
       offsetY: options.offsetY ?? 0,
-      columnSpacing: options.columnSpacing ?? 0.05,
+      columnSpacing: options.columnSpacing ?? 0.02,
       characterSpacing: options.characterSpacing ?? 0.05,
-      paddingX: options.paddingX ?? 0.05,
-      paddingY: options.paddingY ?? 0.05,
+      paddingX: options.paddingX ?? 0.02,
+      paddingY: options.paddingY ?? 0.02,
       columnSpacingPx: options.columnSpacingPx,
       characterSpacingPx: options.characterSpacingPx,
       paddingXPx: options.paddingXPx,
@@ -1112,13 +1254,18 @@ export class Stamp {
       columnWidthPx: options.columnWidthPx,
       measuredColumnWidths: options.measuredColumnWidths,
       measuredColumnHeights: options.measuredColumnHeights,
+      measuredColumnBoxes: options.measuredColumnBoxes,
       borderScale: options.borderScale ?? 1.0,
       borderScaleX: options.borderScaleX,
       borderScaleY: options.borderScaleY,
-      noiseAmount: options.noiseAmount || 12,
-      borderPoints: options.borderPoints || 24,
-      cornerRadius: options.cornerRadius || 15,
-      borderWidth: options.borderWidth ?? 1,
+      noiseAmount: options.noiseAmount ?? DEFAULT_NOISE_AMOUNT,
+      borderPoints: options.borderPoints ?? DEFAULT_BORDER_POINTS,
+      cornerRadius: options.cornerRadius ?? DEFAULT_CORNER_RADIUS,
+      borderWidth: options.borderWidth ?? DEFAULT_BORDER_WIDTH,
+      noiseAmountPx: options.noiseAmountPx,
+      borderPointsPx: options.borderPointsPx,
+      cornerRadiusPx: options.cornerRadiusPx,
+      borderWidthPx: options.borderWidthPx,
       regularShape: options.regularShape ?? false,
       seed: options.seed || Date.now()
     };
@@ -1157,7 +1304,7 @@ export function stamp(options: StampOptions): Stamp {
  * Measure actual text dimensions in browser environment
  * This function creates a temporary SVG to measure the actual rendered text size
  */
-export function measureStampText(options: StampOptions): { width: number; height: number; columnWidths: number[]; columnHeights: number[] } | null {
+export function measureStampText(options: StampOptions): { width: number; height: number; columnWidths: number[]; columnHeights: number[]; columnBoxes: MeasuredColumnBox[] } | null {
   // Only works in browser environment
   if (typeof document === 'undefined') {
     console.warn('measureStampText only works in browser environment');
@@ -1170,7 +1317,11 @@ export function measureStampText(options: StampOptions): { width: number; height
     fontSize = 70,
     fontWeight = 'normal',
     characterSpacing = 0.05,
+    characterSpacingPx,
   } = options;
+  const actualCharacterSpacing = characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
+  const measureOriginX = 500;
+  const measureOriginY = 500;
 
   // Create temporary SVG
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -1182,20 +1333,23 @@ export function measureStampText(options: StampOptions): { width: number; height
 
   const columnWidths: number[] = [];
   const columnHeights: number[] = [];
+  const columnBoxes: MeasuredColumnBox[] = [];
   let maxWidth = 0;
   let maxHeight = 0;
 
   // Measure each column
   text.forEach((line) => {
     const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    textElement.setAttribute('x', '500');
-    textElement.setAttribute('y', '500');
+    textElement.setAttribute('x', String(measureOriginX));
+    textElement.setAttribute('y', String(measureOriginY));
     textElement.style.writingMode = 'vertical-rl';
     textElement.style.textOrientation = 'upright';
     textElement.style.fontFamily = fontFamily;
     textElement.style.fontSize = `${fontSize}px`;
     textElement.style.fontWeight = String(fontWeight);
-    textElement.style.letterSpacing = `${characterSpacing}em`;
+    textElement.style.letterSpacing = `${actualCharacterSpacing}em`;
+    textElement.style.dominantBaseline = 'text-before-edge';
+    textElement.style.textAnchor = 'start';
     textElement.textContent = line;
 
     svg.appendChild(textElement);
@@ -1204,6 +1358,12 @@ export function measureStampText(options: StampOptions): { width: number; height
     const bbox = textElement.getBBox();
     columnWidths.push(bbox.width);
     columnHeights.push(bbox.height);
+    columnBoxes.push({
+      x: bbox.x - measureOriginX,
+      y: bbox.y - measureOriginY,
+      width: bbox.width,
+      height: bbox.height,
+    });
     maxWidth = Math.max(maxWidth, bbox.width);
     maxHeight = Math.max(maxHeight, bbox.height);
 
@@ -1218,5 +1378,6 @@ export function measureStampText(options: StampOptions): { width: number; height
     height: maxHeight,
     columnWidths,
     columnHeights,
+    columnBoxes,
   };
 }

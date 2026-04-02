@@ -1,10 +1,105 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { generateStamp, type StampType, type StampShape } from '@shuimo/core'
+import { computed, onMounted, ref, watch } from 'vue'
+import { generateStamp, measureStampText, type StampOptions, type StampType, type StampShape } from '@shuimo/core'
 
 // Text configuration
 const textLines = ref(['水墨', '江南'])
 const initialText = '水墨\n江南'
+const fontsReady = ref(false)
+
+interface StampTuningProfile {
+  offsetX: number
+  offsetY: number
+  columnSpacing: number
+  characterSpacing: number
+  paddingX: number
+  paddingY: number
+  borderScaleX: number
+  borderScaleY: number
+  noiseAmountPx: number
+  borderPointsPx: number
+  cornerRadiusPx: number
+  borderWidthPx: number
+  regularShape: boolean
+}
+
+const shapeProfiles: Record<Exclude<StampShape, 'auto'> | 'auto', StampTuningProfile> = {
+  auto: {
+    offsetX: 0,
+    offsetY: 0,
+    columnSpacing: 0.012,
+    characterSpacing: 0.05,
+    paddingX: 0.025,
+    paddingY: 0.04,
+    borderScaleX: 1.0,
+    borderScaleY: 1.015,
+    noiseAmountPx: 11,
+    borderPointsPx: 28,
+    cornerRadiusPx: 10,
+    borderWidthPx: 6,
+    regularShape: false,
+  },
+  square: {
+    offsetX: 0,
+    offsetY: 0,
+    columnSpacing: 0.012,
+    characterSpacing: 0.05,
+    paddingX: 0.02,
+    paddingY: 0.03,
+    borderScaleX: 1.00,
+    borderScaleY: 1.00,
+    noiseAmountPx: 8,
+    borderPointsPx: 24,
+    cornerRadiusPx: 10,
+    borderWidthPx: 4,
+    regularShape: false,
+  },
+  rectangle: {
+    offsetX: 0,
+    offsetY: 0,
+    columnSpacing: 0.012,
+    characterSpacing: 0.05,
+    paddingX: 0.02,
+    paddingY: 0.03,
+    borderScaleX: 1.00,
+    borderScaleY: 1.00,
+    noiseAmountPx: 9,
+    borderPointsPx: 24,
+    cornerRadiusPx: 10,
+    borderWidthPx: 4,
+    regularShape: false,
+  },
+  circle: {
+    offsetX: 0,
+    offsetY: 0,
+    columnSpacing: 0.05,
+    characterSpacing: 0.04,
+    paddingX: 0.08,
+    paddingY: 0.08,
+    borderScaleX: 1.00,
+    borderScaleY: 1.00,
+    noiseAmountPx: 9,
+    borderPointsPx: 32,
+    cornerRadiusPx: 10,
+    borderWidthPx: 4,
+    regularShape: false,
+  },
+  ellipse: {
+    offsetX: 0,
+    offsetY: 0,
+    columnSpacing: 0.012,
+    characterSpacing: 0.05,
+    paddingX: 0.03,
+    paddingY: 0.05,
+    borderScaleX: 1.0,
+    borderScaleY: 1.02,
+    noiseAmountPx: 10,
+    borderPointsPx: 32,
+    cornerRadiusPx: 10,
+    borderWidthPx: 4,
+    regularShape: false,
+  },
+}
 
 // Stamp parameters
 const stampType = ref<StampType>('yang')
@@ -13,24 +108,74 @@ const color = ref('#C8102E')
 const fontFamily = ref('峄山碑篆体')
 const fontSize = ref(100)
 const fontWeight = ref<string | number>('normal')
-const offsetX = ref(-1.10)
-const offsetY = ref(-0.70)
-const columnSpacing = ref(0.26)
-const characterSpacing = ref(0.04)
-const paddingX = ref(0.04)
-const paddingY = ref(-0.07)
-const borderScaleX = ref(1.24)
-const borderScaleY = ref(1.04)
-const noiseAmount = ref(6)
-const borderPoints = ref(24)
-const cornerRadius = ref(9)
+const offsetX = ref(0)
+const offsetY = ref(0)
+const columnSpacing = ref(0.012)
+const characterSpacing = ref(0.05)
+const paddingX = ref(0.025)
+const paddingY = ref(0.04)
+const borderScaleX = ref(1.0)
+const borderScaleY = ref(1.015)
+const noiseAmount = ref(10)
+const borderPoints = ref(28)
+const cornerRadius = ref(10)
 const borderWidth = ref(6)
 const regularShape = ref(false)
 const seed = ref(12345)
 
+onMounted(async () => {
+  await document.fonts.ready
+  await waitForFont(fontFamily.value, fontSize.value)
+  fontsReady.value = true
+})
+
 // Text input
 const textInput = ref(initialText)
 const userModifiedText = ref(false)
+const userModifiedTuning = ref(false)
+const applyingTuningProfile = ref(false)
+
+async function waitForFont(fontFamily: string, fontSize: number) {
+  if (typeof document === 'undefined' || !document.fonts)
+    return
+
+  const fontSpec = `${fontSize}px ${fontFamily}`
+
+  for (let attempt = 0; attempt < 20; attempt++) {
+    if (document.fonts.check(fontSpec))
+      return
+
+    try {
+      await document.fonts.load(fontSpec)
+    }
+    catch {
+      // 忽略瞬时失败，继续等待字体注册完成。
+    }
+
+    if (document.fonts.check(fontSpec))
+      return
+
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+}
+
+function applyTuningProfile(profile: StampTuningProfile) {
+  applyingTuningProfile.value = true
+  offsetX.value = profile.offsetX
+  offsetY.value = profile.offsetY
+  columnSpacing.value = profile.columnSpacing
+  characterSpacing.value = profile.characterSpacing
+  paddingX.value = profile.paddingX
+  paddingY.value = profile.paddingY
+  borderScaleX.value = profile.borderScaleX
+  borderScaleY.value = profile.borderScaleY
+  noiseAmount.value = profile.noiseAmountPx
+  borderPoints.value = profile.borderPointsPx
+  cornerRadius.value = profile.cornerRadiusPx
+  borderWidth.value = profile.borderWidthPx
+  regularShape.value = profile.regularShape
+  applyingTuningProfile.value = false
+}
 
 // Sync text lines with input and track user modifications
 watch(textInput, (newValue, oldValue) => {
@@ -42,9 +187,36 @@ watch(textInput, (newValue, oldValue) => {
   }
 })
 
-// Generate stamp SVG
-const stampSvg = computed(() => {
-  return generateStamp({
+watch(
+  [
+    offsetX,
+    offsetY,
+    columnSpacing,
+    characterSpacing,
+    paddingX,
+    paddingY,
+    borderScaleX,
+    borderScaleY,
+    noiseAmount,
+    borderPoints,
+    cornerRadius,
+    borderWidth,
+    regularShape,
+  ],
+  () => {
+    if (applyingTuningProfile.value)
+      return
+    userModifiedTuning.value = true
+  },
+)
+
+watch(stampShape, (shape) => {
+  if (!userModifiedTuning.value) {
+    applyTuningProfile(shapeProfiles[shape])
+  }
+})
+
+const stampOptions = computed<StampOptions>(() => ({
     text: textLines.value,
     type: stampType.value,
     shape: stampShape.value,
@@ -60,12 +232,29 @@ const stampSvg = computed(() => {
     paddingY: paddingY.value,
     borderScaleX: borderScaleX.value,
     borderScaleY: borderScaleY.value,
-    noiseAmount: noiseAmount.value,
-    borderPoints: borderPoints.value,
-    cornerRadius: cornerRadius.value,
-    borderWidth: borderWidth.value,
+    noiseAmountPx: noiseAmount.value,
+    borderPointsPx: borderPoints.value,
+    cornerRadiusPx: cornerRadius.value,
+    borderWidthPx: borderWidth.value,
     regularShape: regularShape.value,
     seed: seed.value,
+  }))
+
+const measuredText = computed(() => {
+  if (!fontsReady.value)
+    return null
+
+  return measureStampText(stampOptions.value)
+})
+
+// Generate stamp SVG
+const stampSvg = computed(() => {
+  const measured = measuredText.value
+  return generateStamp({
+    ...stampOptions.value,
+    measuredColumnWidths: measured?.columnWidths,
+    measuredColumnHeights: measured?.columnHeights,
+    measuredColumnBoxes: measured?.columnBoxes,
   })
 })
 
@@ -77,25 +266,14 @@ function resetDefaults() {
   textInput.value = initialText
   textLines.value = ['水墨', '江南']
   userModifiedText.value = false
+  userModifiedTuning.value = false
   stampType.value = 'yang'
   stampShape.value = 'auto'
   color.value = '#C8102E'
   fontFamily.value = '峄山碑篆体'
   fontSize.value = 100
   fontWeight.value = 'normal'
-  offsetX.value = -1.10
-  offsetY.value = -0.70
-  columnSpacing.value = 0.26
-  characterSpacing.value = 0.04
-  paddingX.value = 0.04
-  paddingY.value = -0.07
-  borderScaleX.value = 1.24
-  borderScaleY.value = 1.04
-  noiseAmount.value = 6
-  borderPoints.value = 24
-  cornerRadius.value = 9
-  borderWidth.value = 6
-  regularShape.value = false
+  applyTuningProfile(shapeProfiles.auto)
   seed.value = 12345
 }
 
@@ -118,6 +296,19 @@ const presets = [
       type: 'yin' as StampType,
       shape: 'auto' as StampShape,
       fontSize: 70,
+      offsetX: 0,
+      offsetY: 0,
+      columnSpacing: 0.03,
+      characterSpacing: 0.05,
+      paddingX: 0.08,
+      paddingY: 0.1,
+      borderScaleX: 1.04,
+      borderScaleY: 1.08,
+      noiseAmountPx: 11,
+      borderPointsPx: 28,
+      cornerRadiusPx: 10,
+      borderWidthPx: 4,
+      regularShape: false,
       seed: 12345,
     },
   },
@@ -128,7 +319,31 @@ const presets = [
       type: 'yang' as StampType,
       shape: 'square' as StampShape,
       fontSize: 70,
+      offsetX: 0,
+      offsetY: 0,
+      columnSpacing: 0.03,
+      characterSpacing: 0.05,
+      paddingX: 0.1,
+      paddingY: 0.1,
+      borderScaleX: 1,
+      borderScaleY: 1,
+      noiseAmountPx: 8,
+      borderPointsPx: 24,
+      cornerRadiusPx: 10,
+      borderWidthPx: 4,
+      regularShape: false,
       seed: 11112,
+    },
+  },
+  {
+    name: '阴章 - 长方形',
+    config: {
+      text: '明月\n别枝\n惊鹊',
+      type: 'yin' as StampType,
+      shape: 'rectangle' as StampShape,
+      fontSize: 70,
+      ...shapeProfiles.rectangle,
+      seed: 22221,
     },
   },
   {
@@ -138,7 +353,19 @@ const presets = [
       type: 'yin' as StampType,
       shape: 'circle' as StampShape,
       fontSize: 70,
-      borderPoints: 32,
+      offsetX: 0,
+      offsetY: 0,
+      columnSpacing: 0.05,
+      characterSpacing: 0.04,
+      paddingX: 0.18,
+      paddingY: 0.18,
+      borderScaleX: 1.02,
+      borderScaleY: 1.02,
+      noiseAmountPx: 9,
+      borderPointsPx: 32,
+      cornerRadiusPx: 10,
+      borderWidthPx: 4,
+      regularShape: false,
       seed: 33333,
     },
   },
@@ -149,7 +376,19 @@ const presets = [
       type: 'yang' as StampType,
       shape: 'ellipse' as StampShape,
       fontSize: 70,
-      borderPoints: 32,
+      offsetX: 0,
+      offsetY: 0,
+      columnSpacing: 0.03,
+      characterSpacing: 0.05,
+      paddingX: 0.1,
+      paddingY: 0.12,
+      borderScaleX: 1.03,
+      borderScaleY: 1.05,
+      noiseAmountPx: 10,
+      borderPointsPx: 32,
+      cornerRadiusPx: 10,
+      borderWidthPx: 4,
+      regularShape: false,
       seed: 44444,
     },
   },
@@ -158,15 +397,31 @@ const presets = [
 function applyPreset(preset: typeof presets[0]) {
   // Only update text if user hasn't modified it
   if (!userModifiedText.value) {
-    textInput.value = preset.config.text.replace(/\\n/g, '\n')
-    textLines.value = preset.config.text.split('\\n')
+    textInput.value = preset.config.text
+    textLines.value = preset.config.text.split('\n').filter(line => line.trim())
   }
 
   stampType.value = preset.config.type
   stampShape.value = preset.config.shape
   fontSize.value = preset.config.fontSize
-  borderPoints.value = preset.config.borderPoints || 24
+  userModifiedTuning.value = false
+  applyTuningProfile({
+    offsetX: preset.config.offsetX,
+    offsetY: preset.config.offsetY,
+    columnSpacing: preset.config.columnSpacing,
+    characterSpacing: preset.config.characterSpacing,
+    paddingX: preset.config.paddingX,
+    paddingY: preset.config.paddingY,
+    borderScaleX: preset.config.borderScaleX,
+    borderScaleY: preset.config.borderScaleY,
+    noiseAmountPx: preset.config.noiseAmountPx,
+    borderPointsPx: preset.config.borderPointsPx,
+    cornerRadiusPx: preset.config.cornerRadiusPx,
+    borderWidthPx: preset.config.borderWidthPx,
+    regularShape: preset.config.regularShape,
+  })
   seed.value = preset.config.seed
+  userModifiedTuning.value = false
 }
 </script>
 
@@ -296,13 +551,13 @@ function applyPreset(preset: typeof presets[0]) {
           <div class="control-row">
             <label>
               <span class="label-text">水平偏移: {{ offsetX.toFixed(2) }} ({{ offsetX === -1 ? '左' : offsetX === 0 ? '中' : offsetX === 1 ? '右' : offsetX < 0 ? '偏左' : '偏右' }})</span>
-              <input v-model.number="offsetX" type="range" min="-20" max="20" step="0.1" class="range-input">
+              <input v-model.number="offsetX" type="range" min="-1" max="1" step="0.05" class="range-input">
             </label>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">垂直偏移: {{ offsetY.toFixed(2) }} ({{ offsetY === -1 ? '上' : offsetY === 0 ? '中' : offsetY === 1 ? '下' : offsetY < 0 ? '偏上' : '偏下' }})</span>
-              <input v-model.number="offsetY" type="range" min="-20" max="20" step="0.1" class="range-input">
+              <input v-model.number="offsetY" type="range" min="-1" max="1" step="0.05" class="range-input">
             </label>
           </div>
           <div class="control-row">
@@ -329,7 +584,7 @@ function applyPreset(preset: typeof presets[0]) {
           <div class="control-row">
             <label>
               <span class="label-text">垂直留白: {{ paddingY.toFixed(2) }}</span>
-              <input v-model.number="paddingY" type="range" min="-0.1" max="0.5" step="0.01" class="range-input">
+              <input v-model.number="paddingY" type="range" min="0" max="0.5" step="0.01" class="range-input">
             </label>
             <p class="hint">控制文字上下两侧的留白</p>
           </div>
@@ -421,8 +676,6 @@ function applyPreset(preset: typeof presets[0]) {
 </template>
 
 <style scoped>
-@import url("https://fontsapi.zeoseven.com/236/main/result.css");
-
 .stamp-playground {
   display: flex;
   height: 100%;

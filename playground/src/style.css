@@ -1,3 +1,11 @@
+@font-face {
+  font-family: '峄山碑篆体';
+  src: url('/fonts/yishanbeizhuanti.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
 * {
   margin: 0;
   padding: 0;

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { generateStamp, measureStampText } from '@shuimo/core'
+import { generateStamp, measureStampText, type StampOptions } from '@shuimo/core'
 import { onMounted, ref } from 'vue'
 
 const yinStampSvg = ref('')
@@ -17,9 +17,44 @@ const circleYangStampSvg = ref('')
 const ellipseYinStampSvg = ref('')
 const ellipseYangStampSvg = ref('')
 
+async function waitForFont(fontFamily: string, fontSize: number) {
+  if (typeof document === 'undefined' || !document.fonts)
+    return
+
+  const fontSpec = `${fontSize}px ${fontFamily}`
+
+  for (let attempt = 0; attempt < 20; attempt++) {
+    if (document.fonts.check(fontSpec))
+      return
+
+    try {
+      await document.fonts.load(fontSpec)
+    }
+    catch {
+      // 忽略单次加载失败，继续轮询等待字体注册完成。
+    }
+
+    if (document.fonts.check(fontSpec))
+      return
+
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+}
+
+function buildStampSvg(options: StampOptions): string {
+  const measured = measureStampText(options)
+  return generateStamp({
+    ...options,
+    measuredColumnWidths: measured?.columnWidths,
+    measuredColumnHeights: measured?.columnHeights,
+    measuredColumnBoxes: measured?.columnBoxes,
+  })
+}
+
 onMounted(async () => {
-  // 等待所有字体加载完成，确保测量准确
+  // 显式等待目标字体可用，否则刷新时会先用回退字体测量，导致边框和居中全部漂移。
   await document.fonts.ready
+  await waitForFont('峄山碑篆体', 70)
 
   // 阴章 - 红底白字 (默认自动形状)
   const yinOptions = {
@@ -28,23 +63,19 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 1.4,
+    columnSpacingPx: 0.6,
     characterSpacingPx: 3.5,
-    paddingXPx: 10,
-    paddingYPx: 10,
-    borderScale: 1.0,
+    paddingXPx: 2,
+    paddingYPx: 3,
+    borderScaleX: 1.0,
+    borderScaleY: 1.015,
     offsetX: 0,
     offsetY: 0,
-    noiseAmount: 10,
-    borderPoints: 24,
+    noiseAmountPx: 11,
+    borderPointsPx: 28,
     seed: 12345,
   }
-  const yinMeasure = measureStampText(yinOptions)
-  yinStampSvg.value = generateStamp({
-    ...yinOptions,
-    measuredColumnWidths: yinMeasure?.columnWidths,
-    measuredColumnHeights: yinMeasure?.columnHeights,
-  })
+  yinStampSvg.value = buildStampSvg(yinOptions)
 
   // 阳章 - 白底红字红边框 (默认自动形状)
   const yangOptions = {
@@ -53,24 +84,20 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 1.4,
+    columnSpacingPx: 0.6,
     characterSpacingPx: 3.5,
-    paddingXPx: 10,
-    paddingYPx: 10,
-    borderScale: 1.0,
-    borderWidth: 4,
+    paddingXPx: 2,
+    paddingYPx: 3,
+    borderScaleX: 1.0,
+    borderScaleY: 1.015,
+    borderWidthPx: 4,
     offsetX: 0,
     offsetY: 0,
-    noiseAmount: 10,
-    borderPoints: 24,
+    noiseAmountPx: 11,
+    borderPointsPx: 28,
     seed: 54321,
   }
-  const yangMeasure = measureStampText(yangOptions)
-  yangStampSvg.value = generateStamp({
-    ...yangOptions,
-    measuredColumnWidths: yangMeasure?.columnWidths,
-    measuredColumnHeights: yangMeasure?.columnHeights,
-  })
+  yangStampSvg.value = buildStampSvg(yangOptions)
 
   // 正方形印章 - 阴章
   const squareYinOptions = {
@@ -80,23 +107,18 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 1.4,
+    columnSpacingPx: 0.6,
     characterSpacingPx: 3.5,
-    paddingXPx: 10,
-    paddingYPx: 10,
+    paddingXPx: 2,
+    paddingYPx: 2,
     borderScale: 1.0,
     offsetX: 0,
     offsetY: 0,
-    noiseAmount: 8,
-    borderPoints: 24,
+    noiseAmountPx: 8,
+    borderPointsPx: 24,
     seed: 11111,
   }
-  const squareYinMeasure = measureStampText(squareYinOptions)
-  squareYinStampSvg.value = generateStamp({
-    ...squareYinOptions,
-    measuredColumnWidths: squareYinMeasure?.columnWidths,
-    measuredColumnHeights: squareYinMeasure?.columnHeights,
-  })
+  squareYinStampSvg.value = buildStampSvg(squareYinOptions)
 
   // 正方形印章 - 阳章
   const squareYangOptions = {
@@ -106,24 +128,19 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 1.4,
+    columnSpacingPx: 0.6,
     characterSpacingPx: 3.5,
-    paddingXPx: 10,
-    paddingYPx: 10,
+    paddingXPx: 2,
+    paddingYPx: 2,
     borderScale: 1.0,
-    borderWidth: 4,
+    borderWidthPx: 4,
     offsetX: 0,
     offsetY: 0,
-    noiseAmount: 8,
-    borderPoints: 24,
+    noiseAmountPx: 8,
+    borderPointsPx: 24,
     seed: 11112,
   }
-  const squareYangMeasure = measureStampText(squareYangOptions)
-  squareYangStampSvg.value = generateStamp({
-    ...squareYangOptions,
-    measuredColumnWidths: squareYangMeasure?.columnWidths,
-    measuredColumnHeights: squareYangMeasure?.columnHeights,
-  })
+  squareYangStampSvg.value = buildStampSvg(squareYangOptions)
 
   // 长方形印章 - 阴章
   const rectangleYinOptions = {
@@ -133,23 +150,18 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 1.4,
+    columnSpacingPx: 0.6,
     characterSpacingPx: 3.5,
-    paddingXPx: 10,
-    paddingYPx: 10,
+    paddingXPx: 2,
+    paddingYPx: 2,
     borderScale: 1.0,
     offsetX: 0,
     offsetY: 0,
-    noiseAmount: 10,
-    borderPoints: 24,
+    noiseAmountPx: 10,
+    borderPointsPx: 24,
     seed: 22221,
   }
-  const rectangleYinMeasure = measureStampText(rectangleYinOptions)
-  rectangleYinStampSvg.value = generateStamp({
-    ...rectangleYinOptions,
-    measuredColumnWidths: rectangleYinMeasure?.columnWidths,
-    measuredColumnHeights: rectangleYinMeasure?.columnHeights,
-  })
+  rectangleYinStampSvg.value = buildStampSvg(rectangleYinOptions)
 
   // 长方形印章 - 阳章
   const rectangleYangOptions = {
@@ -159,24 +171,19 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 1.4,
+    columnSpacingPx: 0.6,
     characterSpacingPx: 3.5,
-    paddingXPx: 10,
-    paddingYPx: 10,
+    paddingXPx: 2,
+    paddingYPx: 2,
     borderScale: 1.0,
-    borderWidth: 4,
+    borderWidthPx: 4,
     offsetX: 0,
     offsetY: 0,
-    noiseAmount: 10,
-    borderPoints: 24,
+    noiseAmountPx: 10,
+    borderPointsPx: 24,
     seed: 22222,
   }
-  const rectangleYangMeasure = measureStampText(rectangleYangOptions)
-  rectangleYangStampSvg.value = generateStamp({
-    ...rectangleYangOptions,
-    measuredColumnWidths: rectangleYangMeasure?.columnWidths,
-    measuredColumnHeights: rectangleYangMeasure?.columnHeights,
-  })
+  rectangleYangStampSvg.value = buildStampSvg(rectangleYangOptions)
 
   // 圆形印章 - 阴章
   const circleYinOptions = {
@@ -186,21 +193,17 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    paddingXPx: 15,
-    paddingYPx: 15,
-    borderScale: 1.0,
+    paddingXPx: 6,
+    paddingYPx: 6,
+    borderScaleX: 1.0,
+    borderScaleY: 1.0,
     offsetX: 0,
     offsetY: 0,
-    noiseAmount: 10,
-    borderPoints: 32,
+    noiseAmountPx: 10,
+    borderPointsPx: 32,
     seed: 33333,
   }
-  const circleYinMeasure = measureStampText(circleYinOptions)
-  circleYinStampSvg.value = generateStamp({
-    ...circleYinOptions,
-    measuredColumnWidths: circleYinMeasure?.columnWidths,
-    measuredColumnHeights: circleYinMeasure?.columnHeights,
-  })
+  circleYinStampSvg.value = buildStampSvg(circleYinOptions)
 
   // 圆形印章 - 阳章
   const circleYangOptions = {
@@ -210,22 +213,18 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    paddingXPx: 15,
-    paddingYPx: 15,
-    borderScale: 1.0,
-    borderWidth: 4,
+    paddingXPx: 6,
+    paddingYPx: 6,
+    borderScaleX: 1.0,
+    borderScaleY: 1.0,
+    borderWidthPx: 4,
     offsetX: 0,
     offsetY: 0,
-    noiseAmount: 10,
-    borderPoints: 32,
+    noiseAmountPx: 10,
+    borderPointsPx: 32,
     seed: 33334,
   }
-  const circleYangMeasure = measureStampText(circleYangOptions)
-  circleYangStampSvg.value = generateStamp({
-    ...circleYangOptions,
-    measuredColumnWidths: circleYangMeasure?.columnWidths,
-    measuredColumnHeights: circleYangMeasure?.columnHeights,
-  })
+  circleYangStampSvg.value = buildStampSvg(circleYangOptions)
 
   // 椭圆形印章 - 阴章
   const ellipseYinOptions = {
@@ -235,23 +234,19 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 1.4,
+    columnSpacingPx: 0.6,
     characterSpacingPx: 3.5,
-    paddingXPx: 10,
-    paddingYPx: 10,
-    borderScale: 1.0,
+    paddingXPx: 3,
+    paddingYPx: 4,
+    borderScaleX: 1.0,
+    borderScaleY: 1.02,
     offsetX: 0,
     offsetY: 0,
-    noiseAmount: 10,
-    borderPoints: 32,
+    noiseAmountPx: 10,
+    borderPointsPx: 32,
     seed: 44443,
   }
-  const ellipseYinMeasure = measureStampText(ellipseYinOptions)
-  ellipseYinStampSvg.value = generateStamp({
-    ...ellipseYinOptions,
-    measuredColumnWidths: ellipseYinMeasure?.columnWidths,
-    measuredColumnHeights: ellipseYinMeasure?.columnHeights,
-  })
+  ellipseYinStampSvg.value = buildStampSvg(ellipseYinOptions)
 
   // 椭圆形印章 - 阳章
   const ellipseYangOptions = {
@@ -261,72 +256,25 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 1.4,
+    columnSpacingPx: 0.6,
     characterSpacingPx: 3.5,
-    paddingXPx: 10,
-    paddingYPx: 10,
-    borderScale: 1.0,
-    borderWidth: 4,
+    paddingXPx: 3,
+    paddingYPx: 4,
+    borderScaleX: 1.0,
+    borderScaleY: 1.02,
+    borderWidthPx: 4,
     offsetX: 0,
     offsetY: 0,
-    noiseAmount: 10,
-    borderPoints: 32,
+    noiseAmountPx: 10,
+    borderPointsPx: 32,
     seed: 1,
   }
-  const ellipseYangMeasure = measureStampText(ellipseYangOptions)
-  ellipseYangStampSvg.value = generateStamp({
-    ...ellipseYangOptions,
-    measuredColumnWidths: ellipseYangMeasure?.columnWidths,
-    measuredColumnHeights: ellipseYangMeasure?.columnHeights,
-  })
+  ellipseYangStampSvg.value = buildStampSvg(ellipseYangOptions)
 })
 </script>
 
 <template>
   <div style="padding: 5em;">
-    <!-- <svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <filter id="ink-bleed">
-          <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
-
-          <feDisplacementMap in="SourceGraphic" in2="noise" scale="25" xChannelSelector="R" yChannelSelector="G" />
-        </filter>
-      </defs>
-
-      <rect x="100" y="50" width="200" height="200" fill="#333" fill-opacity="0.8" filter="url(#ink-bleed)" />
-    </svg>
-
-    <svg width="450" height="450" viewBox="0 0 450 450" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <filter id="perlin-ink-bleed">
-          <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="4" seed="1337" result="perlinNoise" />
-
-          <feDisplacementMap
-            in="SourceGraphic"
-            in2="perlinNoise"
-            scale="25"
-            xChannelSelector="R"
-            yChannelSelector="G"
-            result="displaced"
-          />
-
-          <feGaussianBlur in="displaced" stdDeviation="1.8" result="blurredInk" />
-
-          <feColorMatrix
-            in="blurredInk"
-            type="matrix"
-            values="1 0 0 0 0
-                0 1 0 0 0
-                0 0 1 0 0
-                0 0 0 1.5 -0.5"
-            result="finalInk"
-          />
-        </filter>
-      </defs>
-
-      <circle cx="225" cy="225" r="120" fill="#1A1A1A" fill-opacity="0.9" filter="url(#perlin-ink-bleed)" />
-    </svg> -->
-
     <!-- 印章演示区域 -->
     <div style="margin-top: 3em;">
       <h2 style="font-family: '楷体', serif; color: #333; margin-bottom: 1em;">
@@ -335,6 +283,7 @@ onMounted(async () => {
       <p style="color: #666; margin-bottom: 2em; max-width: 800px; font-size: 0.95em;">
         所有印章均使用 <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">measureStampText()</code>
         测量实际渲染的文字尺寸，确保文字在印章内准确居中，不受字体渲染差异影响。
+        当前示例也同步校正了各形状的留白参数，避免出现边框过松或字距失真的视觉误差。
       </p>
 
       <!-- 所有印章展示 -->
@@ -454,8 +403,6 @@ onMounted(async () => {
 </template>
 
 <style scoped lang="css">
-@import url("https://fontsapi.zeoseven.com/236/main/result.css");
-
       .stamp-container {
         background: #f5f5f5;
         padding: 1.5em;
@@ -473,27 +420,4 @@ onMounted(async () => {
         height: auto;
         width: auto;
       }
-         /* 适用于每个独立的列 */
-          .vertical-col {
-            writing-mode: vertical-rl;
-            text-orientation: upright;
-            line-height: 1.1; /* 调整字间距 */
-            letter-spacing: 0.15em; /* 调整行间距 */
-            font-family: 'beishida', '楷体', serif;
-            font-size: 70px; /* 每个字的大小 */
-            fill: #1a1a1a;
-            filter: url(#perlin-ink-character-col);
-          }
-
-          /* 印章文字样式 */
-          .vertical-col-stamp {
-            writing-mode: vertical-rl;
-            text-orientation: upright;
-            line-height: 1.1;
-            letter-spacing: 0.15em;
-            font-family: 'beishida', '楷体', serif;
-            font-size: 70px;
-            fill: #ffffff; /* 白色文字 */
-            filter: url(#perlin-ink-subtle-flaw);
-          }
 </style>
