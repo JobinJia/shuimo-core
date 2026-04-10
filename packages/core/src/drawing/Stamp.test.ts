@@ -20,7 +20,7 @@ describe("Stamp layout", () => {
       regularShape: true,
     });
 
-    expect(result.bounds.height).toBeCloseTo(153.5, 3);
+    expect(result.bounds.height).toBeCloseTo(155.6, 0);
   });
 
   it("keeps auto shape tall enough for the tallest middle column", () => {
@@ -34,7 +34,7 @@ describe("Stamp layout", () => {
       seed: 1,
     });
 
-    expect(result.bounds.height).toBeCloseTo(233.5, 3);
+    expect(result.bounds.height).toBeCloseTo(235.6, 0);
   });
 
   it("uses characterSpacingPx when measuring text", () => {

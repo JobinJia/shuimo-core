@@ -2,7 +2,7 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   fmt: {
-    ignore: ["reference-code/**", "playground/public/reference-code/**"],
+    ignore: ["**/dist/**", "reference-code/**", "playground/public/reference-code/**"],
   },
   lint: {
     options: { typeAware: true, typeCheck: true },
