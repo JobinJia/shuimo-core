@@ -1,6 +1,8 @@
 <script lang="ts" setup>
-import { generateStamp, measureStampText, type StampOptions } from '@shuimo/core'
+import { generateStampAsync, type StampOptions } from '@shuimo/core'
 import { onMounted, ref } from 'vue'
+
+const SEAL_FONT_URL = '/fonts/yishanbeizhuanti.ttf'
 
 const yinStampSvg = ref('')
 const yangStampSvg = ref('')
@@ -41,16 +43,6 @@ async function waitForFont(fontFamily: string, fontSize: number) {
   }
 }
 
-function buildStampSvg(options: StampOptions): string {
-  const measured = measureStampText(options)
-  return generateStamp({
-    ...options,
-    measuredColumnWidths: measured?.columnWidths,
-    measuredColumnHeights: measured?.columnHeights,
-    measuredColumnBoxes: measured?.columnBoxes,
-  })
-}
-
 onMounted(async () => {
   // 显式等待目标字体可用，否则刷新时会先用回退字体测量，导致边框和居中全部漂移。
   await document.fonts.ready
@@ -63,10 +55,10 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 0.6,
-    characterSpacingPx: 3.5,
-    paddingXPx: 2,
-    paddingYPx: 3,
+    columnSpacingPx: 0.3,
+    characterSpacingPx: 3.2,
+    paddingXPx: 1.5,
+    paddingYPx: 2.5,
     borderScaleX: 1.0,
     borderScaleY: 1.015,
     offsetX: 0,
@@ -75,7 +67,7 @@ onMounted(async () => {
     borderPointsPx: 28,
     seed: 12345,
   }
-  yinStampSvg.value = buildStampSvg(yinOptions)
+  yinStampSvg.value = await generateStampAsync({ ...yinOptions, fontUrl: SEAL_FONT_URL })
 
   // 阳章 - 白底红字红边框 (默认自动形状)
   const yangOptions = {
@@ -84,10 +76,10 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 0.6,
-    characterSpacingPx: 3.5,
-    paddingXPx: 2,
-    paddingYPx: 3,
+    columnSpacingPx: 0.3,
+    characterSpacingPx: 3.2,
+    paddingXPx: 1.5,
+    paddingYPx: 2.5,
     borderScaleX: 1.0,
     borderScaleY: 1.015,
     borderWidthPx: 4,
@@ -97,7 +89,7 @@ onMounted(async () => {
     borderPointsPx: 28,
     seed: 54321,
   }
-  yangStampSvg.value = buildStampSvg(yangOptions)
+  yangStampSvg.value = await generateStampAsync({ ...yangOptions, fontUrl: SEAL_FONT_URL })
 
   // 正方形印章 - 阴章
   const squareYinOptions = {
@@ -107,10 +99,10 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 0.6,
-    characterSpacingPx: 3.5,
-    paddingXPx: 2,
-    paddingYPx: 2,
+    columnSpacingPx: 0.3,
+    characterSpacingPx: 3.2,
+    paddingXPx: 1.5,
+    paddingYPx: 1.5,
     borderScale: 1.0,
     offsetX: 0,
     offsetY: 0,
@@ -118,7 +110,7 @@ onMounted(async () => {
     borderPointsPx: 24,
     seed: 11111,
   }
-  squareYinStampSvg.value = buildStampSvg(squareYinOptions)
+  squareYinStampSvg.value = await generateStampAsync({ ...squareYinOptions, fontUrl: SEAL_FONT_URL })
 
   // 正方形印章 - 阳章
   const squareYangOptions = {
@@ -128,10 +120,10 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 0.6,
-    characterSpacingPx: 3.5,
-    paddingXPx: 2,
-    paddingYPx: 2,
+    columnSpacingPx: 0.3,
+    characterSpacingPx: 3.2,
+    paddingXPx: 1.5,
+    paddingYPx: 1.5,
     borderScale: 1.0,
     borderWidthPx: 4,
     offsetX: 0,
@@ -140,7 +132,7 @@ onMounted(async () => {
     borderPointsPx: 24,
     seed: 11112,
   }
-  squareYangStampSvg.value = buildStampSvg(squareYangOptions)
+  squareYangStampSvg.value = await generateStampAsync({ ...squareYangOptions, fontUrl: SEAL_FONT_URL })
 
   // 长方形印章 - 阴章
   const rectangleYinOptions = {
@@ -150,10 +142,10 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 0.6,
-    characterSpacingPx: 3.5,
-    paddingXPx: 2,
-    paddingYPx: 2,
+    columnSpacingPx: 0.35,
+    characterSpacingPx: 3.2,
+    paddingXPx: 1.5,
+    paddingYPx: 1.5,
     borderScale: 1.0,
     offsetX: 0,
     offsetY: 0,
@@ -161,7 +153,7 @@ onMounted(async () => {
     borderPointsPx: 24,
     seed: 22221,
   }
-  rectangleYinStampSvg.value = buildStampSvg(rectangleYinOptions)
+  rectangleYinStampSvg.value = await generateStampAsync({ ...rectangleYinOptions, fontUrl: SEAL_FONT_URL })
 
   // 长方形印章 - 阳章
   const rectangleYangOptions = {
@@ -171,10 +163,10 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 0.6,
-    characterSpacingPx: 3.5,
-    paddingXPx: 2,
-    paddingYPx: 2,
+    columnSpacingPx: 0.35,
+    characterSpacingPx: 3.2,
+    paddingXPx: 1.5,
+    paddingYPx: 1.5,
     borderScale: 1.0,
     borderWidthPx: 4,
     offsetX: 0,
@@ -183,7 +175,7 @@ onMounted(async () => {
     borderPointsPx: 24,
     seed: 22222,
   }
-  rectangleYangStampSvg.value = buildStampSvg(rectangleYangOptions)
+  rectangleYangStampSvg.value = await generateStampAsync({ ...rectangleYangOptions, fontUrl: SEAL_FONT_URL })
 
   // 圆形印章 - 阴章
   const circleYinOptions = {
@@ -193,8 +185,8 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    paddingXPx: 6,
-    paddingYPx: 6,
+    paddingXPx: 4.5,
+    paddingYPx: 4.5,
     borderScaleX: 1.0,
     borderScaleY: 1.0,
     offsetX: 0,
@@ -203,7 +195,7 @@ onMounted(async () => {
     borderPointsPx: 32,
     seed: 33333,
   }
-  circleYinStampSvg.value = buildStampSvg(circleYinOptions)
+  circleYinStampSvg.value = await generateStampAsync({ ...circleYinOptions, fontUrl: SEAL_FONT_URL })
 
   // 圆形印章 - 阳章
   const circleYangOptions = {
@@ -213,8 +205,8 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    paddingXPx: 6,
-    paddingYPx: 6,
+    paddingXPx: 4.5,
+    paddingYPx: 4.5,
     borderScaleX: 1.0,
     borderScaleY: 1.0,
     borderWidthPx: 4,
@@ -224,7 +216,7 @@ onMounted(async () => {
     borderPointsPx: 32,
     seed: 33334,
   }
-  circleYangStampSvg.value = buildStampSvg(circleYangOptions)
+  circleYangStampSvg.value = await generateStampAsync({ ...circleYangOptions, fontUrl: SEAL_FONT_URL })
 
   // 椭圆形印章 - 阴章
   const ellipseYinOptions = {
@@ -234,10 +226,10 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 0.6,
-    characterSpacingPx: 3.5,
-    paddingXPx: 3,
-    paddingYPx: 4,
+    columnSpacingPx: 0.35,
+    characterSpacingPx: 3.2,
+    paddingXPx: 2,
+    paddingYPx: 3,
     borderScaleX: 1.0,
     borderScaleY: 1.02,
     offsetX: 0,
@@ -246,7 +238,7 @@ onMounted(async () => {
     borderPointsPx: 32,
     seed: 44443,
   }
-  ellipseYinStampSvg.value = buildStampSvg(ellipseYinOptions)
+  ellipseYinStampSvg.value = await generateStampAsync({ ...ellipseYinOptions, fontUrl: SEAL_FONT_URL })
 
   // 椭圆形印章 - 阳章
   const ellipseYangOptions = {
@@ -256,10 +248,10 @@ onMounted(async () => {
     color: '#C8102E',
     fontFamily: '峄山碑篆体',
     fontSize: 70,
-    columnSpacingPx: 0.6,
-    characterSpacingPx: 3.5,
-    paddingXPx: 3,
-    paddingYPx: 4,
+    columnSpacingPx: 0.35,
+    characterSpacingPx: 3.2,
+    paddingXPx: 2,
+    paddingYPx: 3,
     borderScaleX: 1.0,
     borderScaleY: 1.02,
     borderWidthPx: 4,
@@ -269,7 +261,7 @@ onMounted(async () => {
     borderPointsPx: 32,
     seed: 1,
   }
-  ellipseYangStampSvg.value = buildStampSvg(ellipseYangOptions)
+  ellipseYangStampSvg.value = await generateStampAsync({ ...ellipseYangOptions, fontUrl: SEAL_FONT_URL })
 })
 </script>
 

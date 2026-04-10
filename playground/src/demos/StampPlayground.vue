@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { generateStamp, measureStampText, type StampOptions, type StampType, type StampShape } from '@shuimo/core'
+import { generateStampAsync, type StampOptions, type StampType, type StampShape, type StampTextCarving } from '@shuimo/core'
+
+const FONT_URLS: Record<string, string | undefined> = {
+  峄山碑篆体: '/fonts/yishanbeizhuanti.ttf',
+}
 
 // Text configuration
 const textLines = ref(['水墨', '江南'])
@@ -27,12 +31,12 @@ const shapeProfiles: Record<Exclude<StampShape, 'auto'> | 'auto', StampTuningPro
   auto: {
     offsetX: 0,
     offsetY: 0,
-    columnSpacing: 0.012,
-    characterSpacing: 0.05,
-    paddingX: 0.025,
-    paddingY: 0.04,
+    columnSpacing: 0.008,
+    characterSpacing: 0.045,
+    paddingX: 0.018,
+    paddingY: 0.03,
     borderScaleX: 1.0,
-    borderScaleY: 1.015,
+    borderScaleY: 1.01,
     noiseAmountPx: 11,
     borderPointsPx: 28,
     cornerRadiusPx: 10,
@@ -42,10 +46,10 @@ const shapeProfiles: Record<Exclude<StampShape, 'auto'> | 'auto', StampTuningPro
   square: {
     offsetX: 0,
     offsetY: 0,
-    columnSpacing: 0.012,
-    characterSpacing: 0.05,
-    paddingX: 0.02,
-    paddingY: 0.03,
+    columnSpacing: 0.008,
+    characterSpacing: 0.045,
+    paddingX: 0.015,
+    paddingY: 0.02,
     borderScaleX: 1.00,
     borderScaleY: 1.00,
     noiseAmountPx: 8,
@@ -57,10 +61,10 @@ const shapeProfiles: Record<Exclude<StampShape, 'auto'> | 'auto', StampTuningPro
   rectangle: {
     offsetX: 0,
     offsetY: 0,
-    columnSpacing: 0.012,
-    characterSpacing: 0.05,
-    paddingX: 0.02,
-    paddingY: 0.03,
+    columnSpacing: 0.01,
+    characterSpacing: 0.045,
+    paddingX: 0.015,
+    paddingY: 0.02,
     borderScaleX: 1.00,
     borderScaleY: 1.00,
     noiseAmountPx: 9,
@@ -74,8 +78,8 @@ const shapeProfiles: Record<Exclude<StampShape, 'auto'> | 'auto', StampTuningPro
     offsetY: 0,
     columnSpacing: 0.05,
     characterSpacing: 0.04,
-    paddingX: 0.08,
-    paddingY: 0.08,
+    paddingX: 0.06,
+    paddingY: 0.06,
     borderScaleX: 1.00,
     borderScaleY: 1.00,
     noiseAmountPx: 9,
@@ -87,12 +91,12 @@ const shapeProfiles: Record<Exclude<StampShape, 'auto'> | 'auto', StampTuningPro
   ellipse: {
     offsetX: 0,
     offsetY: 0,
-    columnSpacing: 0.012,
-    characterSpacing: 0.05,
-    paddingX: 0.03,
-    paddingY: 0.05,
+    columnSpacing: 0.01,
+    characterSpacing: 0.045,
+    paddingX: 0.02,
+    paddingY: 0.035,
     borderScaleX: 1.0,
-    borderScaleY: 1.02,
+    borderScaleY: 1.015,
     noiseAmountPx: 10,
     borderPointsPx: 32,
     cornerRadiusPx: 10,
@@ -108,6 +112,7 @@ const color = ref('#C8102E')
 const fontFamily = ref('峄山碑篆体')
 const fontSize = ref(100)
 const fontWeight = ref<string | number>('normal')
+const textCarving = ref<StampTextCarving>('normal')
 const offsetX = ref(0)
 const offsetY = ref(0)
 const columnSpacing = ref(0.012)
@@ -224,6 +229,7 @@ const stampOptions = computed<StampOptions>(() => ({
     fontFamily: fontFamily.value,
     fontSize: fontSize.value,
     fontWeight: fontWeight.value,
+    textCarving: textCarving.value,
     offsetX: offsetX.value,
     offsetY: offsetY.value,
     columnSpacing: columnSpacing.value,
@@ -240,23 +246,27 @@ const stampOptions = computed<StampOptions>(() => ({
     seed: seed.value,
   }))
 
-const measuredText = computed(() => {
-  if (!fontsReady.value)
-    return null
+const stampSvg = ref('')
+let renderToken = 0
 
-  return measureStampText(stampOptions.value)
-})
+watch(
+  [stampOptions, fontsReady],
+  async ([options, ready]) => {
+    if (!ready) {
+      stampSvg.value = ''
+      return
+    }
 
-// Generate stamp SVG
-const stampSvg = computed(() => {
-  const measured = measuredText.value
-  return generateStamp({
-    ...stampOptions.value,
-    measuredColumnWidths: measured?.columnWidths,
-    measuredColumnHeights: measured?.columnHeights,
-    measuredColumnBoxes: measured?.columnBoxes,
-  })
-})
+    const currentToken = ++renderToken
+    const svg = await generateStampAsync({
+      ...options,
+      fontUrl: FONT_URLS[options.fontFamily ?? ''],
+    })
+    if (currentToken === renderToken)
+      stampSvg.value = svg
+  },
+  { immediate: true },
+)
 
 function randomizeSeed() {
   seed.value = Math.floor(Math.random() * 100000)
@@ -273,6 +283,7 @@ function resetDefaults() {
   fontFamily.value = '峄山碑篆体'
   fontSize.value = 100
   fontWeight.value = 'normal'
+  textCarving.value = 'normal'
   applyTuningProfile(shapeProfiles.auto)
   seed.value = 12345
 }
@@ -296,19 +307,7 @@ const presets = [
       type: 'yin' as StampType,
       shape: 'auto' as StampShape,
       fontSize: 70,
-      offsetX: 0,
-      offsetY: 0,
-      columnSpacing: 0.03,
-      characterSpacing: 0.05,
-      paddingX: 0.08,
-      paddingY: 0.1,
-      borderScaleX: 1.04,
-      borderScaleY: 1.08,
-      noiseAmountPx: 11,
-      borderPointsPx: 28,
-      cornerRadiusPx: 10,
-      borderWidthPx: 4,
-      regularShape: false,
+      ...shapeProfiles.auto,
       seed: 12345,
     },
   },
@@ -319,19 +318,7 @@ const presets = [
       type: 'yang' as StampType,
       shape: 'square' as StampShape,
       fontSize: 70,
-      offsetX: 0,
-      offsetY: 0,
-      columnSpacing: 0.03,
-      characterSpacing: 0.05,
-      paddingX: 0.1,
-      paddingY: 0.1,
-      borderScaleX: 1,
-      borderScaleY: 1,
-      noiseAmountPx: 8,
-      borderPointsPx: 24,
-      cornerRadiusPx: 10,
-      borderWidthPx: 4,
-      regularShape: false,
+      ...shapeProfiles.square,
       seed: 11112,
     },
   },
@@ -353,19 +340,7 @@ const presets = [
       type: 'yin' as StampType,
       shape: 'circle' as StampShape,
       fontSize: 70,
-      offsetX: 0,
-      offsetY: 0,
-      columnSpacing: 0.05,
-      characterSpacing: 0.04,
-      paddingX: 0.18,
-      paddingY: 0.18,
-      borderScaleX: 1.02,
-      borderScaleY: 1.02,
-      noiseAmountPx: 9,
-      borderPointsPx: 32,
-      cornerRadiusPx: 10,
-      borderWidthPx: 4,
-      regularShape: false,
+      ...shapeProfiles.circle,
       seed: 33333,
     },
   },
@@ -376,19 +351,7 @@ const presets = [
       type: 'yang' as StampType,
       shape: 'ellipse' as StampShape,
       fontSize: 70,
-      offsetX: 0,
-      offsetY: 0,
-      columnSpacing: 0.03,
-      characterSpacing: 0.05,
-      paddingX: 0.1,
-      paddingY: 0.12,
-      borderScaleX: 1.03,
-      borderScaleY: 1.05,
-      noiseAmountPx: 10,
-      borderPointsPx: 32,
-      cornerRadiusPx: 10,
-      borderWidthPx: 4,
-      regularShape: false,
+      ...shapeProfiles.ellipse,
       seed: 44444,
     },
   },
@@ -518,6 +481,16 @@ function applyPreset(preset: typeof presets[0]) {
                 <option value="'Songti SC', 'Songti TC', STSong, SimSun, 宋体, serif">宋体</option>
                 <option value="'PingFang SC', 'Microsoft YaHei', 微软雅黑, sans-serif">黑体</option>
                 <option value="serif">Serif</option>
+              </select>
+            </label>
+          </div>
+          <div class="control-row">
+            <label>
+              <span class="label-text">刀刻强度</span>
+              <select v-model="textCarving" class="select-input">
+                <option value="normal">默认刀刻</option>
+                <option value="strong">强刀刻</option>
+                <option value="stone-cut">石刻刀刻</option>
               </select>
             </label>
           </div>
