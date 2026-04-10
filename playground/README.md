@@ -1,6 +1,6 @@
 # Shuimo Playground
 
-Interactive testing environment for `@shuimo/core` library.
+Interactive testing environment for `@jobinjia/shuimo-core` library.
 
 ## 功能特性
 
@@ -61,7 +61,7 @@ playground/
 ## 开发提示
 
 - 修改 `src/main.ts` 来添加新的示例
-- 所有 `@shuimo/core` 的功能都可以在这里测试
+- 所有 `@jobinjia/shuimo-core` 的功能都可以在这里测试
 - 打开浏览器控制台查看调试信息
 
 ## 构建生产版本

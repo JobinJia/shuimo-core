@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { generateStampAsync, type StampOptions } from "@shuimo/core";
+import { generateStampAsync, type StampOptions } from "@jobinjia/shuimo-core";
 import { onMounted, ref } from "vue";
 
 const SEAL_FONT_URL = "/fonts/yishanbeizhuanti.ttf";

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { XuanPaper, XuanPaperColors, GoldFleckColors, type XuanPaperOptions } from "@shuimo/core";
+import { XuanPaper, XuanPaperColors, GoldFleckColors, type XuanPaperOptions } from "@jobinjia/shuimo-core";
 import { onMounted, ref, watch } from "vue";
 
 const canvasContainer = ref<HTMLDivElement>();
@@ -351,7 +351,7 @@ onMounted(() => {
       </ul>
 
       <h3>使用方式 / Usage</h3>
-      <pre><code>import { XuanPaper, GoldFleckColors } from '@shuimo/core'
+      <pre><code>import { XuanPaper, GoldFleckColors } from '@jobinjia/shuimo-core'
 
 // 撒金宣
 const canvas = XuanPaper.generate({

@@ -64,7 +64,7 @@ importers:
 
   playground:
     dependencies:
-      '@shuimo/core':
+      '@jobinjia/shuimo-core':
         specifier: workspace:*
         version: link:../packages/core
       '@vitejs/plugin-vue':
@@ -2726,7 +2726,7 @@ snapshots:
       picomatch: 4.0.4
       std-env: 4.0.0
       tinybench: 2.9.0
-      tinyexec: 1.0.2
+      tinyexec: 1.1.1
       tinyglobby: 0.2.15
       tinyrainbow: 3.1.0
       vite: 8.0.3(@emnapi/core@1.7.1)(@emnapi/runtime@1.7.1)(@types/node@25.5.0)(jiti@2.6.1)(yaml@2.8.2)

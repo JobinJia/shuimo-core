@@ -120,7 +120,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
-import { Vector2, Experimental } from "@shuimo/core";
+import { Vector2, Experimental } from "@jobinjia/shuimo-core";
 
 // 使用实验性功能的类
 type StrokeTrajectoryEstimator = InstanceType<typeof Experimental.StrokeTrajectoryEstimator>;

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { Bamboo, Orchid, WinterPlum, Chrysanthemum, prng } from "@shuimo/core";
+import { Bamboo, Orchid, WinterPlum, Chrysanthemum, prng } from "@jobinjia/shuimo-core";
 
 // Element types
 type ElementType = "bamboo" | "orchid" | "winterPlum" | "chrysanthemum";

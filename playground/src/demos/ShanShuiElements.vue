@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { Mount, Tree, Water, Cloud, Arch, Man, prng } from "@shuimo/core";
+import { Mount, Tree, Water, Cloud, Arch, Man, prng } from "@jobinjia/shuimo-core";
 
 // Element types
 type ElementType =

@@ -1,8 +1,8 @@
 /**
- * Shanshui Generator - Uses @shuimo/core to generate traditional Chinese landscape
+ * Shanshui Generator - Uses @jobinjia/shuimo-core to generate traditional Chinese landscape
  */
 
-import { prng, SceneManager } from "@shuimo/core";
+import { prng, SceneManager } from "@jobinjia/shuimo-core";
 
 // Global scene manager instance
 let sceneManager: SceneManager | null = null;

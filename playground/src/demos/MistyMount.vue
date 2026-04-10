@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { Mount, prng } from "@shuimo/core";
+import { Mount, prng } from "@jobinjia/shuimo-core";
 
 const seedInput = ref(String(Date.now()));
 const canvasContainer = ref<HTMLDivElement | null>(null);

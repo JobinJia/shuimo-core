@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, onUnmounted, ref, reactive } from "vue";
-import { InkDiffusionEngine } from "@shuimo/core";
+import { InkDiffusionEngine } from "@jobinjia/shuimo-core";
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const isSupported = ref(true);

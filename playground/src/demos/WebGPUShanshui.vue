@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { onMounted, onUnmounted, ref, reactive } from "vue";
-import { ShuimoEngine, TreeType } from "@shuimo/core";
-import type { PathPoint } from "@shuimo/core";
+import { ShuimoEngine, TreeType } from "@jobinjia/shuimo-core";
+import type { PathPoint } from "@jobinjia/shuimo-core";
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const isSupported = ref(true);

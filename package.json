@@ -1,17 +1,17 @@
 {
   "name": "shuimo-core",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "private": true,
   "description": "A procedural Chinese landscape painting generation library",
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @shuimo/playground dev",
-    "build": "pnpm --filter @shuimo/core build",
+    "build": "pnpm --filter @jobinjia/shuimo-core build",
     "build:all": "pnpm -r --filter \"./packages/**\" build",
     "build:playground": "pnpm run build && pnpm --filter @shuimo/playground build",
-    "test": "pnpm --filter @shuimo/core test",
+    "test": "pnpm --filter @jobinjia/shuimo-core test",
     "lint": "vp check",
-    "release": "bumpp && pnpm build && pnpm --filter @shuimo/core publish --access public --no-git-checks",
+    "release": "bumpp && pnpm build && pnpm --filter @jobinjia/shuimo-core publish --access public --no-git-checks",
     "upgrade": "pnpm dlx taze -r -w major --install"
   },
   "devDependencies": {

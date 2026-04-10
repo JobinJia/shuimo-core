@@ -17,7 +17,7 @@
 从笔画轮廓估算绘画轨迹：
 
 ```typescript
-import { StrokeTrajectoryEstimator } from "@shuimo/core/experimental/stroke-animation";
+import { StrokeTrajectoryEstimator } from "@jobinjia/shuimo-core/experimental/stroke-animation";
 
 const estimator = new StrokeTrajectoryEstimator();
 const trajectory = estimator.estimateTrajectory(strokeShape);
@@ -36,7 +36,7 @@ const trajectory = estimator.estimateTrajectory(strokeShape);
 根据轨迹生成足迹序列：
 
 ```typescript
-import { BrushFootprintGenerator } from "@shuimo/core/experimental/stroke-animation";
+import { BrushFootprintGenerator } from "@jobinjia/shuimo-core/experimental/stroke-animation";
 
 const generator = new BrushFootprintGenerator();
 const footprints = generator.generateFootprints(trajectory, contour, 50);
@@ -56,7 +56,7 @@ const footprints = generator.generateFootprints(trajectory, contour, 50);
 实时渲染笔画绘制动画：
 
 ```typescript
-import { StrokeAnimator } from "@shuimo/core/experimental/stroke-animation";
+import { StrokeAnimator } from "@jobinjia/shuimo-core/experimental/stroke-animation";
 
 const animator = new StrokeAnimator(canvas);
 animator.setTrajectory(trajectory);
@@ -74,14 +74,14 @@ animator.play();
 ## 完整使用示例
 
 ```typescript
-import { Vector2 } from '@shuimo/core'
+import { Vector2 } from '@jobinjia/shuimo-core'
 import {
   StrokeTrajectoryEstimator,
   BrushFootprintGenerator,
   StrokeAnimator,
   type StrokeShape,
   type StrokeContour
-} from '@shuimo/core/experimental/stroke-animation'
+} from '@jobinjia/shuimo-core/experimental/stroke-animation'
 
 // 1. 准备笔画数据
 const strokeShape: StrokeShape = {
@@ -137,7 +137,7 @@ console.log(`Progress: ${state.progress * 100}%`)
 使用 `StrokeAnimation` 类可以简化流程：
 
 ```typescript
-import { StrokeAnimation } from "@shuimo/core/experimental/stroke-animation";
+import { StrokeAnimation } from "@jobinjia/shuimo-core/experimental/stroke-animation";
 
 const animation = new StrokeAnimation(canvas);
 

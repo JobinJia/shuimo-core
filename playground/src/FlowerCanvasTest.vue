@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { generateFlowerCanvas } from "@shuimo/core";
+import { generateFlowerCanvas } from "@jobinjia/shuimo-core";
 import { onMounted, ref } from "vue";
 
 const canvasContainer = ref<HTMLDivElement>();

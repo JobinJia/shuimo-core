@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [vue()],
   resolve: {
     alias: {
-      "@shuimo/core":
+      "@jobinjia/shuimo-core":
         mode === "production"
           ? path.resolve(__dirname, "../packages/core/dist/index.mjs")
           : path.resolve(__dirname, "../packages/core/src/index.ts"),

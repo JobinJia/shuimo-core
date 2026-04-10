@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { generateFlower } from "@shuimo/core";
+import { generateFlower } from "@jobinjia/shuimo-core";
 import { onMounted, ref } from "vue";
 
 const svgContainer = ref<HTMLDivElement>();

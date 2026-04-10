@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, onUnmounted, ref, computed } from "vue";
-import { GPUSceneManager } from "@shuimo/core";
+import { GPUSceneManager } from "@jobinjia/shuimo-core";
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const canvasWrapperRef = ref<HTMLDivElement | null>(null);

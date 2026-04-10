@@ -6,7 +6,7 @@ import {
   type PaintingType,
   XuanPaperColors,
   GoldFleckColors,
-} from "@shuimo/core";
+} from "@jobinjia/shuimo-core";
 
 // Form state
 const paintingType = ref<PaintingType>("landscape");

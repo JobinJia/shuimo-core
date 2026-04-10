@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { cloud } from "@shuimo/core";
+import { cloud } from "@jobinjia/shuimo-core";
 import { onMounted, ref } from "vue";
 
 const canvasContainer = ref<HTMLDivElement>();

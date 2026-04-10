@@ -2,7 +2,7 @@
   "name": "@shuimo/playground",
   "version": "0.1.0",
   "private": true,
-  "description": "Interactive playground for testing @shuimo/core library",
+  "description": "Interactive playground for testing @jobinjia/shuimo-core library",
   "type": "module",
   "scripts": {
     "dev": "vp dev",
@@ -13,7 +13,7 @@
     "lint:check": "vp check"
   },
   "dependencies": {
-    "@shuimo/core": "workspace:*",
+    "@jobinjia/shuimo-core": "workspace:*",
     "@vitejs/plugin-vue": "^6.0.5",
     "vue": "^3.5.31",
     "vue-router": "^5.0.4"
