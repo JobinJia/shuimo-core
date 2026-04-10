@@ -27,10 +27,10 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc --noEmit && tsdown",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage",
+    "build": "tsc --noEmit && vp pack",
+    "test": "vp test",
+    "test:ui": "vp test --ui",
+    "test:coverage": "vp test --coverage",
     "generate:font-metrics": "npx tsx scripts/generate-font-metrics.mts"
   },
   "dependencies": {
@@ -43,10 +43,9 @@
     "@vitest/ui": "^4.1.2",
     "@webgpu/types": "^0.1.69",
     "jsdom": "^29.0.1",
-    "tsdown": "0.17.0-beta.1",
     "typescript": "^6.0.2",
-    "vite": "^8.0.3",
-    "vite-plugin-dts": "^4.5.4",
-    "vitest": "^4.1.2"
+    "vite": "catalog:",
+"vitest": "catalog:",
+    "vite-plus": "catalog:"
   }
 }

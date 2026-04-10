@@ -1,37 +1,22 @@
-import { resolve } from 'node:path'
-import { defineConfig } from 'vite'
-import dts from 'vite-plugin-dts'
+import { defineConfig } from 'vite-plus'
 
 export default defineConfig({
-  plugins: [
-    dts({
-      insertTypesEntry: true,
-      include: ['src/**/*'],
-      exclude: ['src/**/*.spec.ts', 'src/**/*.test.ts'],
-    }),
-  ],
-
-  build: {
-    lib: {
-      entry: {
-        index: resolve(__dirname, 'src/index.ts'),
-        foundation: resolve(__dirname, 'src/foundation/index.ts'),
-        elements: resolve(__dirname, 'src/elements/index.ts'),
-        renderer: resolve(__dirname, 'src/renderer/index.ts'),
-      },
-      formats: ['es'],
-      fileName: (format, entryName) => `${entryName}.js`,
+  pack: {
+    entry: {
+      index: 'src/index.ts',
+      foundation: 'src/foundation/index.ts',
+      elements: 'src/elements/index.ts',
+      drawing: 'src/drawing/index.ts',
     },
-
-    sourcemap: true,
-    minify: 'esbuild',
-
-    rollupOptions: {
-      external: ['uuid'],
-      output: {
-        preserveModules: false,
-      },
+    format: ['esm'],
+    dts: {
+      resolve: true,
+      sourcemap: false,
     },
+    clean: true,
+    sourcemap: false,
+    external: ['uuid'],
+    outDir: 'dist',
   },
 
   test: {
@@ -45,6 +30,7 @@ export default defineConfig({
         'dist/',
         '**/*.spec.ts',
         '**/*.test.ts',
+        '**/types.ts',
       ],
     },
   },

@@ -5,10 +5,10 @@
   "private": true,
   "description": "Interactive playground for testing @shuimo/core library",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "build:check": "tsc && vite build",
-    "preview": "vite preview",
+    "dev": "vp dev",
+    "build": "vp build",
+    "build:check": "tsc && vp build",
+    "preview": "vp preview",
     "lint": "eslint --fix .",
     "lint:check": "eslint ."
   },
@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "typescript": "^6.0.2",
-    "vite": "^8.0.3"
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   }
 }

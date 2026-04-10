@@ -18,7 +18,8 @@
     "upgrade": "pnpm dlx taze -r -w major --install"
   },
   "devDependencies": {
-    "@jobinjia/eslint-config": "1.0.1"
+    "@jobinjia/eslint-config": "1.0.1",
+    "vite-plus": "catalog:"
   },
   "packageManager": "pnpm@10.33.0"
 }
