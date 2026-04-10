@@ -22,10 +22,15 @@
             <div id="options" class="option-bar">
               <i class="material-icons button" onclick="location.reload()">refresh</i>
               <i class="material-icons button" onclick="makeDownload()">file_download</i>
-              <i class="material-icons button" onclick="toggle('summary','block')">list</i>
-              <i class="material-icons button" onclick="toggle('settings','table')">settings</i>
-              <i class="material-icons button" onclick="toggle('share','table')">share</i>
-              <button onclick="showParams()" style="margin-left: 10px; padding: 5px 15px; cursor: pointer;">Show Params</button>
+              <i class="material-icons button" onclick="toggle('summary', 'block')">list</i>
+              <i class="material-icons button" onclick="toggle('settings', 'table')">settings</i>
+              <i class="material-icons button" onclick="toggle('share', 'table')">share</i>
+              <button
+                onclick="showParams()"
+                style="margin-left: 10px; padding: 5px 15px; cursor: pointer"
+              >
+                Show Params
+              </button>
             </div>
           </td>
         </tr>
@@ -38,7 +43,20 @@
 
         <tr>
           <td>
-            <div id="params-display" style="display: none; background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto;"></div>
+            <div
+              id="params-display"
+              style="
+                display: none;
+                background: #f5f5f5;
+                padding: 15px;
+                margin: 10px 0;
+                border-radius: 5px;
+                font-family: monospace;
+                font-size: 12px;
+                max-height: 400px;
+                overflow-y: auto;
+              "
+            ></div>
           </td>
         </tr>
 
@@ -47,7 +65,9 @@
             <div id="settings" style="display: none" class="emerge">
               <p>Seed: <input title="random seed" id="inp-seed" /></p>
               <p align="center">
-                <button onclick="reloadWSeed(document.getElementById('inp-seed').value)">Generate</button>
+                <button onclick="reloadWSeed(document.getElementById('inp-seed').value)">
+                  Generate
+                </button>
               </p>
             </div>
           </td>

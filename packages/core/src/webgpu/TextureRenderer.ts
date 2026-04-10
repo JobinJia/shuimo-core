@@ -5,7 +5,7 @@
  * 模拟传统国画中的皴法技法
  */
 
-import { prng } from '../foundation/random';
+import { prng } from "../foundation/random";
 
 export interface TextureOptions {
   /** 纹理线数量 */
@@ -168,7 +168,7 @@ const textureShader = /* wgsl */ `
 export class TextureRenderer {
   private device: GPUDevice | null = null;
   private context: GPUCanvasContext | null = null;
-  private format: GPUTextureFormat = 'bgra8unorm';
+  private format: GPUTextureFormat = "bgra8unorm";
 
   private computePipeline: GPUComputePipeline | null = null;
   private renderPipeline: GPURenderPipeline | null = null;
@@ -186,21 +186,21 @@ export class TextureRenderer {
 
   async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
     if (!navigator.gpu) {
-      console.error('WebGPU 不支持');
+      console.error("WebGPU 不支持");
       return false;
     }
 
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) {
-      console.error('无法获取 GPU adapter');
+      console.error("无法获取 GPU adapter");
       return false;
     }
 
     this.device = await adapter.requestDevice();
-    this.context = canvas.getContext('webgpu');
+    this.context = canvas.getContext("webgpu");
 
     if (!this.context) {
-      console.error('无法获取 WebGPU context');
+      console.error("无法获取 WebGPU context");
       return false;
     }
 
@@ -211,7 +211,7 @@ export class TextureRenderer {
     this.context.configure({
       device: this.device,
       format: this.format,
-      alphaMode: 'premultiplied',
+      alphaMode: "premultiplied",
     });
 
     await this.createBuffers();
@@ -253,48 +253,52 @@ export class TextureRenderer {
     });
 
     this.computePipeline = this.device.createComputePipeline({
-      layout: 'auto',
+      layout: "auto",
       compute: {
         module: shaderModule,
-        entryPoint: 'generateTexture',
+        entryPoint: "generateTexture",
       },
     });
 
     this.renderPipeline = this.device.createRenderPipeline({
-      layout: 'auto',
+      layout: "auto",
       vertex: {
         module: shaderModule,
-        entryPoint: 'vertexMain',
-        buffers: [{
-          arrayStride: 16,
-          attributes: [
-            { shaderLocation: 0, offset: 0, format: 'float32x2' },
-            { shaderLocation: 1, offset: 8, format: 'float32' },
-            { shaderLocation: 2, offset: 12, format: 'float32' },
-          ],
-        }],
+        entryPoint: "vertexMain",
+        buffers: [
+          {
+            arrayStride: 16,
+            attributes: [
+              { shaderLocation: 0, offset: 0, format: "float32x2" },
+              { shaderLocation: 1, offset: 8, format: "float32" },
+              { shaderLocation: 2, offset: 12, format: "float32" },
+            ],
+          },
+        ],
       },
       fragment: {
         module: shaderModule,
-        entryPoint: 'fragmentMain',
-        targets: [{
-          format: this.format,
-          blend: {
-            color: {
-              srcFactor: 'src-alpha',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
-            alpha: {
-              srcFactor: 'one',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
+        entryPoint: "fragmentMain",
+        targets: [
+          {
+            format: this.format,
+            blend: {
+              color: {
+                srcFactor: "src-alpha",
+                dstFactor: "one-minus-src-alpha",
+                operation: "add",
+              },
+              alpha: {
+                srcFactor: "one",
+                dstFactor: "one-minus-src-alpha",
+                operation: "add",
+              },
             },
           },
-        }],
+        ],
       },
       primitive: {
-        topology: 'triangle-list',
+        topology: "triangle-list",
       },
     });
   }
@@ -319,8 +323,10 @@ export class TextureRenderer {
     const depth = region.depth ?? 0.5;
 
     // 计算区域边界
-    let minX = Infinity, minY = Infinity;
-    let maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity;
+    let maxX = -Infinity,
+      maxY = -Infinity;
     for (const p of region.points) {
       minX = Math.min(minX, p.x);
       minY = Math.min(minY, p.y);
@@ -351,23 +357,37 @@ export class TextureRenderer {
     this.device.queue.writeBuffer(this.paramsBuffer!, 0, paramsData);
 
     // 生成顶点数据
-    this.generateVertices(minX, minY, maxX, maxY, actualLineCount, strokeWidth, direction, noiseAmount, inkDensity, depth, seed);
+    this.generateVertices(
+      minX,
+      minY,
+      maxX,
+      maxY,
+      actualLineCount,
+      strokeWidth,
+      direction,
+      noiseAmount,
+      inkDensity,
+      depth,
+      seed,
+    );
 
     // 渲染
     const commandEncoder = this.device.createCommandEncoder();
     const textureView = this.context.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        loadOp: 'load',
-        storeOp: 'store',
-      }],
+      colorAttachments: [
+        {
+          view: textureView,
+          loadOp: "load",
+          storeOp: "store",
+        },
+      ],
     });
 
     renderPass.setPipeline(this.renderPipeline!);
     renderPass.setVertexBuffer(0, this.vertexBuffer!);
-    renderPass.setIndexBuffer(this.indexBuffer!, 'uint32');
+    renderPass.setIndexBuffer(this.indexBuffer!, "uint32");
     renderPass.drawIndexed(actualLineCount * 6);
     renderPass.end();
 
@@ -375,15 +395,17 @@ export class TextureRenderer {
   }
 
   private generateVertices(
-    minX: number, minY: number,
-    maxX: number, maxY: number,
+    minX: number,
+    minY: number,
+    maxX: number,
+    maxY: number,
     lineCount: number,
     strokeWidth: number,
     direction: number,
     noiseAmount: number,
     inkDensity: number,
     depth: number,
-    seed: number
+    seed: number,
   ): void {
     if (!this.device) return;
 
@@ -425,26 +447,38 @@ export class TextureRenderer {
 
       // 计算法向量
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      const nx = -dy / len * width;
-      const ny = dx / len * width;
+      const nx = (-dy / len) * width;
+      const ny = (dx / len) * width;
 
       const vi = i * 16;
-      vertices[vi + 0] = x1 + nx; vertices[vi + 1] = y1 + ny;
-      vertices[vi + 2] = opacity; vertices[vi + 3] = 0;
+      vertices[vi + 0] = x1 + nx;
+      vertices[vi + 1] = y1 + ny;
+      vertices[vi + 2] = opacity;
+      vertices[vi + 3] = 0;
 
-      vertices[vi + 4] = x1 - nx; vertices[vi + 5] = y1 - ny;
-      vertices[vi + 6] = opacity; vertices[vi + 7] = 1;
+      vertices[vi + 4] = x1 - nx;
+      vertices[vi + 5] = y1 - ny;
+      vertices[vi + 6] = opacity;
+      vertices[vi + 7] = 1;
 
-      vertices[vi + 8] = x2 + nx; vertices[vi + 9] = y2 + ny;
-      vertices[vi + 10] = opacity; vertices[vi + 11] = 0;
+      vertices[vi + 8] = x2 + nx;
+      vertices[vi + 9] = y2 + ny;
+      vertices[vi + 10] = opacity;
+      vertices[vi + 11] = 0;
 
-      vertices[vi + 12] = x2 - nx; vertices[vi + 13] = y2 - ny;
-      vertices[vi + 14] = opacity; vertices[vi + 15] = 1;
+      vertices[vi + 12] = x2 - nx;
+      vertices[vi + 13] = y2 - ny;
+      vertices[vi + 14] = opacity;
+      vertices[vi + 15] = 1;
 
       const ii = i * 6;
       const v = i * 4;
-      indices[ii + 0] = v + 0; indices[ii + 1] = v + 1; indices[ii + 2] = v + 2;
-      indices[ii + 3] = v + 2; indices[ii + 4] = v + 1; indices[ii + 5] = v + 3;
+      indices[ii + 0] = v + 0;
+      indices[ii + 1] = v + 1;
+      indices[ii + 2] = v + 2;
+      indices[ii + 3] = v + 2;
+      indices[ii + 4] = v + 1;
+      indices[ii + 5] = v + 3;
     }
 
     this.device.queue.writeBuffer(this.vertexBuffer!, 0, vertices);
@@ -467,12 +501,14 @@ export class TextureRenderer {
     const textureView = this.context.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        clearValue: { r: color[0], g: color[1], b: color[2], a: color[3] },
-        loadOp: 'clear',
-        storeOp: 'store',
-      }],
+      colorAttachments: [
+        {
+          view: textureView,
+          clearValue: { r: color[0], g: color[1], b: color[2], a: color[3] },
+          loadOp: "clear",
+          storeOp: "store",
+        },
+      ],
     });
     renderPass.end();
 

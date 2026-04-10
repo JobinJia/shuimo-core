@@ -5,15 +5,15 @@
  * 支持多种树型：竖直树、弯曲树、分形树、松树等
  */
 
-import { prng } from '../foundation/random';
+import { prng } from "../foundation/random";
 
 export enum TreeType {
-  Simple = 0,      // 简单竖直树
-  Curved = 1,      // 弯曲树干
-  Branching = 2,   // 分支树
-  Pine = 3,        // 松树
-  Willow = 4,      // 柳树
-  Bush = 5,        // 灌木
+  Simple = 0, // 简单竖直树
+  Curved = 1, // 弯曲树干
+  Branching = 2, // 分支树
+  Pine = 3, // 松树
+  Willow = 4, // 柳树
+  Bush = 5, // 灌木
 }
 
 export interface TreeOptions {
@@ -136,7 +136,7 @@ const treeShader = /* wgsl */ `
 export class TreeRenderer {
   private device: GPUDevice | null = null;
   private context: GPUCanvasContext | null = null;
-  private format: GPUTextureFormat = 'bgra8unorm';
+  private format: GPUTextureFormat = "bgra8unorm";
 
   private renderPipeline: GPURenderPipeline | null = null;
 
@@ -152,21 +152,21 @@ export class TreeRenderer {
 
   async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
     if (!navigator.gpu) {
-      console.error('WebGPU 不支持');
+      console.error("WebGPU 不支持");
       return false;
     }
 
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) {
-      console.error('无法获取 GPU adapter');
+      console.error("无法获取 GPU adapter");
       return false;
     }
 
     this.device = await adapter.requestDevice();
-    this.context = canvas.getContext('webgpu');
+    this.context = canvas.getContext("webgpu");
 
     if (!this.context) {
-      console.error('无法获取 WebGPU context');
+      console.error("无法获取 WebGPU context");
       return false;
     }
 
@@ -177,7 +177,7 @@ export class TreeRenderer {
     this.context.configure({
       device: this.device,
       format: this.format,
-      alphaMode: 'premultiplied',
+      alphaMode: "premultiplied",
     });
 
     await this.createBuffers();
@@ -214,41 +214,45 @@ export class TreeRenderer {
     });
 
     this.renderPipeline = this.device.createRenderPipeline({
-      layout: 'auto',
+      layout: "auto",
       vertex: {
         module: shaderModule,
-        entryPoint: 'vertexMain',
-        buffers: [{
-          arrayStride: 20,
-          attributes: [
-            { shaderLocation: 0, offset: 0, format: 'float32x2' },
-            { shaderLocation: 1, offset: 8, format: 'float32' },
-            { shaderLocation: 2, offset: 12, format: 'float32' },
-            { shaderLocation: 3, offset: 16, format: 'float32' },
-          ],
-        }],
+        entryPoint: "vertexMain",
+        buffers: [
+          {
+            arrayStride: 20,
+            attributes: [
+              { shaderLocation: 0, offset: 0, format: "float32x2" },
+              { shaderLocation: 1, offset: 8, format: "float32" },
+              { shaderLocation: 2, offset: 12, format: "float32" },
+              { shaderLocation: 3, offset: 16, format: "float32" },
+            ],
+          },
+        ],
       },
       fragment: {
         module: shaderModule,
-        entryPoint: 'fragmentMain',
-        targets: [{
-          format: this.format,
-          blend: {
-            color: {
-              srcFactor: 'src-alpha',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
-            alpha: {
-              srcFactor: 'one',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
+        entryPoint: "fragmentMain",
+        targets: [
+          {
+            format: this.format,
+            blend: {
+              color: {
+                srcFactor: "src-alpha",
+                dstFactor: "one-minus-src-alpha",
+                operation: "add",
+              },
+              alpha: {
+                srcFactor: "one",
+                dstFactor: "one-minus-src-alpha",
+                operation: "add",
+              },
             },
           },
-        }],
+        ],
       },
       primitive: {
-        topology: 'triangle-list',
+        topology: "triangle-list",
       },
     });
   }
@@ -289,23 +293,36 @@ export class TreeRenderer {
     this.device.queue.writeBuffer(this.paramsBuffer!, 0, paramsData);
 
     // 生成树的几何数据
-    const segmentCount = this.generateTreeGeometry(x, y, height, width, type, curvature, branchLevels, leafDensity, inkDensity, seed);
+    const segmentCount = this.generateTreeGeometry(
+      x,
+      y,
+      height,
+      width,
+      type,
+      curvature,
+      branchLevels,
+      leafDensity,
+      inkDensity,
+      seed,
+    );
 
     // 渲染
     const commandEncoder = this.device.createCommandEncoder();
     const textureView = this.context.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        loadOp: 'load',
-        storeOp: 'store',
-      }],
+      colorAttachments: [
+        {
+          view: textureView,
+          loadOp: "load",
+          storeOp: "store",
+        },
+      ],
     });
 
     renderPass.setPipeline(this.renderPipeline!);
     renderPass.setVertexBuffer(0, this.vertexBuffer!);
-    renderPass.setIndexBuffer(this.indexBuffer!, 'uint32');
+    renderPass.setIndexBuffer(this.indexBuffer!, "uint32");
     renderPass.drawIndexed(segmentCount * 6);
     renderPass.end();
 
@@ -313,18 +330,26 @@ export class TreeRenderer {
   }
 
   private generateTreeGeometry(
-    centerX: number, centerY: number,
-    height: number, width: number,
-    type: TreeType, curvature: number,
-    branchLevels: number, leafDensity: number,
-    inkDensity: number, seed: number
+    centerX: number,
+    centerY: number,
+    height: number,
+    width: number,
+    type: TreeType,
+    curvature: number,
+    branchLevels: number,
+    leafDensity: number,
+    inkDensity: number,
+    seed: number,
   ): number {
     if (!this.device) return 0;
 
     const segments: Array<{
-      x1: number; y1: number;
-      x2: number; y2: number;
-      width: number; opacity: number;
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      width: number;
+      opacity: number;
       type: number;
     }> = [];
 
@@ -340,19 +365,66 @@ export class TreeRenderer {
     switch (type) {
       case TreeType.Simple:
       case TreeType.Curved:
-        this.generateSimpleTree(segments, centerX, centerY, height, width, curvature, leafDensity, inkDensity, noise);
+        this.generateSimpleTree(
+          segments,
+          centerX,
+          centerY,
+          height,
+          width,
+          curvature,
+          leafDensity,
+          inkDensity,
+          noise,
+        );
         break;
       case TreeType.Branching:
-        this.generateBranchingTree(segments, centerX, centerY, height, width, branchLevels, leafDensity, inkDensity, noise);
+        this.generateBranchingTree(
+          segments,
+          centerX,
+          centerY,
+          height,
+          width,
+          branchLevels,
+          leafDensity,
+          inkDensity,
+          noise,
+        );
         break;
       case TreeType.Pine:
-        this.generatePineTree(segments, centerX, centerY, height, width, leafDensity, inkDensity, noise);
+        this.generatePineTree(
+          segments,
+          centerX,
+          centerY,
+          height,
+          width,
+          leafDensity,
+          inkDensity,
+          noise,
+        );
         break;
       case TreeType.Willow:
-        this.generateWillowTree(segments, centerX, centerY, height, width, leafDensity, inkDensity, noise);
+        this.generateWillowTree(
+          segments,
+          centerX,
+          centerY,
+          height,
+          width,
+          leafDensity,
+          inkDensity,
+          noise,
+        );
         break;
       case TreeType.Bush:
-        this.generateBush(segments, centerX, centerY, height, width, leafDensity, inkDensity, noise);
+        this.generateBush(
+          segments,
+          centerX,
+          centerY,
+          height,
+          width,
+          leafDensity,
+          inkDensity,
+          noise,
+        );
         break;
     }
 
@@ -367,27 +439,43 @@ export class TreeRenderer {
       const dx = seg.x2 - seg.x1;
       const dy = seg.y2 - seg.y1;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      const nx = -dy / len * seg.width;
-      const ny = dx / len * seg.width;
+      const nx = (-dy / len) * seg.width;
+      const ny = (dx / len) * seg.width;
 
       const vi = i * 20;
       // 4 顶点 x 5 floats
-      vertices[vi + 0] = seg.x1 + nx; vertices[vi + 1] = seg.y1 + ny;
-      vertices[vi + 2] = seg.opacity; vertices[vi + 3] = 0; vertices[vi + 4] = seg.type;
+      vertices[vi + 0] = seg.x1 + nx;
+      vertices[vi + 1] = seg.y1 + ny;
+      vertices[vi + 2] = seg.opacity;
+      vertices[vi + 3] = 0;
+      vertices[vi + 4] = seg.type;
 
-      vertices[vi + 5] = seg.x1 - nx; vertices[vi + 6] = seg.y1 - ny;
-      vertices[vi + 7] = seg.opacity; vertices[vi + 8] = 1; vertices[vi + 9] = seg.type;
+      vertices[vi + 5] = seg.x1 - nx;
+      vertices[vi + 6] = seg.y1 - ny;
+      vertices[vi + 7] = seg.opacity;
+      vertices[vi + 8] = 1;
+      vertices[vi + 9] = seg.type;
 
-      vertices[vi + 10] = seg.x2 + nx; vertices[vi + 11] = seg.y2 + ny;
-      vertices[vi + 12] = seg.opacity; vertices[vi + 13] = 0; vertices[vi + 14] = seg.type;
+      vertices[vi + 10] = seg.x2 + nx;
+      vertices[vi + 11] = seg.y2 + ny;
+      vertices[vi + 12] = seg.opacity;
+      vertices[vi + 13] = 0;
+      vertices[vi + 14] = seg.type;
 
-      vertices[vi + 15] = seg.x2 - nx; vertices[vi + 16] = seg.y2 - ny;
-      vertices[vi + 17] = seg.opacity; vertices[vi + 18] = 1; vertices[vi + 19] = seg.type;
+      vertices[vi + 15] = seg.x2 - nx;
+      vertices[vi + 16] = seg.y2 - ny;
+      vertices[vi + 17] = seg.opacity;
+      vertices[vi + 18] = 1;
+      vertices[vi + 19] = seg.type;
 
       const ii = i * 6;
       const v = i * 4;
-      indices[ii + 0] = v + 0; indices[ii + 1] = v + 1; indices[ii + 2] = v + 2;
-      indices[ii + 3] = v + 2; indices[ii + 4] = v + 1; indices[ii + 5] = v + 3;
+      indices[ii + 0] = v + 0;
+      indices[ii + 1] = v + 1;
+      indices[ii + 2] = v + 2;
+      indices[ii + 3] = v + 2;
+      indices[ii + 4] = v + 1;
+      indices[ii + 5] = v + 3;
     }
 
     this.device.queue.writeBuffer(this.vertexBuffer!, 0, vertices);
@@ -398,15 +486,20 @@ export class TreeRenderer {
 
   private generateSimpleTree(
     segments: Array<any>,
-    x: number, y: number,
-    height: number, width: number,
-    curvature: number, leafDensity: number,
-    inkDensity: number, noise: (x: number) => number
+    x: number,
+    y: number,
+    height: number,
+    width: number,
+    curvature: number,
+    leafDensity: number,
+    inkDensity: number,
+    noise: (x: number) => number,
   ): void {
     // 树干
     const trunkSegments = 10;
     const trunkWidth = 4;
-    let lastX = x, lastY = y;
+    let lastX = x,
+      lastY = y;
 
     for (let i = 0; i < trunkSegments; i++) {
       const t = (i + 1) / trunkSegments;
@@ -416,9 +509,12 @@ export class TreeRenderer {
       const w = trunkWidth * (1 - t * 0.6);
 
       segments.push({
-        x1: lastX, y1: lastY,
-        x2: newX, y2: newY,
-        width: w, opacity: inkDensity,
+        x1: lastX,
+        y1: lastY,
+        x2: newX,
+        y2: newY,
+        width: w,
+        opacity: inkDensity,
         type: 0,
       });
 
@@ -437,7 +533,8 @@ export class TreeRenderer {
       const leafAngle = angle + noise(i * 40) * 0.5;
 
       segments.push({
-        x1: leafX, y1: leafY,
+        x1: leafX,
+        y1: leafY,
         x2: leafX + Math.cos(leafAngle) * leafLen,
         y2: leafY + Math.sin(leafAngle) * leafLen,
         width: 2 + noise(i * 50),
@@ -449,15 +546,23 @@ export class TreeRenderer {
 
   private generateBranchingTree(
     segments: Array<any>,
-    x: number, y: number,
-    height: number, width: number,
-    levels: number, leafDensity: number,
-    inkDensity: number, noise: (x: number) => number
+    x: number,
+    y: number,
+    height: number,
+    width: number,
+    levels: number,
+    leafDensity: number,
+    inkDensity: number,
+    noise: (x: number) => number,
   ): void {
     const addBranch = (
-      x1: number, y1: number,
-      angle: number, length: number,
-      w: number, level: number, idx: number
+      x1: number,
+      y1: number,
+      angle: number,
+      length: number,
+      w: number,
+      level: number,
+      idx: number,
     ) => {
       if (level <= 0 || length < 5) return;
 
@@ -465,9 +570,12 @@ export class TreeRenderer {
       const y2 = y1 + Math.sin(angle) * length;
 
       segments.push({
-        x1, y1, x2, y2,
+        x1,
+        y1,
+        x2,
+        y2,
         width: w,
-        opacity: inkDensity * (0.7 + level / levels * 0.3),
+        opacity: inkDensity * (0.7 + (level / levels) * 0.3),
         type: level === levels ? 0 : 1,
       });
 
@@ -485,7 +593,8 @@ export class TreeRenderer {
           const leafAngle = angle + (noise(idx * 1000 + i) - 0.5) * 2;
           const leafLen = 5 + noise(idx * 1000 + i * 10) * 8;
           segments.push({
-            x1: x2, y1: y2,
+            x1: x2,
+            y1: y2,
             x2: x2 + Math.cos(leafAngle) * leafLen,
             y2: y2 + Math.sin(leafAngle) * leafLen,
             width: 1.5,
@@ -501,15 +610,20 @@ export class TreeRenderer {
 
   private generatePineTree(
     segments: Array<any>,
-    x: number, y: number,
-    height: number, width: number,
-    leafDensity: number, inkDensity: number,
-    noise: (x: number) => number
+    x: number,
+    y: number,
+    height: number,
+    width: number,
+    leafDensity: number,
+    inkDensity: number,
+    noise: (x: number) => number,
   ): void {
     // 树干
     segments.push({
-      x1: x, y1: y,
-      x2: x, y2: y - height,
+      x1: x,
+      y1: y,
+      x2: x,
+      y2: y - height,
       width: 3,
       opacity: inkDensity,
       type: 0,
@@ -518,8 +632,8 @@ export class TreeRenderer {
     // 松针层
     const layers = 6;
     for (let layer = 0; layer < layers; layer++) {
-      const layerY = y - height * 0.2 - (height * 0.8 * layer / layers);
-      const layerWidth = width * (1 - layer / layers * 0.7);
+      const layerY = y - height * 0.2 - (height * 0.8 * layer) / layers;
+      const layerWidth = width * (1 - (layer / layers) * 0.7);
 
       const needles = Math.floor(8 * leafDensity);
       for (let i = 0; i < needles; i++) {
@@ -528,7 +642,8 @@ export class TreeRenderer {
         const needleLen = layerWidth * 0.5 * (0.7 + noise(layer * 100 + i * 10) * 0.3);
 
         segments.push({
-          x1: x, y1: layerY,
+          x1: x,
+          y1: layerY,
           x2: x + Math.cos(baseAngle - Math.PI / 2) * needleLen * side,
           y2: layerY + Math.sin(baseAngle - Math.PI / 2) * needleLen - 10,
           width: 1.5,
@@ -541,14 +656,18 @@ export class TreeRenderer {
 
   private generateWillowTree(
     segments: Array<any>,
-    x: number, y: number,
-    height: number, width: number,
-    leafDensity: number, inkDensity: number,
-    noise: (x: number) => number
+    x: number,
+    y: number,
+    height: number,
+    width: number,
+    leafDensity: number,
+    inkDensity: number,
+    noise: (x: number) => number,
   ): void {
     // 弯曲的树干
     const trunkSegments = 8;
-    let lastX = x, lastY = y;
+    let lastX = x,
+      lastY = y;
 
     for (let i = 0; i < trunkSegments; i++) {
       const t = (i + 1) / trunkSegments;
@@ -556,8 +675,10 @@ export class TreeRenderer {
       const newY = y - height * 0.4 * t;
 
       segments.push({
-        x1: lastX, y1: lastY,
-        x2: newX, y2: newY,
+        x1: lastX,
+        y1: lastY,
+        x2: newX,
+        y2: newY,
         width: 4 * (1 - t * 0.5),
         opacity: inkDensity,
         type: 0,
@@ -576,15 +697,18 @@ export class TreeRenderer {
 
       // 下垂的枝条
       const segments_count = 8;
-      let bx = branchX, by = branchY;
+      let bx = branchX,
+        by = branchY;
       for (let j = 0; j < segments_count; j++) {
         const t = j / segments_count;
         const newBx = bx + noise(i * 100 + j) * 5;
         const newBy = by + 15 + t * 10;
 
         segments.push({
-          x1: bx, y1: by,
-          x2: newBx, y2: newBy,
+          x1: bx,
+          y1: by,
+          x2: newBx,
+          y2: newBy,
           width: 1 + (1 - t) * 1.5,
           opacity: inkDensity * (0.4 + noise(i * 100 + j * 10) * 0.3),
           type: 2,
@@ -598,10 +722,13 @@ export class TreeRenderer {
 
   private generateBush(
     segments: Array<any>,
-    x: number, y: number,
-    height: number, width: number,
-    leafDensity: number, inkDensity: number,
-    noise: (x: number) => number
+    x: number,
+    y: number,
+    height: number,
+    width: number,
+    leafDensity: number,
+    inkDensity: number,
+    noise: (x: number) => number,
   ): void {
     // 多个重叠的椭圆形墨点
     const blobCount = Math.floor(10 * leafDensity);
@@ -639,12 +766,14 @@ export class TreeRenderer {
     const textureView = this.context.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        clearValue: { r: color[0], g: color[1], b: color[2], a: color[3] },
-        loadOp: 'clear',
-        storeOp: 'store',
-      }],
+      colorAttachments: [
+        {
+          view: textureView,
+          clearValue: { r: color[0], g: color[1], b: color[2], a: color[3] },
+          loadOp: "clear",
+          storeOp: "store",
+        },
+      ],
     });
     renderPass.end();
 

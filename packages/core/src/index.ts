@@ -8,22 +8,22 @@
  */
 
 // Foundation layer - Basic building blocks
-export * from './foundation';
+export * from "./foundation";
 
 // Utils - Helper functions
-export * from './utils';
+export * from "./utils";
 
 // Drawing primitives
-export * from './drawing';
+export * from "./drawing";
 
 // Elements - High-level drawing components
-export * from './elements';
+export * from "./elements";
 
 // Composition - Scene management and planning
-export * from './composition';
+export * from "./composition";
 
 // Experimental features - APIs may change
-export * as Experimental from './experimental';
+export * as Experimental from "./experimental";
 
 // WebGPU rendering module
-export * from './webgpu';
+export * from "./webgpu";

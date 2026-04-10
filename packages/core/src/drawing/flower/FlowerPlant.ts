@@ -7,14 +7,14 @@
  * instead of post-processing like Canvas version.
  */
 
-import type { LeafArgs, StemArgs, BranchArgs, Vec3, Vec2, LayerType } from './types'
-import { v3, PI, sin, abs, grot } from './FlowerMath'
-import { mapval, normRand } from './FlowerMath'
-import { prng } from '../../foundation/random'
-import { lerpHue } from './FlowerColor'
-import { hsvFiltered, rgbaFiltered } from './FlowerColor'
-import { polygon, stroke, tubify, createSVGElement } from './FlowerShape'
-import { noise } from './FlowerNoise'
+import type { LeafArgs, StemArgs, BranchArgs, Vec3, Vec2, LayerType } from "./types";
+import { v3, PI, sin, abs, grot } from "./FlowerMath";
+import { mapval, normRand } from "./FlowerMath";
+import { prng } from "../../foundation/random";
+import { lerpHue } from "./FlowerColor";
+import { hsvFiltered, rgbaFiltered } from "./FlowerColor";
+import { polygon, stroke, tubify, createSVGElement } from "./FlowerShape";
+import { noise } from "./FlowerNoise";
 
 // ============================================================================
 // Leaf Function
@@ -26,7 +26,7 @@ import { noise } from './FlowerNoise'
  * Can be used for leaves or flower petals
  * @returns SVG group containing the leaf and center line points
  */
-export function leaf(args: LeafArgs = {}): { group: SVGGElement, points: Vec3[] } {
+export function leaf(args: LeafArgs = {}): { group: SVGGElement; points: Vec3[] } {
   const {
     xof = 0,
     yof = 0,
@@ -39,54 +39,53 @@ export function leaf(args: LeafArgs = {}): { group: SVGGElement, points: Vec3[] 
     col = { min: [90, 0.2, 0.3, 1], max: [90, 0.1, 0.9, 1] },
     cof = (x: number) => x,
     ben = (x: number): Vec3 => [normRand(-10, 10), 0, normRand(-5, 5)],
-    layerType = 'lay0',
-  } = args
+    layerType = "lay0",
+  } = args;
 
-  const group = createSVGElement('g')
+  const group = createSVGElement("g");
 
-  let disp: Vec3 = v3.zero
-  let crot: Vec3 = v3.zero
-  const P: Vec3[] = [disp]
-  const ROT: Vec3[] = [crot]
-  const L: Vec3[] = [disp]
-  const R: Vec3[] = [disp]
+  let disp: Vec3 = v3.zero;
+  let crot: Vec3 = v3.zero;
+  const P: Vec3[] = [disp];
+  const ROT: Vec3[] = [crot];
+  const L: Vec3[] = [disp];
+  const R: Vec3[] = [disp];
 
-  const orient = (v: Vec3) => v3.roteuler(v, rot)
+  const orient = (v: Vec3) => v3.roteuler(v, rot);
 
   // Generate leaf segments
   for (let i = 0; i < seg; i++) {
-    const p = i / (seg - 1)
-    crot = v3.add(crot, v3.scale(ben(p), 1 / seg))
-    disp = v3.add(disp, orient(v3.roteuler([0, 0, len / seg], crot)))
-    const w = wid(p)
-    const l = v3.add(disp, orient(v3.roteuler([-w, 0, 0], crot)))
-    const r = v3.add(disp, orient(v3.roteuler([w, 0, 0], crot)))
+    const p = i / (seg - 1);
+    crot = v3.add(crot, v3.scale(ben(p), 1 / seg));
+    disp = v3.add(disp, orient(v3.roteuler([0, 0, len / seg], crot)));
+    const w = wid(p);
+    const l = v3.add(disp, orient(v3.roteuler([-w, 0, 0], crot)));
+    const r = v3.add(disp, orient(v3.roteuler([w, 0, 0], crot)));
 
     if (i > 0) {
-      const v0 = v3.subtract(disp, L[L.length - 1])
-      const v1 = v3.subtract(l, disp)
-      const v2 = v3.cross(v0, v1)
+      const v0 = v3.subtract(disp, L[L.length - 1]);
+      const v1 = v3.subtract(l, disp);
+      const v2 = v3.cross(v0, v1);
 
-      let lt: number
+      let lt: number;
       if (!flo) {
-        lt = mapval(abs(v3.ang(v2, [0, -1, 0])), 0, PI, 1, 0)
+        lt = mapval(abs(v3.ang(v2, [0, -1, 0])), 0, PI, 1, 0);
+      } else {
+        lt = p * normRand(0.95, 1);
       }
-      else {
-        lt = p * normRand(0.95, 1)
-      }
-      lt = cof(lt) || 0
+      lt = cof(lt) || 0;
 
-      const h = lerpHue(col.min[0], col.max[0], lt)
-      const s = mapval(lt, 0, 1, col.min[1], col.max[1])
-      const v = mapval(lt, 0, 1, col.min[2], col.max[2])
-      const a = mapval(lt, 0, 1, col.min[3], col.max[3])
+      const h = lerpHue(col.min[0], col.max[0], lt);
+      const s = mapval(lt, 0, 1, col.min[1], col.max[1]);
+      const v = mapval(lt, 0, 1, col.min[2], col.max[2]);
+      const a = mapval(lt, 0, 1, col.min[3], col.max[3]);
 
       // Calculate center position for filter sampling
-      const centerX = (l[0] + L[L.length - 1][0] + P[P.length - 1][0] + disp[0]) / 4 + xof
-      const centerY = (l[1] + L[L.length - 1][1] + P[P.length - 1][1] + disp[1]) / 4 + yof
+      const centerX = (l[0] + L[L.length - 1][0] + P[P.length - 1][0] + disp[0]) / 4 + xof;
+      const centerY = (l[1] + L[L.length - 1][1] + P[P.length - 1][1] + disp[1]) / 4 + yof;
 
       // Apply filter during color generation
-      const color = hsvFiltered(h, s, v, a, centerX, centerY, layerType)
+      const color = hsvFiltered(h, s, v, a, centerX, centerY, layerType);
 
       // Left side polygon
       const leftPoly = polygon({
@@ -101,13 +100,13 @@ export function leaf(args: LeafArgs = {}): { group: SVGGElement, points: Vec3[] 
         fil: true,
         str: false,
         col: color,
-      })
-      group.appendChild(leftPoly)
+      });
+      group.appendChild(leftPoly);
 
       // Right side polygon - use same filter position
-      const rightCenterX = (r[0] + R[R.length - 1][0] + P[P.length - 1][0] + disp[0]) / 4 + xof
-      const rightCenterY = (r[1] + R[R.length - 1][1] + P[P.length - 1][1] + disp[1]) / 4 + yof
-      const rightColor = hsvFiltered(h, s, v, a, rightCenterX, rightCenterY, layerType)
+      const rightCenterX = (r[0] + R[R.length - 1][0] + P[P.length - 1][0] + disp[0]) / 4 + xof;
+      const rightCenterY = (r[1] + R[R.length - 1][1] + P[P.length - 1][1] + disp[1]) / 4 + yof;
+      const rightColor = hsvFiltered(h, s, v, a, rightCenterX, rightCenterY, layerType);
 
       const rightPoly = polygon({
         pts: [
@@ -121,14 +120,14 @@ export function leaf(args: LeafArgs = {}): { group: SVGGElement, points: Vec3[] 
         fil: true,
         str: false,
         col: rightColor,
-      })
-      group.appendChild(rightPoly)
+      });
+      group.appendChild(rightPoly);
     }
 
-    P.push(disp)
-    ROT.push(crot)
-    L.push(l)
-    R.push(r)
+    P.push(disp);
+    ROT.push(crot);
+    L.push(l);
+    R.push(r);
   }
 
   // Add veins
@@ -136,117 +135,152 @@ export function leaf(args: LeafArgs = {}): { group: SVGGElement, points: Vec3[] 
     // Vein type 1: parallel veins
     for (let i = 1; i < P.length; i++) {
       for (let j = 0; j < vei[1]; j++) {
-        const p = j / vei[1]
+        const p = j / vei[1];
 
-        const p0 = v3.lerp(L[i - 1], P[i - 1], p)
-        const p1 = v3.lerp(L[i], P[i], p)
+        const p0 = v3.lerp(L[i - 1], P[i - 1], p);
+        const p1 = v3.lerp(L[i], P[i], p);
 
-        const q0 = v3.lerp(R[i - 1], P[i - 1], p)
-        const q1 = v3.lerp(R[i], P[i], p)
+        const q0 = v3.lerp(R[i - 1], P[i - 1], p);
+        const q1 = v3.lerp(R[i], P[i], p);
 
         // Calculate vein positions for filter
-        const veinX = (p0[0] + p1[0]) / 2 + xof
-        const veinY = (p0[1] + p1[1]) / 2 + yof
-        const veinAlpha = normRand(0.4, 0.9)
-        const veinColor = rgbaFiltered(0, 0, 0, veinAlpha, veinX, veinY, layerType)
+        const veinX = (p0[0] + p1[0]) / 2 + xof;
+        const veinY = (p0[1] + p1[1]) / 2 + yof;
+        const veinAlpha = normRand(0.4, 0.9);
+        const veinColor = rgbaFiltered(0, 0, 0, veinAlpha, veinX, veinY, layerType);
 
         const leftVein = polygon({
-          pts: [[p0[0], p0[1]], [p1[0], p1[1]]],
+          pts: [
+            [p0[0], p0[1]],
+            [p1[0], p1[1]],
+          ],
           xof,
           yof,
           fil: false,
           str: true,
           col: veinColor,
-        })
-        group.appendChild(leftVein)
+        });
+        group.appendChild(leftVein);
 
-        const rightVeinX = (q0[0] + q1[0]) / 2 + xof
-        const rightVeinY = (q0[1] + q1[1]) / 2 + yof
-        const rightVeinColor = rgbaFiltered(0, 0, 0, normRand(0.4, 0.9), rightVeinX, rightVeinY, layerType)
+        const rightVeinX = (q0[0] + q1[0]) / 2 + xof;
+        const rightVeinY = (q0[1] + q1[1]) / 2 + yof;
+        const rightVeinColor = rgbaFiltered(
+          0,
+          0,
+          0,
+          normRand(0.4, 0.9),
+          rightVeinX,
+          rightVeinY,
+          layerType,
+        );
 
         const rightVein = polygon({
-          pts: [[q0[0], q0[1]], [q1[0], q1[1]]],
+          pts: [
+            [q0[0], q0[1]],
+            [q1[0], q1[1]],
+          ],
           xof,
           yof,
           fil: false,
           str: true,
           col: rightVeinColor,
-        })
-        group.appendChild(rightVein)
+        });
+        group.appendChild(rightVein);
       }
     }
 
     // Center stroke with filter
-    const centerX = P[Math.floor(P.length / 2)][0] + xof
-    const centerY = P[Math.floor(P.length / 2)][1] + yof
-    const centerColor = rgbaFiltered(0, 0, 0, 0.3, centerX, centerY, layerType)
+    const centerX = P[Math.floor(P.length / 2)][0] + xof;
+    const centerY = P[Math.floor(P.length / 2)][1] + yof;
+    const centerColor = rgbaFiltered(0, 0, 0, 0.3, centerX, centerY, layerType);
     const centerStroke = stroke({
       pts: P,
       xof,
       yof,
       col: centerColor,
-    })
-    group.appendChild(centerStroke)
-  }
-  else if (vei[0] === 2) {
+    });
+    group.appendChild(centerStroke);
+  } else if (vei[0] === 2) {
     // Vein type 2: branching veins
     for (let i = 1; i < P.length - vei[1]; i += vei[2]) {
-      const leftVeinX = (P[i][0] + L[i + vei[1]][0]) / 2 + xof
-      const leftVeinY = (P[i][1] + L[i + vei[1]][1]) / 2 + yof
-      const leftVeinColor = rgbaFiltered(0, 0, 0, normRand(0.4, 0.9), leftVeinX, leftVeinY, layerType)
+      const leftVeinX = (P[i][0] + L[i + vei[1]][0]) / 2 + xof;
+      const leftVeinY = (P[i][1] + L[i + vei[1]][1]) / 2 + yof;
+      const leftVeinColor = rgbaFiltered(
+        0,
+        0,
+        0,
+        normRand(0.4, 0.9),
+        leftVeinX,
+        leftVeinY,
+        layerType,
+      );
 
       const leftVein = polygon({
-        pts: [[P[i][0], P[i][1]], [L[i + vei[1]][0], L[i + vei[1]][1]]],
+        pts: [
+          [P[i][0], P[i][1]],
+          [L[i + vei[1]][0], L[i + vei[1]][1]],
+        ],
         xof,
         yof,
         fil: false,
         str: true,
         col: leftVeinColor,
-      })
-      group.appendChild(leftVein)
+      });
+      group.appendChild(leftVein);
 
-      const rightVeinX = (P[i][0] + R[i + vei[1]][0]) / 2 + xof
-      const rightVeinY = (P[i][1] + R[i + vei[1]][1]) / 2 + yof
-      const rightVeinColor = rgbaFiltered(0, 0, 0, normRand(0.4, 0.9), rightVeinX, rightVeinY, layerType)
+      const rightVeinX = (P[i][0] + R[i + vei[1]][0]) / 2 + xof;
+      const rightVeinY = (P[i][1] + R[i + vei[1]][1]) / 2 + yof;
+      const rightVeinColor = rgbaFiltered(
+        0,
+        0,
+        0,
+        normRand(0.4, 0.9),
+        rightVeinX,
+        rightVeinY,
+        layerType,
+      );
 
       const rightVein = polygon({
-        pts: [[P[i][0], P[i][1]], [R[i + vei[1]][0], R[i + vei[1]][1]]],
+        pts: [
+          [P[i][0], P[i][1]],
+          [R[i + vei[1]][0], R[i + vei[1]][1]],
+        ],
         xof,
         yof,
         fil: false,
         str: true,
         col: rightVeinColor,
-      })
-      group.appendChild(rightVein)
+      });
+      group.appendChild(rightVein);
     }
 
-    const centerX = P[Math.floor(P.length / 2)][0] + xof
-    const centerY = P[Math.floor(P.length / 2)][1] + yof
-    const centerColor = rgbaFiltered(0, 0, 0, 0.3, centerX, centerY, layerType)
+    const centerX = P[Math.floor(P.length / 2)][0] + xof;
+    const centerY = P[Math.floor(P.length / 2)][1] + yof;
+    const centerColor = rgbaFiltered(0, 0, 0, 0.3, centerX, centerY, layerType);
     const centerStroke = stroke({
       pts: P,
       xof,
       yof,
       col: centerColor,
-    })
-    group.appendChild(centerStroke)
+    });
+    group.appendChild(centerStroke);
   }
 
   // Edge strokes with filter
-  const leftEdgeX = L[Math.floor(L.length / 2)][0] + xof
-  const leftEdgeY = L[Math.floor(L.length / 2)][1] + yof
-  const leftEdgeColor = rgbaFiltered(120, 100, 0, 0.3, leftEdgeX, leftEdgeY, layerType)
-  const leftEdge = stroke({ pts: L, xof, yof, col: leftEdgeColor })
+  const leftEdgeX = L[Math.floor(L.length / 2)][0] + xof;
+  const leftEdgeY = L[Math.floor(L.length / 2)][1] + yof;
+  const leftEdgeColor = rgbaFiltered(120, 100, 0, 0.3, leftEdgeX, leftEdgeY, layerType);
+  const leftEdge = stroke({ pts: L, xof, yof, col: leftEdgeColor });
 
-  const rightEdgeX = R[Math.floor(R.length / 2)][0] + xof
-  const rightEdgeY = R[Math.floor(R.length / 2)][1] + yof
-  const rightEdgeColor = rgbaFiltered(120, 100, 0, 0.3, rightEdgeX, rightEdgeY, layerType)
-  const rightEdge = stroke({ pts: R, xof, yof, col: rightEdgeColor })
+  const rightEdgeX = R[Math.floor(R.length / 2)][0] + xof;
+  const rightEdgeY = R[Math.floor(R.length / 2)][1] + yof;
+  const rightEdgeColor = rgbaFiltered(120, 100, 0, 0.3, rightEdgeX, rightEdgeY, layerType);
+  const rightEdge = stroke({ pts: R, xof, yof, col: rightEdgeColor });
 
-  group.appendChild(leftEdge)
-  group.appendChild(rightEdge)
+  group.appendChild(leftEdge);
+  group.appendChild(rightEdge);
 
-  return { group, points: P }
+  return { group, points: P };
 }
 
 // ============================================================================
@@ -258,7 +292,7 @@ export function leaf(args: LeafArgs = {}): { group: SVGGElement, points: Vec3[] 
  * Generate stem-like structure
  * @returns SVG group and center line points
  */
-export function stem(args: StemArgs = {}): { group: SVGGElement, points: Vec3[] } {
+export function stem(args: StemArgs = {}): { group: SVGGElement; points: Vec3[] } {
   const {
     xof = 0,
     yof = 0,
@@ -268,59 +302,64 @@ export function stem(args: StemArgs = {}): { group: SVGGElement, points: Vec3[] 
     wid = (x: number) => 6,
     col = { min: [250, 0.2, 0.4, 1], max: [250, 0.3, 0.6, 1] },
     ben = (x: number): Vec3 => [normRand(-10, 10), 0, normRand(-5, 5)],
-    layerType = 'lay0',
-  } = args
+    layerType = "lay0",
+  } = args;
 
-  const group = createSVGElement('g')
+  const group = createSVGElement("g");
 
-  let disp: Vec3 = v3.zero
-  let crot: Vec3 = v3.zero
-  const P: Vec3[] = [disp]
-  const ROT: Vec3[] = [crot]
+  let disp: Vec3 = v3.zero;
+  let crot: Vec3 = v3.zero;
+  const P: Vec3[] = [disp];
+  const ROT: Vec3[] = [crot];
 
-  const orient = (v: Vec3) => v3.roteuler(v, rot)
+  const orient = (v: Vec3) => v3.roteuler(v, rot);
 
   // Generate stem segments
   for (let i = 0; i < seg; i++) {
-    const p = i / (seg - 1)
-    crot = v3.add(crot, v3.scale(ben(p), 1 / seg))
-    disp = v3.add(disp, orient(v3.roteuler([0, 0, len / seg], crot)))
-    ROT.push(crot)
-    P.push(disp)
+    const p = i / (seg - 1);
+    crot = v3.add(crot, v3.scale(ben(p), 1 / seg));
+    disp = v3.add(disp, orient(v3.roteuler([0, 0, len / seg], crot)));
+    ROT.push(crot);
+    P.push(disp);
   }
 
-  const [L, R] = tubify({ pts: P, wid })
-  const wseg = 4
+  const [L, R] = tubify({ pts: P, wid });
+  const wseg = 4;
 
   // Helper for Vec2 linear interpolation
   const lerp2 = (a: Vec2, b: Vec2, t: number): Vec2 => [
     a[0] + (b[0] - a[0]) * t,
     a[1] + (b[1] - a[1]) * t,
-  ]
+  ];
 
   // Draw stem segments with shading
   for (let i = 1; i < P.length; i++) {
     for (let j = 1; j < wseg; j++) {
-      const m = (j - 1) / (wseg - 1)
-      const n = j / (wseg - 1)
-      const p = i / (P.length - 1)
+      const m = (j - 1) / (wseg - 1);
+      const n = j / (wseg - 1);
+      const p = i / (P.length - 1);
 
-      const p0 = lerp2(L[i - 1], R[i - 1], m)
-      const p1 = lerp2(L[i], R[i], m)
+      const p0 = lerp2(L[i - 1], R[i - 1], m);
+      const p1 = lerp2(L[i], R[i], m);
 
-      const p2 = lerp2(L[i - 1], R[i - 1], n)
-      const p3 = lerp2(L[i], R[i], n)
+      const p2 = lerp2(L[i - 1], R[i - 1], n);
+      const p3 = lerp2(L[i], R[i], n);
 
-      const lt = n / p
-      const h = lerpHue(col.min[0], col.max[0], lt) * mapval(noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1)
-      const s = mapval(lt, 0, 1, col.max[1], col.min[1]) * mapval(noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1)
-      const v = mapval(lt, 0, 1, col.min[2], col.max[2]) * mapval(noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1)
-      const a = mapval(lt, 0, 1, col.min[3], col.max[3])
+      const lt = n / p;
+      const h =
+        lerpHue(col.min[0], col.max[0], lt) * mapval(noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1);
+      const s =
+        mapval(lt, 0, 1, col.max[1], col.min[1]) *
+        mapval(noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1);
+      const v =
+        mapval(lt, 0, 1, col.min[2], col.max[2]) *
+        mapval(noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1);
+      const a = mapval(lt, 0, 1, col.min[3], col.max[3]);
 
       // Calculate center for filter
-      const centerX = (p0[0] + p1[0] + p2[0] + p3[0]) / 4 + xof
-      const centerY = (p0[1] + p1[1] + p2[1] + p3[1]) / 4 + yof
-      const color = hsvFiltered(h, s, v, a, centerX, centerY, layerType)
+      const centerX = (p0[0] + p1[0] + p2[0] + p3[0]) / 4 + xof;
+      const centerY = (p0[1] + p1[1] + p2[1] + p3[1]) / 4 + yof;
+      const color = hsvFiltered(h, s, v, a, centerX, centerY, layerType);
 
       const poly = polygon({
         pts: [
@@ -334,26 +373,26 @@ export function stem(args: StemArgs = {}): { group: SVGGElement, points: Vec3[] 
         fil: true,
         str: false,
         col: color,
-      })
-      group.appendChild(poly)
+      });
+      group.appendChild(poly);
     }
   }
 
   // Edge strokes with filter
-  const leftEdgeX = L[Math.floor(L.length / 2)][0] + xof
-  const leftEdgeY = L[Math.floor(L.length / 2)][1] + yof
-  const leftEdgeColor = rgbaFiltered(0, 0, 0, 0.5, leftEdgeX, leftEdgeY, layerType)
+  const leftEdgeX = L[Math.floor(L.length / 2)][0] + xof;
+  const leftEdgeY = L[Math.floor(L.length / 2)][1] + yof;
+  const leftEdgeColor = rgbaFiltered(0, 0, 0, 0.5, leftEdgeX, leftEdgeY, layerType);
 
-  const rightEdgeX = R[Math.floor(R.length / 2)][0] + xof
-  const rightEdgeY = R[Math.floor(R.length / 2)][1] + yof
-  const rightEdgeColor = rgbaFiltered(0, 0, 0, 0.5, rightEdgeX, rightEdgeY, layerType)
+  const rightEdgeX = R[Math.floor(R.length / 2)][0] + xof;
+  const rightEdgeY = R[Math.floor(R.length / 2)][1] + yof;
+  const rightEdgeColor = rgbaFiltered(0, 0, 0, 0.5, rightEdgeX, rightEdgeY, layerType);
 
-  const leftEdge = stroke({ pts: L.map(p => [p[0], p[1], 0]), xof, yof, col: leftEdgeColor })
-  const rightEdge = stroke({ pts: R.map(p => [p[0], p[1], 0]), xof, yof, col: rightEdgeColor })
-  group.appendChild(leftEdge)
-  group.appendChild(rightEdge)
+  const leftEdge = stroke({ pts: L.map((p) => [p[0], p[1], 0]), xof, yof, col: leftEdgeColor });
+  const rightEdge = stroke({ pts: R.map((p) => [p[0], p[1], 0]), xof, yof, col: rightEdgeColor });
+  group.appendChild(leftEdge);
+  group.appendChild(rightEdge);
 
-  return { group, points: P }
+  return { group, points: P };
 }
 
 // ============================================================================
@@ -365,7 +404,10 @@ export function stem(args: StemArgs = {}): { group: SVGGElement, points: Vec3[] 
  * Generate fractal-like branches
  * @returns Object containing SVG group and array of [depth, points] tuples
  */
-export function branch(args: BranchArgs = {}): { group: SVGGElement, branches: Array<[number, Vec3[]]> } {
+export function branch(args: BranchArgs = {}): {
+  group: SVGGElement;
+  branches: Array<[number, Vec3[]]>;
+} {
   const {
     xof = 0,
     yof = 0,
@@ -377,70 +419,78 @@ export function branch(args: BranchArgs = {}): { group: SVGGElement, branches: A
     col = { min: [50, 0.2, 0.8, 1], max: [50, 0.2, 0.8, 1] },
     dep = 3,
     frk = 4,
-    layerType = 'lay0',
-  } = args
+    layerType = "lay0",
+  } = args;
 
-  const branchGroup = createSVGElement('g')
+  const branchGroup = createSVGElement("g");
 
   // Generate joints for twisting
-  const jnt: Array<[number, number]> = []
+  const jnt: Array<[number, number]> = [];
   for (let i = 0; i < twi; i++) {
-    jnt.push([Math.floor(prng.random() * seg), normRand(-1, 1)])
+    jnt.push([Math.floor(prng.random() * seg), normRand(-1, 1)]);
   }
 
   function jntdist(x: number): [number, number] {
-    let m = seg
-    let j = 0
+    let m = seg;
+    let j = 0;
     for (let i = 0; i < jnt.length; i++) {
-      const n = Math.abs(x * seg - jnt[i][0])
+      const n = Math.abs(x * seg - jnt[i][0]);
       if (n < m) {
-        m = n
-        j = i
+        m = n;
+        j = i;
       }
     }
-    return [m, jnt[j][1]]
+    return [m, jnt[j][1]];
   }
 
   const wfun = (x: number): number => {
-    const [m, j] = jntdist(x)
+    const [m, j] = jntdist(x);
     if (m < 1) {
-      return wid * (3 + 5 * (1 - x))
+      return wid * (3 + 5 * (1 - x));
+    } else {
+      return wid * (2 + 7 * (1 - x) * mapval(noise(x * 10), 0, 1, 0.5, 1));
     }
-    else {
-      return wid * (2 + 7 * (1 - x) * mapval(noise(x * 10), 0, 1, 0.5, 1))
-    }
-  }
+  };
 
   const bfun = (x: number): Vec3 => {
-    const [m, j] = jntdist(x)
+    const [m, j] = jntdist(x);
     if (m < 1) {
-      return [0, j * 20, 0]
+      return [0, j * 20, 0];
+    } else {
+      return [0, normRand(-5, 5), 0];
     }
-    else {
-      return [0, normRand(-5, 5), 0]
-    }
-  }
+  };
 
   // Pass layerType to stem
-  const { group: stemGroup, points: P } = stem({ xof, yof, rot, len, seg, wid: wfun, col, ben: bfun, layerType })
+  const { group: stemGroup, points: P } = stem({
+    xof,
+    yof,
+    rot,
+    len,
+    seg,
+    wid: wfun,
+    col,
+    ben: bfun,
+    layerType,
+  });
 
   // Add stem to branch group
-  branchGroup.appendChild(stemGroup)
+  branchGroup.appendChild(stemGroup);
 
-  const child: Array<[number, Vec3[]]> = []
+  const child: Array<[number, Vec3[]]> = [];
 
   if (dep > 0 && wid > 0.1) {
     for (let i = 0; i < frk * prng.random(); i++) {
-      const ind = Math.floor(normRand(1, P.length))
+      const ind = Math.floor(normRand(1, P.length));
 
-      const r = grot(P, ind)
+      const r = grot(P, ind);
       const childBranch = branch({
         xof: xof + P[ind][0],
         yof: yof + P[ind][1],
         rot: [
-          r[0] + normRand(-1, 1) * PI / 6,
-          r[1] + normRand(-1, 1) * PI / 6,
-          r[2] + normRand(-1, 1) * PI / 6,
+          r[0] + (normRand(-1, 1) * PI) / 6,
+          r[1] + (normRand(-1, 1) * PI) / 6,
+          r[2] + (normRand(-1, 1) * PI) / 6,
         ],
         seg,
         len: len * normRand(0.4, 0.6),
@@ -450,17 +500,19 @@ export function branch(args: BranchArgs = {}): { group: SVGGElement, branches: A
         col,
         frk,
         layerType,
-      })
+      });
 
       // Add child branch SVG to our group
-      branchGroup.appendChild(childBranch.group)
+      branchGroup.appendChild(childBranch.group);
 
       // Collect child branch points
-      child.push(...childBranch.branches)
+      child.push(...childBranch.branches);
     }
   }
 
-  const branches = [[dep, P.map(v => [v[0] + xof, v[1] + yof, v[2]])], ...child] as Array<[number, Vec3[]]>
+  const branches = [[dep, P.map((v) => [v[0] + xof, v[1] + yof, v[2]])], ...child] as Array<
+    [number, Vec3[]]
+  >;
 
-  return { group: branchGroup, branches }
+  return { group: branchGroup, branches };
 }

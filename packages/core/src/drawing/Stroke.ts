@@ -1,7 +1,7 @@
-import { Point, Polygon } from '../foundation/geometry';
-import { noise } from '../foundation/noise';
-import { prng } from '../foundation/random';
-import { poly } from '../utils/svg';
+import { Point, Polygon } from "../foundation/geometry";
+import { noise } from "../foundation/noise";
+import { prng } from "../foundation/random";
+import { poly } from "../utils/svg";
 
 export interface StrokeOptions {
   /** X offset */
@@ -37,13 +37,13 @@ export class Stroke {
     const xof = options.xof ?? 0;
     const yof = options.yof ?? 0;
     const wid = options.wid ?? 2;
-    const col = options.col ?? 'rgba(200,200,200,0.9)';
+    const col = options.col ?? "rgba(200,200,200,0.9)";
     const noi = options.noi ?? 0.5;
     const out = options.out ?? 1;
     const fun = options.fun ?? ((x: number) => Math.sin(x * Math.PI));
 
     if (ptlist.length === 0) {
-      return '';
+      return "";
     }
 
     const vtxlist0: Point[] = [];
@@ -55,28 +55,16 @@ export class Stroke {
       let w = wid * fun(i / ptlist.length);
       w = w * (1 - noi) + w * noi * noise.noise(i * 0.5, n0);
 
-      const a1 = Math.atan2(
-        ptlist[i][1] - ptlist[i - 1][1],
-        ptlist[i][0] - ptlist[i - 1][0]
-      );
-      const a2 = Math.atan2(
-        ptlist[i][1] - ptlist[i + 1][1],
-        ptlist[i][0] - ptlist[i + 1][0]
-      );
+      const a1 = Math.atan2(ptlist[i][1] - ptlist[i - 1][1], ptlist[i][0] - ptlist[i - 1][0]);
+      const a2 = Math.atan2(ptlist[i][1] - ptlist[i + 1][1], ptlist[i][0] - ptlist[i + 1][0]);
       let a = (a1 + a2) / 2;
 
       if (a < a2) {
         a += Math.PI;
       }
 
-      vtxlist0.push([
-        ptlist[i][0] + w * Math.cos(a),
-        ptlist[i][1] + w * Math.sin(a),
-      ]);
-      vtxlist1.push([
-        ptlist[i][0] - w * Math.cos(a),
-        ptlist[i][1] - w * Math.sin(a),
-      ]);
+      vtxlist0.push([ptlist[i][0] + w * Math.cos(a), ptlist[i][1] + w * Math.sin(a)]);
+      vtxlist1.push([ptlist[i][0] - w * Math.cos(a), ptlist[i][1] - w * Math.sin(a)]);
     }
 
     // Combine vertices into a closed polygon
@@ -88,7 +76,7 @@ export class Stroke {
     // Generate SVG
     const canv = poly(
       vtxlist.map((x) => [x[0] + xof, x[1] + yof]),
-      { fil: col, str: col, wid: out, filter: options.filter }
+      { fil: col, str: col, wid: out, filter: options.filter },
     );
 
     return canv;

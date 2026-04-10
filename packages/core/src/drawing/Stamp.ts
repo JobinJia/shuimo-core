@@ -5,10 +5,15 @@
  * to simulate authentic seal stamps used in traditional Chinese art.
  */
 
-import * as opentype from 'opentype.js';
-import { createStampNoise } from './StampNoise';
-import { dsin, dcos, fmtNum } from '../utils/math';
-import { calculateStampTextMetrics, calculateColumnCharPositions, hasFontMetrics, findFontMetrics } from './StampMetrics';
+import * as opentype from "opentype.js";
+import { createStampNoise } from "./StampNoise";
+import { dsin, dcos, fmtNum } from "../utils/math";
+import {
+  calculateStampTextMetrics,
+  calculateColumnCharPositions,
+  hasFontMetrics,
+  findFontMetrics,
+} from "./StampMetrics";
 
 // ─── Reference constants ────────────────────────────────────────────
 // All distance defaults are expressed as ratios of fontSize.
@@ -28,7 +33,7 @@ const MEASURED_HEIGHT_BUFFER = 0.05;
  * - yin: Red background with white text (default)
  * - yang: White background with red text and red border
  */
-export type StampType = 'yin' | 'yang';
+export type StampType = "yin" | "yang";
 
 /**
  * Stamp shape: Control the background shape
@@ -38,8 +43,8 @@ export type StampType = 'yin' | 'yang';
  * - circle: Circular shape
  * - ellipse: Elliptical shape (non-standard ellipse)
  */
-export type StampShape = 'auto' | 'square' | 'rectangle' | 'circle' | 'ellipse';
-export type StampTextCarving = 'normal' | 'strong' | 'stone-cut';
+export type StampShape = "auto" | "square" | "rectangle" | "circle" | "ellipse";
+export type StampTextCarving = "normal" | "strong" | "stone-cut";
 
 export interface MeasuredColumnBox {
   x: number;
@@ -197,7 +202,13 @@ interface CornerRadii {
  *   When provided, noise is projected onto this direction and only the inward
  *   component is kept (凹陷 only, no 凸起).
  */
-type NoiseFn = (x: number, y: number, edgeProgress: number, inwardNX?: number, inwardNY?: number) => { x: number; y: number };
+type NoiseFn = (
+  x: number,
+  y: number,
+  edgeProgress: number,
+  inwardNX?: number,
+  inwardNY?: number,
+) => { x: number; y: number };
 
 interface TextLayout {
   width: number;
@@ -249,17 +260,19 @@ class PathBuilder {
   }
 
   cubicTo(c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number): this {
-    this.parts.push(`C ${fmtNum(c1x)} ${fmtNum(c1y)}, ${fmtNum(c2x)} ${fmtNum(c2y)}, ${fmtNum(x)} ${fmtNum(y)}`);
+    this.parts.push(
+      `C ${fmtNum(c1x)} ${fmtNum(c1y)}, ${fmtNum(c2x)} ${fmtNum(c2y)}, ${fmtNum(x)} ${fmtNum(y)}`,
+    );
     return this;
   }
 
   close(): this {
-    this.parts.push('Z');
+    this.parts.push("Z");
     return this;
   }
 
   toString(): string {
-    return this.parts.join(' ');
+    return this.parts.join(" ");
   }
 }
 
@@ -293,8 +306,10 @@ function randomizeCornerRadii(base: number, random: () => number, regular: boole
  */
 function generateEdgePoints(
   builder: PathBuilder,
-  fromX: number, fromY: number,
-  toX: number, toY: number,
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
   count: number,
   applyNoise: NoiseFn,
   fullNoise: boolean,
@@ -409,11 +424,12 @@ function calculateTextBounds(
   }
 
   // Find longest column
-  const maxChars = Math.max(...text.map(t => t.length));
+  const maxChars = Math.max(...text.map((t) => t.length));
   const totalHeight = Math.max(...columnHeights);
 
   // Total width = sum of all column widths + gaps between columns
-  const totalWidth = columnWidths.reduce((sum, w) => sum + w, 0) + (text.length - 1) * fontSize * columnSpacing;
+  const totalWidth =
+    columnWidths.reduce((sum, w) => sum + w, 0) + (text.length - 1) * fontSize * columnSpacing;
 
   return {
     width: totalWidth,
@@ -422,7 +438,7 @@ function calculateTextBounds(
     maxChars,
     columnHeights,
     columnWidth,
-    columnWidths
+    columnWidths,
   };
 }
 
@@ -440,9 +456,10 @@ function getPathTextBounds(
   measuredColumnHeights: number[] | undefined,
   fontFamily?: string,
 ): TextLayout {
-  const bufferedHeights = measuredColumnHeights?.length === text.length
-    ? measuredColumnHeights.map(height => height + getMeasuredHeightBuffer(fontSize))
-    : undefined;
+  const bufferedHeights =
+    measuredColumnHeights?.length === text.length
+      ? measuredColumnHeights.map((height) => height + getMeasuredHeightBuffer(fontSize))
+      : undefined;
 
   const result = calculateTextBounds(
     text,
@@ -459,7 +476,7 @@ function getPathTextBounds(
   // exceed 1.0 em, so borders need extra space to prevent text clipping.
   // This buffer is NOT applied in generateStamp's text positioning metrics.
   const overflowBuffer = fontSize * 0.03;
-  result.columnHeights = result.columnHeights.map(h => h + overflowBuffer);
+  result.columnHeights = result.columnHeights.map((h) => h + overflowBuffer);
   result.height = Math.max(...result.columnHeights);
   return result;
 }
@@ -489,11 +506,9 @@ interface VisualTextFrame {
 }
 
 function interpolateProfileY(points: ProfilePoint[], x: number): number {
-  if (points.length === 0)
-    return 0;
+  if (points.length === 0) return 0;
 
-  if (x <= points[0].x)
-    return points[0].y;
+  if (x <= points[0].x) return points[0].y;
 
   for (let i = 1; i < points.length; i++) {
     const prev = points[i - 1];
@@ -514,8 +529,9 @@ function calculateVisualTextFrame(
   columnGap: number,
   measuredBoxes?: MeasuredColumnBox[],
 ): VisualTextFrame {
-  const totalWidth = columnWidths.reduce((sum, width) => sum + width, 0)
-    + Math.max(0, columnWidths.length - 1) * columnGap;
+  const totalWidth =
+    columnWidths.reduce((sum, width) => sum + width, 0) +
+    Math.max(0, columnWidths.length - 1) * columnGap;
   let currentRight = totalWidth;
 
   const placements = columnWidths.map((columnWidth, index) => {
@@ -542,17 +558,20 @@ function calculateVisualTextFrame(
     return placement;
   });
 
-  const bounds = placements.reduce((acc, placement) => ({
-    left: Math.min(acc.left, placement.visualLeft),
-    top: Math.min(acc.top, placement.visualTop),
-    right: Math.max(acc.right, placement.visualRight),
-    bottom: Math.max(acc.bottom, placement.visualBottom),
-  }), {
-    left: Number.POSITIVE_INFINITY,
-    top: Number.POSITIVE_INFINITY,
-    right: Number.NEGATIVE_INFINITY,
-    bottom: Number.NEGATIVE_INFINITY,
-  });
+  const bounds = placements.reduce(
+    (acc, placement) => ({
+      left: Math.min(acc.left, placement.visualLeft),
+      top: Math.min(acc.top, placement.visualTop),
+      right: Math.max(acc.right, placement.visualRight),
+      bottom: Math.max(acc.bottom, placement.visualBottom),
+    }),
+    {
+      left: Number.POSITIVE_INFINITY,
+      top: Number.POSITIVE_INFINITY,
+      right: Number.NEGATIVE_INFINITY,
+      bottom: Number.NEGATIVE_INFINITY,
+    },
+  );
 
   return {
     ...bounds,
@@ -563,13 +582,12 @@ function calculateVisualTextFrame(
 }
 
 function shouldUseCellCenteredFrame(shape: StampShape | undefined, columnCount: number): boolean {
-  return (shape === 'circle' || shape === 'ellipse') && columnCount === 1;
+  return (shape === "circle" || shape === "ellipse") && columnCount === 1;
 }
 
 function getActualCharacterSpacingPx(options: StampOptions): number {
   const fontSize = options.fontSize ?? 70;
-  if (options.characterSpacingPx !== undefined)
-    return options.characterSpacingPx;
+  if (options.characterSpacingPx !== undefined) return options.characterSpacingPx;
   return fontSize * (options.characterSpacing ?? 0.05);
 }
 
@@ -591,25 +609,24 @@ function translateGlyphPath(path: opentype.Path, dx: number, dy: number): openty
   translated.commands = path.commands.map((command) => {
     const next = { ...command } as GlyphPathCommand;
 
-    if (typeof next.x === 'number')
-      next.x += dx;
-    if (typeof next.y === 'number')
-      next.y += dy;
-    if (typeof next.x1 === 'number')
-      next.x1 += dx;
-    if (typeof next.y1 === 'number')
-      next.y1 += dy;
-    if (typeof next.x2 === 'number')
-      next.x2 += dx;
-    if (typeof next.y2 === 'number')
-      next.y2 += dy;
+    if (typeof next.x === "number") next.x += dx;
+    if (typeof next.y === "number") next.y += dy;
+    if (typeof next.x1 === "number") next.x1 += dx;
+    if (typeof next.y1 === "number") next.y1 += dy;
+    if (typeof next.x2 === "number") next.x2 += dx;
+    if (typeof next.y2 === "number") next.y2 += dy;
 
     return next;
   });
   return translated;
 }
 
-function angularizeGlyphPath(path: opentype.Path, seed: number, columnIndex: number, charIndex: number): opentype.Path {
+function angularizeGlyphPath(
+  path: opentype.Path,
+  seed: number,
+  columnIndex: number,
+  charIndex: number,
+): opentype.Path {
   const angularPath = new opentype.Path();
   const grid = 1.4;
   const jitter = 0.9;
@@ -625,29 +642,43 @@ function angularizeGlyphPath(path: opentype.Path, seed: number, columnIndex: num
       return stepped + delta;
     };
 
-    if (typeof next.x === 'number')
-      next.x = moveCoord(next.x, 11);
-    if (typeof next.y === 'number')
-      next.y = moveCoord(next.y, 23);
+    if (typeof next.x === "number") next.x = moveCoord(next.x, 11);
+    if (typeof next.y === "number") next.y = moveCoord(next.y, 23);
 
-    if (typeof next.x1 === 'number' && typeof next.x === 'number') {
+    if (typeof next.x1 === "number" && typeof next.x === "number") {
       const pulled = previousPoint.x + (next.x1 - previousPoint.x) * 0.42;
-      next.x1 = clamp(moveCoord(pulled, 31), Math.min(previousPoint.x, next.x) - 8, Math.max(previousPoint.x, next.x) + 8);
+      next.x1 = clamp(
+        moveCoord(pulled, 31),
+        Math.min(previousPoint.x, next.x) - 8,
+        Math.max(previousPoint.x, next.x) + 8,
+      );
     }
-    if (typeof next.y1 === 'number' && typeof next.y === 'number') {
+    if (typeof next.y1 === "number" && typeof next.y === "number") {
       const pulled = previousPoint.y + (next.y1 - previousPoint.y) * 0.42;
-      next.y1 = clamp(moveCoord(pulled, 41), Math.min(previousPoint.y, next.y) - 8, Math.max(previousPoint.y, next.y) + 8);
+      next.y1 = clamp(
+        moveCoord(pulled, 41),
+        Math.min(previousPoint.y, next.y) - 8,
+        Math.max(previousPoint.y, next.y) + 8,
+      );
     }
-    if (typeof next.x2 === 'number' && typeof next.x === 'number') {
+    if (typeof next.x2 === "number" && typeof next.x === "number") {
       const pulled = next.x + (next.x2 - next.x) * 0.42;
-      next.x2 = clamp(moveCoord(pulled, 53), Math.min(previousPoint.x, next.x) - 8, Math.max(previousPoint.x, next.x) + 8);
+      next.x2 = clamp(
+        moveCoord(pulled, 53),
+        Math.min(previousPoint.x, next.x) - 8,
+        Math.max(previousPoint.x, next.x) + 8,
+      );
     }
-    if (typeof next.y2 === 'number' && typeof next.y === 'number') {
+    if (typeof next.y2 === "number" && typeof next.y === "number") {
       const pulled = next.y + (next.y2 - next.y) * 0.42;
-      next.y2 = clamp(moveCoord(pulled, 67), Math.min(previousPoint.y, next.y) - 8, Math.max(previousPoint.y, next.y) + 8);
+      next.y2 = clamp(
+        moveCoord(pulled, 67),
+        Math.min(previousPoint.y, next.y) - 8,
+        Math.max(previousPoint.y, next.y) + 8,
+      );
     }
 
-    if (typeof next.x === 'number' && typeof next.y === 'number')
+    if (typeof next.x === "number" && typeof next.y === "number")
       previousPoint = { x: next.x, y: next.y };
 
     return next;
@@ -657,8 +688,7 @@ function angularizeGlyphPath(path: opentype.Path, seed: number, columnIndex: num
 }
 
 function extractFillFromStyle(styleText: string | null): string | null {
-  if (!styleText)
-    return null;
+  if (!styleText) return null;
 
   const match = styleText.match(/fill:\s*([^;]+)/);
   return match?.[1]?.trim() ?? null;
@@ -701,7 +731,7 @@ function measureVerticalGlyphColumn(
     return glyph.advanceWidth ? (glyph.advanceWidth / font.unitsPerEm) * fontSize : fontSize;
   });
   const maxAdvanceWidth = Math.max(...advanceWidths);
-  const maxInkWidth = Math.max(...glyphMetrics.map(item => item.width));
+  const maxInkWidth = Math.max(...glyphMetrics.map((item) => item.width));
 
   let currentTop = 0;
 
@@ -736,20 +766,27 @@ function measureVerticalGlyphColumn(
 function measureStampTextWithGlyphFont(
   options: StampOptions,
   font: opentype.Font,
-): { width: number; height: number; columnWidths: number[]; columnHeights: number[]; columnBoxes: MeasuredColumnBox[] } | null {
+): {
+  width: number;
+  height: number;
+  columnWidths: number[];
+  columnHeights: number[];
+  columnBoxes: MeasuredColumnBox[];
+} | null {
   const { text, fontSize = 70 } = options;
-  if (!text || text.length === 0)
-    return null;
+  if (!text || text.length === 0) return null;
 
   const characterSpacingPx = getActualCharacterSpacingPx(options);
-  const columns = text.map(line => measureVerticalGlyphColumn(font, line, fontSize, characterSpacingPx));
+  const columns = text.map((line) =>
+    measureVerticalGlyphColumn(font, line, fontSize, characterSpacingPx),
+  );
 
   return {
-    width: Math.max(...columns.map(column => column.width), 0),
-    height: Math.max(...columns.map(column => column.height), 0),
-    columnWidths: columns.map(column => column.width),
-    columnHeights: columns.map(column => column.height),
-    columnBoxes: columns.map(column => column.box),
+    width: Math.max(...columns.map((column) => column.width), 0),
+    height: Math.max(...columns.map((column) => column.height), 0),
+    columnWidths: columns.map((column) => column.width),
+    columnHeights: columns.map((column) => column.height),
+    columnBoxes: columns.map((column) => column.box),
   };
 }
 
@@ -777,7 +814,7 @@ function buildVerticalGlyphPath(
     };
   });
 
-  const maxWidth = Math.max(...glyphMetrics.map(item => item.width), 0);
+  const maxWidth = Math.max(...glyphMetrics.map((item) => item.width), 0);
   let currentTop = 0;
 
   glyphMetrics.forEach((glyph, charIndex) => {
@@ -803,29 +840,24 @@ async function loadGlyphFont(options: StampOptions): Promise<opentype.Font | nul
   if (options.fontData) {
     try {
       return opentype.parse(options.fontData);
-    }
-    catch {
+    } catch {
       return null;
     }
   }
 
-  if (!options.fontUrl || typeof fetch === 'undefined')
-    return null;
+  if (!options.fontUrl || typeof fetch === "undefined") return null;
 
   const cached = FONT_CACHE.get(options.fontUrl);
-  if (cached)
-    return cached;
+  if (cached) return cached;
 
   const fontPromise = (async () => {
     try {
       const response = await fetch(options.fontUrl!);
-      if (!response.ok)
-        return null;
+      if (!response.ok) return null;
 
       const fontBuffer = await response.arrayBuffer();
       return opentype.parse(fontBuffer);
-    }
-    catch {
+    } catch {
       return null;
     }
   })();
@@ -840,24 +872,25 @@ function replaceTextElementsWithGlyphPaths(
   measured: { columnBoxes: MeasuredColumnBox[] },
   font: opentype.Font,
 ): string {
-  if (typeof DOMParser === 'undefined' || typeof XMLSerializer === 'undefined')
-    return svg;
+  if (typeof DOMParser === "undefined" || typeof XMLSerializer === "undefined") return svg;
 
   const parser = new DOMParser();
-  const svgDocument = parser.parseFromString(svg, 'image/svg+xml');
-  const textElements = Array.from(svgDocument.querySelectorAll('text'));
-  if (textElements.length !== options.text.length)
-    return svg;
+  const svgDocument = parser.parseFromString(svg, "image/svg+xml");
+  const textElements = Array.from(svgDocument.querySelectorAll("text"));
+  if (textElements.length !== options.text.length) return svg;
 
   const fontSize = options.fontSize ?? 70;
   const characterSpacingPx = getActualCharacterSpacingPx(options);
   const seed = options.seed ?? 0;
 
   textElements.forEach((textElement, index) => {
-    const x = Number.parseFloat(textElement.getAttribute('x') ?? '0');
-    const y = Number.parseFloat(textElement.getAttribute('y') ?? '0');
-    const fill = extractFillFromStyle(textElement.getAttribute('style')) ?? textElement.getAttribute('fill') ?? '#FFFFFF';
-    const filter = textElement.getAttribute('filter');
+    const x = Number.parseFloat(textElement.getAttribute("x") ?? "0");
+    const y = Number.parseFloat(textElement.getAttribute("y") ?? "0");
+    const fill =
+      extractFillFromStyle(textElement.getAttribute("style")) ??
+      textElement.getAttribute("fill") ??
+      "#FFFFFF";
+    const filter = textElement.getAttribute("filter");
     const glyphPath = buildVerticalGlyphPath(
       font,
       options.text[index],
@@ -870,12 +903,11 @@ function replaceTextElementsWithGlyphPaths(
       index,
     );
 
-    const pathElement = svgDocument.createElementNS('http://www.w3.org/2000/svg', 'path');
-    pathElement.setAttribute('d', glyphPath);
-    pathElement.setAttribute('fill', fill);
-    pathElement.setAttribute('fill-rule', 'nonzero');
-    if (filter)
-      pathElement.setAttribute('filter', filter);
+    const pathElement = svgDocument.createElementNS("http://www.w3.org/2000/svg", "path");
+    pathElement.setAttribute("d", glyphPath);
+    pathElement.setAttribute("fill", fill);
+    pathElement.setAttribute("fill-rule", "nonzero");
+    if (filter) pathElement.setAttribute("filter", filter);
 
     textElement.replaceWith(pathElement);
   });
@@ -894,7 +926,7 @@ function generateSquarePath(
   cornerRadius: number,
   random: () => number,
   applyNoise: NoiseFn,
-  regularShape: boolean
+  regularShape: boolean,
 ): string {
   if (regularShape) {
     const cr = randomizeCornerRadii(cornerRadius, random, true);
@@ -947,7 +979,7 @@ function generateRectanglePath(
   cornerRadius: number,
   random: () => number,
   applyNoise: NoiseFn,
-  regularShape: boolean
+  regularShape: boolean,
 ): string {
   if (regularShape) {
     const cr = randomizeCornerRadii(cornerRadius, random, true);
@@ -996,7 +1028,7 @@ function generateCirclePath(
   radius: number,
   borderPoints: number,
   applyNoise: NoiseFn,
-  regularShape: boolean
+  regularShape: boolean,
 ): string {
   const centerX = radius;
   const centerY = radius;
@@ -1040,7 +1072,7 @@ function generateEllipsePath(
   height: number,
   borderPoints: number,
   applyNoise: NoiseFn,
-  regularShape: boolean
+  regularShape: boolean,
 ): string {
   if (regularShape) {
     const rx = width / 2;
@@ -1077,10 +1109,11 @@ function generateEllipsePath(
       const t = i / pointsPerEdge;
       const angle = -PI / 2 + t * PI;
       const edgeProgress = dsin(t * PI);
-      const x = (width - curveRadius) + dcos(angle) * curveRadius;
+      const x = width - curveRadius + dcos(angle) * curveRadius;
       const y = radius + dsin(angle) * radius;
       // Inward normal: toward shape center
-      const dx = x - shapeCX; const dy = y - shapeCY;
+      const dx = x - shapeCX;
+      const dy = y - shapeCY;
       const d = Math.sqrt(dx * dx + dy * dy) || 1;
       const pt = applyNoise(x, y, edgeProgress, -dx / d, -dy / d);
       b.lineTo(pt.x, pt.y);
@@ -1090,7 +1123,7 @@ function generateEllipsePath(
     for (let i = 1; i < pointsPerEdge; i++) {
       const t = i / pointsPerEdge;
       const edgeProgress = dsin(t * PI);
-      const pt = applyNoise((width - curveRadius) - t * straightLength, height, edgeProgress, 0, -1);
+      const pt = applyNoise(width - curveRadius - t * straightLength, height, edgeProgress, 0, -1);
       b.lineTo(pt.x, pt.y);
     }
 
@@ -1101,7 +1134,8 @@ function generateEllipsePath(
       const edgeProgress = dsin(t * PI);
       const x = curveRadius + dcos(angle) * curveRadius;
       const y = radius + dsin(angle) * radius;
-      const dx = x - shapeCX; const dy = y - shapeCY;
+      const dx = x - shapeCX;
+      const dy = y - shapeCY;
       const d = Math.sqrt(dx * dx + dy * dy) || 1;
       const pt = applyNoise(x, y, edgeProgress, -dx / d, -dy / d);
       b.lineTo(pt.x, pt.y);
@@ -1122,7 +1156,8 @@ function generateEllipsePath(
       const edgeProgress = dsin(t * PI);
       const x = radius + dcos(angle) * radius;
       const y = curveRadius + dsin(angle) * curveRadius;
-      const dx = x - shapeCX; const dy = y - shapeCY;
+      const dx = x - shapeCX;
+      const dy = y - shapeCY;
       const d = Math.sqrt(dx * dx + dy * dy) || 1;
       const pt = applyNoise(x, y, edgeProgress, -dx / d, -dy / d);
       b.lineTo(pt.x, pt.y);
@@ -1142,8 +1177,9 @@ function generateEllipsePath(
       const angle = 0 + t * PI;
       const edgeProgress = dsin(t * PI);
       const x = radius + dcos(angle) * radius;
-      const y = (height - curveRadius) + dsin(angle) * curveRadius;
-      const dx = x - shapeCX; const dy = y - shapeCY;
+      const y = height - curveRadius + dsin(angle) * curveRadius;
+      const dx = x - shapeCX;
+      const dy = y - shapeCY;
       const d = Math.sqrt(dx * dx + dy * dy) || 1;
       const pt = applyNoise(x, y, edgeProgress, -dx / d, -dy / d);
       b.lineTo(pt.x, pt.y);
@@ -1153,7 +1189,7 @@ function generateEllipsePath(
     for (let i = 1; i < pointsPerEdge; i++) {
       const t = i / pointsPerEdge;
       const edgeProgress = dsin(t * PI);
-      const pt = applyNoise(0, (height - curveRadius) - t * straightLength, edgeProgress, 1, 0);
+      const pt = applyNoise(0, height - curveRadius - t * straightLength, edgeProgress, 1, 0);
       b.lineTo(pt.x, pt.y);
     }
   }
@@ -1171,7 +1207,7 @@ function generateEllipsePath(
 export function generateStampPath(options: StampOptions): StampResult {
   const {
     text,
-    shape = 'auto',
+    shape = "auto",
     fontSize = 70,
     columnSpacing = 0.02,
     characterSpacing = 0.05,
@@ -1192,12 +1228,14 @@ export function generateStampPath(options: StampOptions): StampResult {
     borderPointsPx,
     cornerRadiusPx,
     regularShape = false,
-    seed = Date.now()
+    seed = Date.now(),
   } = options;
 
   // Resolve actual pixel values — *Px takes precedence over fontSize-relative values
-  const actualColumnSpacing = columnSpacingPx !== undefined ? columnSpacingPx / fontSize : columnSpacing;
-  const actualCharacterSpacing = characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
+  const actualColumnSpacing =
+    columnSpacingPx !== undefined ? columnSpacingPx / fontSize : columnSpacing;
+  const actualCharacterSpacing =
+    characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
   const actualPaddingX = paddingXPx !== undefined ? paddingXPx : fontSize * paddingX;
   const actualPaddingY = paddingYPx !== undefined ? paddingYPx : fontSize * paddingY;
   const actualNoiseAmount = noiseAmountPx ?? fontSize * noiseAmount;
@@ -1205,7 +1243,7 @@ export function generateStampPath(options: StampOptions): StampResult {
   const actualCornerRadius = cornerRadiusPx ?? fontSize * cornerRadius;
 
   // Early return if no valid text
-  if (!text || text.length === 0 || text.every(t => !t || t.trim().length === 0)) {
+  if (!text || text.length === 0 || text.every((t) => !t || t.trim().length === 0)) {
     const defaultSize = 100;
     return {
       path: `M 0 0 L ${defaultSize} 0 L ${defaultSize} ${defaultSize} L 0 ${defaultSize} Z`,
@@ -1215,8 +1253,8 @@ export function generateStampPath(options: StampOptions): StampResult {
         top: 0,
         bottom: defaultSize,
         width: defaultSize,
-        height: defaultSize
-      }
+        height: defaultSize,
+      },
     };
   }
 
@@ -1225,7 +1263,7 @@ export function generateStampPath(options: StampOptions): StampResult {
   // User provides ['A', 'B'], it will display as: B(left) A(right), reading right-to-left
   const displayText = [...text];
 
-  const fontFamily = options.fontFamily ?? 'serif';
+  const fontFamily = options.fontFamily ?? "serif";
 
   const textDims = getPathTextBounds(
     displayText,
@@ -1237,9 +1275,10 @@ export function generateStampPath(options: StampOptions): StampResult {
     options.measuredColumnHeights,
     fontFamily,
   );
-  const measuredBoxes = options.measuredColumnBoxes?.length === displayText.length
-    ? options.measuredColumnBoxes
-    : undefined;
+  const measuredBoxes =
+    options.measuredColumnBoxes?.length === displayText.length
+      ? options.measuredColumnBoxes
+      : undefined;
   const bufferedMeasuredBoxes = measuredBoxes?.map((box) => {
     const verticalBuffer = getMeasuredHeightBuffer(fontSize);
     return {
@@ -1259,7 +1298,7 @@ export function generateStampPath(options: StampOptions): StampResult {
     height: bufferedMeasuredBoxes
       ? visualFrame.placements[index].visualBottom - visualFrame.top
       : textDims.columnHeights[index],
-    text: line
+    text: line,
   }));
 
   // Use separate horizontal and vertical padding (now using actualPaddingX/Y which can be absolute or relative)
@@ -1270,7 +1309,8 @@ export function generateStampPath(options: StampOptions): StampResult {
   const baseWidth = visualFrame.width + horizontalPadding * 2;
   const baseRightHeight = columnData[0].height + verticalPadding * 2;
   const baseLeftHeight = columnData[columnData.length - 1].height + verticalPadding * 2;
-  const tallestColumnHeight = Math.max(...columnData.map(column => column.height)) + verticalPadding * 2;
+  const tallestColumnHeight =
+    Math.max(...columnData.map((column) => column.height)) + verticalPadding * 2;
 
   // Apply border scale to expand/shrink the border relative to text
   // Scale from the center, so text stays centered
@@ -1321,10 +1361,10 @@ export function generateStampPath(options: StampOptions): StampResult {
   };
 
   // Generate path based on shape
-  let path = '';
-  let bounds: StampResult['bounds'];
+  let path = "";
+  let bounds: StampResult["bounds"];
 
-  if (shape === 'square') {
+  if (shape === "square") {
     // Square: create a compact square based on text dimensions with padding and border scale
     const textWidth = visualFrame.width;
     const textHeight = visualFrame.height;
@@ -1333,36 +1373,54 @@ export function generateStampPath(options: StampOptions): StampResult {
     const avgScale = (scaleX + scaleY) / 2;
     const size = baseSize * avgScale;
 
-    path = generateSquarePath(size, actualBorderPoints, actualCornerRadius, random, applyNoise, regularShape);
+    path = generateSquarePath(
+      size,
+      actualBorderPoints,
+      actualCornerRadius,
+      random,
+      applyNoise,
+      regularShape,
+    );
     bounds = {
       left: 0,
       right: size,
       top: 0,
       bottom: size,
       width: size,
-      height: size
+      height: size,
     };
-  } else if (shape === 'rectangle') {
+  } else if (shape === "rectangle") {
     // Rectangle: fits text dimensions with padding and border scale
     const textWidth = visualFrame.width;
     const textHeight = visualFrame.height;
     const width = (textWidth + horizontalPadding * 2) * scaleX;
     const height = (textHeight + verticalPadding * 2) * scaleY;
 
-    path = generateRectanglePath(width, height, actualBorderPoints, actualCornerRadius, random, applyNoise, regularShape);
+    path = generateRectanglePath(
+      width,
+      height,
+      actualBorderPoints,
+      actualCornerRadius,
+      random,
+      applyNoise,
+      regularShape,
+    );
     bounds = {
       left: 0,
       right: width,
       top: 0,
       bottom: height,
       width,
-      height
+      height,
     };
-  } else if (shape === 'circle') {
+  } else if (shape === "circle") {
     // Circle: fits text dimensions with padding and border scale
     const textWidth = visualFrame.width;
     const textHeight = visualFrame.height;
-    const baseDiameter = Math.max(textWidth + horizontalPadding * 2, textHeight + verticalPadding * 2);
+    const baseDiameter = Math.max(
+      textWidth + horizontalPadding * 2,
+      textHeight + verticalPadding * 2,
+    );
     // For circle, use the average of scaleX and scaleY to maintain circular shape
     const avgScale = (scaleX + scaleY) / 2;
     const diameter = baseDiameter * avgScale;
@@ -1375,9 +1433,9 @@ export function generateStampPath(options: StampOptions): StampResult {
       top: 0,
       bottom: diameter,
       width: diameter,
-      height: diameter
+      height: diameter,
     };
-  } else if (shape === 'ellipse') {
+  } else if (shape === "ellipse") {
     // Ellipse: non-standard ellipse design with padding and border scale
     const textWidth = visualFrame.width;
     const textHeight = visualFrame.height;
@@ -1409,7 +1467,7 @@ export function generateStampPath(options: StampOptions): StampResult {
       top: 0,
       bottom: height,
       width,
-      height
+      height,
     };
   } else {
     // Auto (default): trapezoid based on text layout
@@ -1419,7 +1477,10 @@ export function generateStampPath(options: StampOptions): StampResult {
 
     for (let index = 0; index < columnData.length; index++) {
       const placement = visualFrame.placements[index];
-      const columnCenter = textBlockLeft + (placement.visualLeft - visualFrame.left) + (placement.visualRight - placement.visualLeft) / 2;
+      const columnCenter =
+        textBlockLeft +
+        (placement.visualLeft - visualFrame.left) +
+        (placement.visualRight - placement.visualLeft) / 2;
       const columnBottom = (columnData[index].height + verticalPadding * 2) * scaleY;
 
       autoProfile.push({ x: columnCenter, y: columnBottom });
@@ -1434,11 +1495,14 @@ export function generateStampPath(options: StampOptions): StampResult {
       top: 0,
       bottom: tallestColumnHeight * scaleY,
       width: maxWidth,
-      height: tallestColumnHeight * scaleY
+      height: tallestColumnHeight * scaleY,
     };
 
     const pointsPerEdge = Math.floor(actualBorderPoints / 4);
-    const r = Math.min(actualCornerRadius, Math.min(maxWidth, Math.max(leftHeight, rightHeight)) * 0.03);
+    const r = Math.min(
+      actualCornerRadius,
+      Math.min(maxWidth, Math.max(leftHeight, rightHeight)) * 0.03,
+    );
 
     const b = new PathBuilder();
 
@@ -1452,7 +1516,18 @@ export function generateStampPath(options: StampOptions): StampResult {
     b.quadTo(maxWidth, 0, maxWidth, r);
 
     // Right edge → inward leftward (-1, 0)
-    generateEdgePoints(b, maxWidth, r, maxWidth, rightHeight - r, pointsPerEdge, applyNoise, false, -1, 0);
+    generateEdgePoints(
+      b,
+      maxWidth,
+      r,
+      maxWidth,
+      rightHeight - r,
+      pointsPerEdge,
+      applyNoise,
+      false,
+      -1,
+      0,
+    );
 
     // Bottom-right corner
     b.quadTo(maxWidth, rightHeight, maxWidth - r, rightHeight);
@@ -1461,7 +1536,7 @@ export function generateStampPath(options: StampOptions): StampResult {
     for (let i = 1; i < pointsPerEdge; i++) {
       const t = i / pointsPerEdge;
       const edgeProgress = dsin(t * PI);
-      const xPos = (maxWidth - r) - t * (maxWidth - r - r);
+      const xPos = maxWidth - r - t * (maxWidth - r - r);
       const yPos = interpolateProfileY(autoProfile, xPos);
       const pt = applyNoise(xPos, yPos, edgeProgress, 0, -1);
       b.lineTo(pt.x, pt.y);
@@ -1488,12 +1563,12 @@ export function generateStampPath(options: StampOptions): StampResult {
 export function generateStamp(options: StampOptions): string {
   const {
     text,
-    shape = 'auto',
-    type = 'yin',
-    color = '#C8102E',
-    fontFamily = 'serif',
+    shape = "auto",
+    type = "yin",
+    color = "#C8102E",
+    fontFamily = "serif",
     fontSize = 70,
-    fontWeight = 'normal',
+    fontWeight = "normal",
     offsetX = 0,
     offsetY = 0,
     columnSpacing = 0.02,
@@ -1502,78 +1577,81 @@ export function generateStamp(options: StampOptions): string {
     characterSpacingPx,
     columnWidthPx,
     borderWidth = DEFAULT_BORDER_WIDTH,
-    textCarving = 'normal',
-    seed = Date.now()
+    textCarving = "normal",
+    seed = Date.now(),
   } = options;
 
   // Resolve actual pixel values — *Px takes precedence over fontSize-relative values
   const actualBorderWidth = options.borderWidthPx ?? fontSize * borderWidth;
-  const actualColumnSpacing = columnSpacingPx !== undefined ? columnSpacingPx / fontSize : columnSpacing;
-  const actualCharacterSpacing = characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
+  const actualColumnSpacing =
+    columnSpacingPx !== undefined ? columnSpacingPx / fontSize : columnSpacing;
+  const actualCharacterSpacing =
+    characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
 
   // SVG filter scaling — keep visual texture density consistent across font sizes
   const filterScale = fontSize / REFERENCE_FONT_SIZE;
   const filterScaleInv = REFERENCE_FONT_SIZE / fontSize;
-  const carvingProfile = textCarving === 'stone-cut'
-    ? {
-        coreErode: 0.12,
-        edgeNoiseType: 'turbulence',
-        edgeFrequency: 0.28,
-        edgeDisplacement: 1.9,
-        edgePosterizeTable: '0 0.18 0.18 0.5 0.5 0.82 0.82 1',
-        chipFrequency: 0.14,
-        chipThreshold: -0.18,
-        chipTable: '0 0 0 1 1 1 1',
-        grainFrequency: 0.46,
-        grainThreshold: -0.5,
-        grainTable: '0 0 0 0 1 1',
-        alphaGain: 1.03,
-        alphaBias: -0.04,
-      }
-    : textCarving === 'strong'
-    ? {
-        coreErode: 0.14,
-        edgeNoiseType: 'fractalNoise',
-        edgeFrequency: 0.22,
-        edgeDisplacement: 1.45,
-        edgePosterizeTable: '',
-        chipFrequency: 0.11,
-        chipThreshold: -0.26,
-        chipTable: '0 0 0 0 1 1 1',
-        grainFrequency: 0.38,
-        grainThreshold: -0.62,
-        grainTable: '0 0 0 0 0 1',
-        alphaGain: 1.08,
-        alphaBias: -0.03,
-      }
-    : {
-        coreErode: 0.18,
-        edgeNoiseType: 'fractalNoise',
-        edgeFrequency: 0.18,
-        edgeDisplacement: 1.1,
-        edgePosterizeTable: '',
-        chipFrequency: 0.09,
-        chipThreshold: -0.32,
-        chipTable: '0 0 0 0 1 1 1',
-        grainFrequency: 0.32,
-        grainThreshold: -0.7,
-        grainTable: '0 0 0 0 0 1',
-        alphaGain: 1.12,
-        alphaBias: -0.02,
-      };
+  const carvingProfile =
+    textCarving === "stone-cut"
+      ? {
+          coreErode: 0.12,
+          edgeNoiseType: "turbulence",
+          edgeFrequency: 0.28,
+          edgeDisplacement: 1.9,
+          edgePosterizeTable: "0 0.18 0.18 0.5 0.5 0.82 0.82 1",
+          chipFrequency: 0.14,
+          chipThreshold: -0.18,
+          chipTable: "0 0 0 1 1 1 1",
+          grainFrequency: 0.46,
+          grainThreshold: -0.5,
+          grainTable: "0 0 0 0 1 1",
+          alphaGain: 1.03,
+          alphaBias: -0.04,
+        }
+      : textCarving === "strong"
+        ? {
+            coreErode: 0.14,
+            edgeNoiseType: "fractalNoise",
+            edgeFrequency: 0.22,
+            edgeDisplacement: 1.45,
+            edgePosterizeTable: "",
+            chipFrequency: 0.11,
+            chipThreshold: -0.26,
+            chipTable: "0 0 0 0 1 1 1",
+            grainFrequency: 0.38,
+            grainThreshold: -0.62,
+            grainTable: "0 0 0 0 0 1",
+            alphaGain: 1.08,
+            alphaBias: -0.03,
+          }
+        : {
+            coreErode: 0.18,
+            edgeNoiseType: "fractalNoise",
+            edgeFrequency: 0.18,
+            edgeDisplacement: 1.1,
+            edgePosterizeTable: "",
+            chipFrequency: 0.09,
+            chipThreshold: -0.32,
+            chipTable: "0 0 0 0 1 1 1",
+            grainFrequency: 0.32,
+            grainThreshold: -0.7,
+            grainTable: "0 0 0 0 0 1",
+            alphaGain: 1.12,
+            alphaBias: -0.02,
+          };
 
   // Early return if no valid text
-  if (!text || text.length === 0 || text.every(t => !t || t.trim().length === 0)) {
+  if (!text || text.length === 0 || text.every((t) => !t || t.trim().length === 0)) {
     return '<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"></svg>';
   }
 
   // Set default colors based on stamp type
   const stampColor = color;
-  const stampTextColor = options.textColor || (type === 'yin' ? '#FFFFFF' : '#C8102E');
-  const stampBgColor = type === 'yin' ? stampColor : '#FFFFFF';
+  const stampTextColor = options.textColor || (type === "yin" ? "#FFFFFF" : "#C8102E");
+  const stampBgColor = type === "yin" ? stampColor : "#FFFFFF";
 
   // Yin stamps with straight-edge shapes use regularShape; ellipse/circle keep border noise
-  const yinStraightShapes = type === 'yin' && shape !== 'ellipse' && shape !== 'circle';
+  const yinStraightShapes = type === "yin" && shape !== "ellipse" && shape !== "circle";
   const { path, bounds } = generateStampPath(
     yinStraightShapes ? { ...options, regularShape: true } : options,
   );
@@ -1594,7 +1672,10 @@ export function generateStamp(options: StampOptions): string {
   const columnWidths = textDims.columnWidths;
   const columnHeights = textDims.columnHeights;
   const columnGap = fontSize * actualColumnSpacing;
-  const measuredBoxes = options.measuredColumnBoxes?.length === displayText.length ? options.measuredColumnBoxes : undefined;
+  const measuredBoxes =
+    options.measuredColumnBoxes?.length === displayText.length
+      ? options.measuredColumnBoxes
+      : undefined;
   // Use the same buffered boxes as generateStampPath for consistent sizing/centering
   const bufferedBoxes = measuredBoxes?.map((box) => {
     const verticalBuffer = getMeasuredHeightBuffer(fontSize);
@@ -1613,21 +1694,22 @@ export function generateStamp(options: StampOptions): string {
   const visualHeight = visualFrame.height;
   const horizontalSpace = bounds.width - visualWidth;
   const verticalSpace = bounds.height - visualHeight;
-  const targetLeft = (offsetX + 1) / 2 * horizontalSpace;
-  const targetTop = (offsetY + 1) / 2 * verticalSpace;
+  const targetLeft = ((offsetX + 1) / 2) * horizontalSpace;
+  const targetTop = ((offsetY + 1) / 2) * verticalSpace;
   // Ellipse yin stamps: asymmetric margin adjustment (left +1, right -2)
-  const ellipseMarginShift = (shape === 'ellipse' && type === 'yin') ? 3.0 : 0;
+  const ellipseMarginShift = shape === "ellipse" && type === "yin" ? 3.0 : 0;
   const shiftX = targetLeft - visualFrame.left + ellipseMarginShift;
   const shiftY = targetTop - visualFrame.top;
 
   // One <text> element per column — required for replaceTextElementsWithGlyphPaths
   // which converts these to cross-platform SVG paths from the font file.
-  const textElements = visualFrame.placements.map(({ x, y }, index) => {
-    const shiftedX = x + shiftX;
-    const shiftedY = y + shiftY;
-    const line = displayText[index];
+  const textElements = visualFrame.placements
+    .map(({ x, y }, index) => {
+      const shiftedX = x + shiftX;
+      const shiftedY = y + shiftY;
+      const line = displayText[index];
 
-    return `<text x="${shiftedX}" y="${shiftedY}"
+      return `<text x="${shiftedX}" y="${shiftedY}"
       style="
         writing-mode: vertical-rl;
         text-orientation: upright;
@@ -1640,16 +1722,18 @@ export function generateStamp(options: StampOptions): string {
         text-anchor: start;
       "
       filter="url(#stamp-text-texture)">${line}</text>`;
-  }).join('\n    ');
+    })
+    .join("\n    ");
 
   // For yang stamp, we need different rendering
-  const stampContent = type === 'yin'
-    ? `  <!-- Stamp background (阴章) -->
+  const stampContent =
+    type === "yin"
+      ? `  <!-- Stamp background (阴章) -->
   <path d="${path}" fill="${stampBgColor}" filter="url(#stamp-ink-texture)" />
 
   <!-- Text -->
   ${textElements}`
-    : `  <!-- Yang stamp background (阳章 - white background) -->
+      : `  <!-- Yang stamp background (阳章 - white background) -->
   <path d="${path}" fill="${stampBgColor}" filter="url(#stamp-ink-texture)" />
 
   <!-- Yang stamp border (阳章 - red border with custom width) -->
@@ -1718,16 +1802,17 @@ export function generateStamp(options: StampOptions): string {
       <feComposite in="SourceGraphic" in2="textCore" operator="out" result="textEdgeBand"/>
 
       <feTurbulence type="${carvingProfile.edgeNoiseType}" baseFrequency="${fmtNum(carvingProfile.edgeFrequency * filterScaleInv)}" numOctaves="3" seed="${seed}" result="textEdgeNoise"/>
-      ${textCarving === 'stone-cut'
-        ? `<feComponentTransfer in="textEdgeNoise" result="textEdgeNoiseStepped">
+      ${
+        textCarving === "stone-cut"
+          ? `<feComponentTransfer in="textEdgeNoise" result="textEdgeNoiseStepped">
         <feFuncR type="discrete" tableValues="${carvingProfile.edgePosterizeTable}"/>
         <feFuncG type="discrete" tableValues="${carvingProfile.edgePosterizeTable}"/>
         <feFuncB type="discrete" tableValues="${carvingProfile.edgePosterizeTable}"/>
         <feFuncA type="table" tableValues="0 1"/>
       </feComponentTransfer>`
-        : ''
+          : ""
       }
-      <feDisplacementMap in="textEdgeBand" in2="${textCarving === 'stone-cut' ? 'textEdgeNoiseStepped' : 'textEdgeNoise'}" scale="${fmtNum(carvingProfile.edgeDisplacement * filterScale)}" xChannelSelector="R" yChannelSelector="G" result="textDisplacedEdge"/>
+      <feDisplacementMap in="textEdgeBand" in2="${textCarving === "stone-cut" ? "textEdgeNoiseStepped" : "textEdgeNoise"}" scale="${fmtNum(carvingProfile.edgeDisplacement * filterScale)}" xChannelSelector="R" yChannelSelector="G" result="textDisplacedEdge"/>
 
       <feTurbulence type="turbulence" baseFrequency="${fmtNum(carvingProfile.chipFrequency * filterScaleInv)}" numOctaves="2" seed="${seed + 999}" result="textChipNoise"/>
       <feColorMatrix in="textChipNoise" type="matrix"
@@ -1770,13 +1855,14 @@ export async function generateStampAsync(options: StampOptions): Promise<string>
   let font: opentype.Font | null = null;
   let usesGlyphMetrics = false;
 
-  const measured = options.measuredColumnWidths && options.measuredColumnHeights && options.measuredColumnBoxes
-    ? {
-        columnWidths: options.measuredColumnWidths,
-        columnHeights: options.measuredColumnHeights,
-        columnBoxes: options.measuredColumnBoxes,
-      }
-    : (() => null)();
+  const measured =
+    options.measuredColumnWidths && options.measuredColumnHeights && options.measuredColumnBoxes
+      ? {
+          columnWidths: options.measuredColumnWidths,
+          columnHeights: options.measuredColumnHeights,
+          columnBoxes: options.measuredColumnBoxes,
+        }
+      : (() => null)();
 
   let resolvedMeasured = measured;
   if (!resolvedMeasured) {
@@ -1787,8 +1873,7 @@ export async function generateStampAsync(options: StampOptions): Promise<string>
     }
   }
 
-  if (!resolvedMeasured)
-    resolvedMeasured = measureStampText(options);
+  if (!resolvedMeasured) resolvedMeasured = measureStampText(options);
 
   const resolvedOptions = resolvedMeasured
     ? {
@@ -1801,16 +1886,12 @@ export async function generateStampAsync(options: StampOptions): Promise<string>
 
   const svg = generateStamp(resolvedOptions);
 
-  if (!resolvedMeasured)
-    return svg;
+  if (!resolvedMeasured) return svg;
 
-  if (!usesGlyphMetrics && options.textCarving !== 'stone-cut')
-    return svg;
+  if (!usesGlyphMetrics && options.textCarving !== "stone-cut") return svg;
 
-  if (!font)
-    font = await loadGlyphFont(options);
-  if (!font)
-    return svg;
+  if (!font) font = await loadGlyphFont(options);
+  if (!font) return svg;
 
   return replaceTextElementsWithGlyphPaths(svg, resolvedOptions, resolvedMeasured, font);
 }
@@ -1819,21 +1900,66 @@ export async function generateStampAsync(options: StampOptions): Promise<string>
  * Stamp class for object-oriented usage
  */
 export class Stamp {
-  private options: Required<Pick<StampOptions, 'text' | 'type' | 'shape' | 'color' | 'textColor' | 'fontFamily' | 'fontSize' | 'fontWeight' | 'offsetX' | 'offsetY' | 'columnSpacing' | 'characterSpacing' | 'paddingX' | 'paddingY' | 'borderScale' | 'noiseAmount' | 'borderPoints' | 'cornerRadius' | 'borderWidth' | 'regularShape' | 'textCarving' | 'seed'>> & Pick<StampOptions, 'fontUrl' | 'fontData' | 'columnSpacingPx' | 'characterSpacingPx' | 'paddingXPx' | 'paddingYPx' | 'columnWidthPx' | 'measuredColumnWidths' | 'measuredColumnHeights' | 'measuredColumnBoxes' | 'borderScaleX' | 'borderScaleY' | 'noiseAmountPx' | 'borderPointsPx' | 'cornerRadiusPx' | 'borderWidthPx'>;
+  private options: Required<
+    Pick<
+      StampOptions,
+      | "text"
+      | "type"
+      | "shape"
+      | "color"
+      | "textColor"
+      | "fontFamily"
+      | "fontSize"
+      | "fontWeight"
+      | "offsetX"
+      | "offsetY"
+      | "columnSpacing"
+      | "characterSpacing"
+      | "paddingX"
+      | "paddingY"
+      | "borderScale"
+      | "noiseAmount"
+      | "borderPoints"
+      | "cornerRadius"
+      | "borderWidth"
+      | "regularShape"
+      | "textCarving"
+      | "seed"
+    >
+  > &
+    Pick<
+      StampOptions,
+      | "fontUrl"
+      | "fontData"
+      | "columnSpacingPx"
+      | "characterSpacingPx"
+      | "paddingXPx"
+      | "paddingYPx"
+      | "columnWidthPx"
+      | "measuredColumnWidths"
+      | "measuredColumnHeights"
+      | "measuredColumnBoxes"
+      | "borderScaleX"
+      | "borderScaleY"
+      | "noiseAmountPx"
+      | "borderPointsPx"
+      | "cornerRadiusPx"
+      | "borderWidthPx"
+    >;
 
   constructor(options: StampOptions) {
-    const type = options.type || 'yin';
+    const type = options.type || "yin";
     this.options = {
       text: options.text,
       type,
-      shape: options.shape || 'auto',
-      color: options.color || '#C8102E',
-      textColor: options.textColor || (type === 'yin' ? '#FFFFFF' : '#C8102E'),
-      fontFamily: options.fontFamily || 'serif',
+      shape: options.shape || "auto",
+      color: options.color || "#C8102E",
+      textColor: options.textColor || (type === "yin" ? "#FFFFFF" : "#C8102E"),
+      fontFamily: options.fontFamily || "serif",
       fontUrl: options.fontUrl,
       fontData: options.fontData,
       fontSize: options.fontSize || 70,
-      fontWeight: options.fontWeight || 'normal',
+      fontWeight: options.fontWeight || "normal",
       offsetX: options.offsetX ?? 0,
       offsetY: options.offsetY ?? 0,
       columnSpacing: options.columnSpacing ?? 0.02,
@@ -1860,8 +1986,8 @@ export class Stamp {
       cornerRadiusPx: options.cornerRadiusPx,
       borderWidthPx: options.borderWidthPx,
       regularShape: options.regularShape ?? false,
-      textCarving: options.textCarving ?? 'normal',
-      seed: options.seed || Date.now()
+      textCarving: options.textCarving ?? "normal",
+      seed: options.seed || Date.now(),
     };
   }
 
@@ -1902,31 +2028,38 @@ export function stamp(options: StampOptions): Stamp {
  * Measure actual text dimensions in browser environment
  * This function creates a temporary SVG to measure the actual rendered text size
  */
-export function measureStampText(options: StampOptions): { width: number; height: number; columnWidths: number[]; columnHeights: number[]; columnBoxes: MeasuredColumnBox[] } | null {
+export function measureStampText(options: StampOptions): {
+  width: number;
+  height: number;
+  columnWidths: number[];
+  columnHeights: number[];
+  columnBoxes: MeasuredColumnBox[];
+} | null {
   // Only works in browser environment
-  if (typeof document === 'undefined') {
-    console.warn('measureStampText only works in browser environment');
+  if (typeof document === "undefined") {
+    console.warn("measureStampText only works in browser environment");
     return null;
   }
 
   const {
     text,
-    fontFamily = 'serif',
+    fontFamily = "serif",
     fontSize = 70,
-    fontWeight = 'normal',
+    fontWeight = "normal",
     characterSpacing = 0.05,
     characterSpacingPx,
   } = options;
-  const actualCharacterSpacing = characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
+  const actualCharacterSpacing =
+    characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
   const measureOriginX = 500;
   const measureOriginY = 500;
 
   // Create temporary SVG
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('width', '1000');
-  svg.setAttribute('height', '1000');
-  svg.style.position = 'absolute';
-  svg.style.visibility = 'hidden';
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("width", "1000");
+  svg.setAttribute("height", "1000");
+  svg.style.position = "absolute";
+  svg.style.visibility = "hidden";
   document.body.appendChild(svg);
 
   const columnWidths: number[] = [];
@@ -1937,17 +2070,17 @@ export function measureStampText(options: StampOptions): { width: number; height
 
   // Measure each column
   text.forEach((line) => {
-    const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    textElement.setAttribute('x', String(measureOriginX));
-    textElement.setAttribute('y', String(measureOriginY));
-    textElement.style.writingMode = 'vertical-rl';
-    textElement.style.textOrientation = 'upright';
+    const textElement = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    textElement.setAttribute("x", String(measureOriginX));
+    textElement.setAttribute("y", String(measureOriginY));
+    textElement.style.writingMode = "vertical-rl";
+    textElement.style.textOrientation = "upright";
     textElement.style.fontFamily = fontFamily;
     textElement.style.fontSize = `${fontSize}px`;
     textElement.style.fontWeight = String(fontWeight);
     textElement.style.letterSpacing = `${actualCharacterSpacing}em`;
-    textElement.style.dominantBaseline = 'text-before-edge';
-    textElement.style.textAnchor = 'start';
+    textElement.style.dominantBaseline = "text-before-edge";
+    textElement.style.textAnchor = "start";
     textElement.textContent = line;
 
     svg.appendChild(textElement);

@@ -1,11 +1,11 @@
-import { Polygon } from '../../foundation/geometry';
-import { noise } from '../../foundation/noise';
-import { prng } from '../../foundation/random';
-import { normRand } from '../../utils/random';
-import { stroke } from '../../drawing/Stroke';
-import { div } from '../../drawing/div';
-import { poly } from '../../utils/svg';
-import { bezmh } from '../../utils/bezier';
+import { Polygon } from "../../foundation/geometry";
+import { noise } from "../../foundation/noise";
+import { prng } from "../../foundation/random";
+import { normRand } from "../../utils/random";
+import { stroke } from "../../drawing/Stroke";
+import { div } from "../../drawing/div";
+import { poly } from "../../utils/svg";
+import { bezmh } from "../../utils/bezier";
 
 export interface HatOptions {
   /** Whether to flip horizontally */
@@ -40,23 +40,14 @@ export class Man {
   /**
    * Expand a polyline into a shape with width
    */
-  private static expand(
-    ptlist: Polygon,
-    wfun: (x: number) => number
-  ): [Polygon, Polygon] {
+  private static expand(ptlist: Polygon, wfun: (x: number) => number): [Polygon, Polygon] {
     const vtxlist0: Polygon = [];
     const vtxlist1: Polygon = [];
 
     for (let i = 1; i < ptlist.length - 1; i++) {
       const w = wfun(i / ptlist.length);
-      const a1 = Math.atan2(
-        ptlist[i][1] - ptlist[i - 1][1],
-        ptlist[i][0] - ptlist[i - 1][0]
-      );
-      const a2 = Math.atan2(
-        ptlist[i][1] - ptlist[i + 1][1],
-        ptlist[i][0] - ptlist[i + 1][0]
-      );
+      const a1 = Math.atan2(ptlist[i][1] - ptlist[i - 1][1], ptlist[i][0] - ptlist[i - 1][0]);
+      const a2 = Math.atan2(ptlist[i][1] - ptlist[i + 1][1], ptlist[i][0] - ptlist[i + 1][0]);
       let a = (a1 + a2) / 2;
       if (a < a2) {
         a += Math.PI;
@@ -66,11 +57,9 @@ export class Man {
     }
 
     const l = ptlist.length - 1;
-    const a0 =
-      Math.atan2(ptlist[1][1] - ptlist[0][1], ptlist[1][0] - ptlist[0][0]) - Math.PI / 2;
+    const a0 = Math.atan2(ptlist[1][1] - ptlist[0][1], ptlist[1][0] - ptlist[0][0]) - Math.PI / 2;
     const a1 =
-      Math.atan2(ptlist[l][1] - ptlist[l - 1][1], ptlist[l][0] - ptlist[l - 1][0]) -
-      Math.PI / 2;
+      Math.atan2(ptlist[l][1] - ptlist[l - 1][1], ptlist[l][0] - ptlist[l - 1][0]) - Math.PI / 2;
     const w0 = wfun(0);
     const w1 = wfun(1);
     vtxlist0.unshift([ptlist[0][0] + w0 * Math.cos(a0), ptlist[0][1] + w0 * Math.sin(a0)]);
@@ -91,7 +80,10 @@ export class Man {
     const qlist: Polygon = plist.map((v) => {
       const d = Math.sqrt(v[0] ** 2 + v[1] ** 2);
       const a = Math.atan2(v[1], v[0]);
-      return [p0[0] + d * scl * Math.cos(ang + a), p0[1] + d * scl * Math.sin(ang + a)] as [number, number];
+      return [p0[0] + d * scl * Math.cos(ang + a), p0[1] + d * scl * Math.sin(ang + a)] as [
+        number,
+        number,
+      ];
     });
     return qlist;
   }
@@ -109,7 +101,7 @@ export class Man {
   static hat01(p0: number[], p1: number[], options: HatOptions = {}): string {
     const fli = options.fli ?? false;
 
-    let canv = '';
+    let canv = "";
     const seed = prng.random();
     const f = fli ? (x: Polygon) => Man.flipper(x) : (x: Polygon) => x;
 
@@ -125,9 +117,9 @@ export class Man {
           [-0.3, 1.15],
           [-0.55, 1],
           [-0.65, 0.5],
-        ])
+        ]),
       ),
-      { fil: 'rgba(100,100,100,0.8)' }
+      { fil: "rgba(100,100,100,0.8)" },
     );
 
     const qlist1: Polygon = [];
@@ -135,7 +127,7 @@ export class Man {
       qlist1.push([-0.3 - noise.noise(i * 0.2, seed) * i * 0.1, 0.5 - i * 0.3]);
     }
     canv += poly(Man.tranpoly(p0, p1, f(qlist1)), {
-      str: 'rgba(100,100,100,0.8)',
+      str: "rgba(100,100,100,0.8)",
       wid: 1,
     });
 
@@ -148,7 +140,7 @@ export class Man {
   static hat02(p0: number[], p1: number[], options: HatOptions = {}): string {
     const fli = options.fli ?? false;
 
-    let canv = '';
+    let canv = "";
     const f = fli ? (x: Polygon) => Man.flipper(x) : (x: Polygon) => x;
 
     canv += poly(
@@ -166,9 +158,9 @@ export class Man {
           [1.3, 0.6],
           [1.2, 0.5],
           [0.3, 0.5],
-        ])
+        ]),
       ),
-      { fil: 'rgba(100,100,100,0.8)' }
+      { fil: "rgba(100,100,100,0.8)" },
     );
 
     return canv;
@@ -180,7 +172,7 @@ export class Man {
   static stick01(p0: number[], p1: number[], options: StickOptions = {}): string {
     const fli = options.fli ?? false;
 
-    let canv = '';
+    let canv = "";
     const seed = prng.random();
     const f = fli ? (x: Polygon) => Man.flipper(x) : (x: Polygon) => x;
 
@@ -193,7 +185,7 @@ export class Man {
       ]);
     }
     canv += poly(Man.tranpoly(p0, p1, f(qlist1)), {
-      str: 'rgba(100,100,100,0.5)',
+      str: "rgba(100,100,100,0.5)",
       wid: 1,
     });
 
@@ -213,24 +205,22 @@ export class Man {
   static man(xoff: number, yoff: number, options: ManOptions = {}): string {
     const sca = options.sca ?? 0.5;
     const hat = options.hat ?? Man.hat01;
-    const ite = options.ite ?? (() => '');
+    const ite = options.ite ?? (() => "");
     const fli = options.fli ?? true;
-    const ang =
-      options.ang ??
-      [
-        0,
-        -Math.PI / 2,
-        normRand(0, 0),
-        (Math.PI / 4) * prng.random(),
-        ((Math.PI * 3) / 4) * prng.random(),
-        (Math.PI * 3) / 4,
-        -Math.PI / 4,
-        (-Math.PI * 3) / 4 - (Math.PI / 4) * prng.random(),
-        -Math.PI / 4,
-      ];
+    const ang = options.ang ?? [
+      0,
+      -Math.PI / 2,
+      normRand(0, 0),
+      (Math.PI / 4) * prng.random(),
+      ((Math.PI * 3) / 4) * prng.random(),
+      (Math.PI * 3) / 4,
+      -Math.PI / 4,
+      (-Math.PI * 3) / 4 - (Math.PI / 4) * prng.random(),
+      -Math.PI / 4,
+    ];
     const len = (options.len ?? [0, 30, 20, 30, 30, 30, 30, 30, 30]).map((v) => v * sca);
 
-    let canv = '';
+    let canv = "";
 
     // Skeleton structure tree
     const sct: any = {
@@ -289,30 +279,33 @@ export class Man {
 
     // Function to draw clothing/body parts
     const cloth = (plist: Polygon, fun: (x: number) => number): string => {
-      let canv = '';
+      let canv = "";
       const tlist = bezmh(plist, 2);
       const [tlist1, tlist2] = Man.expand(tlist, fun);
       canv += poly(tlist1.concat(tlist2.reverse()).map(toGlobal), {
-        fil: 'white',
+        fil: "white",
       });
       canv += stroke(tlist1.map(toGlobal), {
         wid: 1,
-        col: 'rgba(100,100,100,0.5)',
+        col: "rgba(100,100,100,0.5)",
       });
       canv += stroke(tlist2.map(toGlobal), {
         wid: 1,
-        col: 'rgba(100,100,100,0.6)',
+        col: "rgba(100,100,100,0.6)",
       });
       return canv;
     };
 
     // Width functions for different body parts
     const fsleeve = (x: number) =>
-      sca * 8 * (Math.sin(0.5 * x * Math.PI) * Math.pow(Math.sin(x * Math.PI), 0.1) + (1 - x) * 0.4);
+      sca *
+      8 *
+      (Math.sin(0.5 * x * Math.PI) * Math.pow(Math.sin(x * Math.PI), 0.1) + (1 - x) * 0.4);
     const fbody = (x: number) =>
-      sca * 11 * (Math.sin(0.5 * x * Math.PI) * Math.pow(Math.sin(x * Math.PI), 0.1) + (1 - x) * 0.5);
-    const fhead = (x: number) =>
-      sca * 7 * Math.pow(0.25 - Math.pow(x - 0.5, 2), 0.3);
+      sca *
+      11 *
+      (Math.sin(0.5 * x * Math.PI) * Math.pow(Math.sin(x * Math.PI), 0.1) + (1 - x) * 0.5);
+    const fhead = (x: number) => sca * 7 * Math.pow(0.25 - Math.pow(x - 0.5, 2), 0.3);
 
     // Draw item (e.g., walking stick)
     canv += ite(toGlobal(pts[8]), toGlobal(pts[6]), { fli: fli });
@@ -329,7 +322,7 @@ export class Man {
     hlist1.splice(0, Math.floor(hlist1.length * 0.1));
     hlist2.splice(0, Math.floor(hlist2.length * 0.95));
     canv += poly(hlist1.concat(hlist2.reverse()).map(toGlobal), {
-      fil: 'rgba(100,100,100,0.6)',
+      fil: "rgba(100,100,100,0.6)",
     });
 
     // Draw hat

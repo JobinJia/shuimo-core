@@ -1,4 +1,4 @@
-import { prng } from '../random';
+import { prng } from "../random";
 
 /**
  * Linear Congruential Generator for noise seeding

@@ -1,4 +1,4 @@
-import { PerlinNoise } from './PerlinNoise'
+import { PerlinNoise } from "./PerlinNoise";
 
 /**
  * Fractional Brownian Motion (fBm) - Fractal Noise Generator
@@ -18,17 +18,17 @@ import { PerlinNoise } from './PerlinNoise'
 
 export interface FractalNoiseOptions {
   /** Number of octaves (layers) to combine. More octaves = more detail. Default: 4 */
-  octaves?: number
+  octaves?: number;
   /** Base frequency of the first octave. Default: 1.0 */
-  frequency?: number
+  frequency?: number;
   /** Amplitude of the first octave. Default: 1.0 */
-  amplitude?: number
+  amplitude?: number;
   /** Frequency multiplier for each octave. Default: 2.0 (doubles each time) */
-  lacunarity?: number
+  lacunarity?: number;
   /** Amplitude multiplier for each octave. Default: 0.5 (halves each time) */
-  persistence?: number
+  persistence?: number;
   /** Seed for reproducible noise. Default: random */
-  seed?: number
+  seed?: number;
 }
 
 /**
@@ -51,49 +51,42 @@ export interface FractalNoiseOptions {
  *   persistence: 0.5
  * })
  */
-export function fractalNoise(
-  x: number,
-  y: number,
-  options: FractalNoiseOptions = {}
-): number {
+export function fractalNoise(x: number, y: number, options: FractalNoiseOptions = {}): number {
   const {
     octaves = 4,
     frequency = 1.0,
     amplitude = 1.0,
-    lacunarity = 2.0,  // Frequency multiplier
-    persistence = 0.5,  // Amplitude multiplier
+    lacunarity = 2.0, // Frequency multiplier
+    persistence = 0.5, // Amplitude multiplier
     seed = Date.now(),
-  } = options
+  } = options;
 
   // Create a Perlin noise instance
-  const perlin = new PerlinNoise()
-  perlin.noiseSeed(seed)
+  const perlin = new PerlinNoise();
+  perlin.noiseSeed(seed);
 
   // Disable built-in octaves - we'll handle them manually
-  perlin.noiseDetail(1, 1.0)
+  perlin.noiseDetail(1, 1.0);
 
-  let total = 0
-  let currentFrequency = frequency
-  let currentAmplitude = amplitude
-  let maxValue = 0  // Used for normalization
+  let total = 0;
+  let currentFrequency = frequency;
+  let currentAmplitude = amplitude;
+  let maxValue = 0; // Used for normalization
 
   // Combine multiple octaves
   for (let i = 0; i < octaves; i++) {
     // Sample noise at current frequency
-    const noiseValue = perlin.noise(
-      x * currentFrequency,
-      y * currentFrequency
-    )
+    const noiseValue = perlin.noise(x * currentFrequency, y * currentFrequency);
 
     // Add weighted contribution
-    total += noiseValue * currentAmplitude
-    maxValue += currentAmplitude
+    total += noiseValue * currentAmplitude;
+    maxValue += currentAmplitude;
 
     // Update frequency and amplitude for next octave
-    currentFrequency *= lacunarity
-    currentAmplitude *= persistence
+    currentFrequency *= lacunarity;
+    currentAmplitude *= persistence;
   }
 
   // Normalize to approximate range [0, 1]
-  return total / maxValue
+  return total / maxValue;
 }

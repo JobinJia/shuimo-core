@@ -1,9 +1,9 @@
-import { MountPlanner, PlanItem } from './MountPlanner';
-import { Mount } from '../elements/natural/Mount';
-import { water } from '../elements/natural/Water';
-import { Arch } from '../elements/objects/Arch';
-import { prng } from '../foundation/random';
-import { randChoice } from '../utils/random';
+import { MountPlanner, PlanItem } from "./MountPlanner";
+import { Mount } from "../elements/natural/Mount";
+import { water } from "../elements/natural/Water";
+import { Arch } from "../elements/objects/Arch";
+import { prng } from "../foundation/random";
+import { randChoice } from "../utils/random";
 
 export interface Chunk {
   /** Element type tag */
@@ -13,7 +13,7 @@ export interface Chunk {
   /** Y position */
   y: number;
   /** Rendered SVG content or polygon data */
-  canv: string | [import('../foundation/geometry').Polygon[]];
+  canv: string | [import("../foundation/geometry").Polygon[]];
 }
 
 export interface SceneState {
@@ -49,7 +49,7 @@ export class SceneManager {
 
   constructor(windx: number = 3000, windy: number = 800, cwid: number = 512) {
     this.state = {
-      canv: '',
+      canv: "",
       chunks: [],
       xmin: 0,
       xmax: 0,
@@ -74,10 +74,10 @@ export class SceneManager {
    */
   private addChunk(nch: Chunk): void {
     // Handle NaN values (only for string canv)
-    if (typeof nch.canv === 'string' && nch.canv.includes('NaN')) {
-      console.log('gotcha:');
+    if (typeof nch.canv === "string" && nch.canv.includes("NaN")) {
+      console.log("gotcha:");
       console.log(nch.tag);
-      nch.canv = nch.canv.replace(/NaN/g, '-1000');
+      nch.canv = nch.canv.replace(/NaN/g, "-1000");
     }
 
     if (this.state.chunks.length === 0) {
@@ -100,7 +100,7 @@ export class SceneManager {
       }
     }
 
-    console.log('EH?WTF!');
+    console.log("EH?WTF!");
     console.log(this.state.chunks);
     console.log(nch);
   }
@@ -110,19 +110,27 @@ export class SceneManager {
    */
   chunkLoader(xmin: number, xmax: number): void {
     while (xmax > this.state.xmax - this.state.cwid || xmin < this.state.xmin + this.state.cwid) {
-      console.log('generating new chunk...');
+      console.log("generating new chunk...");
 
       let plan: PlanItem[];
       if (xmax > this.state.xmax - this.state.cwid) {
-        plan = MountPlanner.plan(this.state.xmax, this.state.xmax + this.state.cwid, this.state.planmtx);
+        plan = MountPlanner.plan(
+          this.state.xmax,
+          this.state.xmax + this.state.cwid,
+          this.state.planmtx,
+        );
         this.state.xmax = this.state.xmax + this.state.cwid;
       } else {
-        plan = MountPlanner.plan(this.state.xmin - this.state.cwid, this.state.xmin, this.state.planmtx);
+        plan = MountPlanner.plan(
+          this.state.xmin - this.state.cwid,
+          this.state.xmin,
+          this.state.planmtx,
+        );
         this.state.xmin = this.state.xmin - this.state.cwid;
       }
 
       for (let i = 0; i < plan.length; i++) {
-        if (plan[i].tag === 'mount') {
+        if (plan[i].tag === "mount") {
           this.addChunk({
             tag: plan[i].tag,
             x: plan[i].x,
@@ -135,7 +143,7 @@ export class SceneManager {
             y: plan[i].y - 10000,
             canv: water(plan[i].x, plan[i].y, i * 2),
           });
-        } else if (plan[i].tag === 'flatmount') {
+        } else if (plan[i].tag === "flatmount") {
           this.addChunk({
             tag: plan[i].tag,
             x: plan[i].x,
@@ -146,7 +154,7 @@ export class SceneManager {
               cho: 0.5 + prng.random() * 0.2,
             }),
           });
-        } else if (plan[i].tag === 'distmount') {
+        } else if (plan[i].tag === "distmount") {
           this.addChunk({
             tag: plan[i].tag,
             x: plan[i].x,
@@ -156,7 +164,7 @@ export class SceneManager {
               len: randChoice([500, 1000, 1500]),
             }),
           });
-        } else if (plan[i].tag === 'boat') {
+        } else if (plan[i].tag === "boat") {
           this.addChunk({
             tag: plan[i].tag,
             x: plan[i].x,
@@ -166,7 +174,7 @@ export class SceneManager {
               fli: randChoice([true, false]),
             }),
           });
-        } else if (plan[i].tag === 'arch01') {
+        } else if (plan[i].tag === "arch01") {
           // Simple house/building
           this.addChunk({
             tag: plan[i].tag,
@@ -178,7 +186,7 @@ export class SceneManager {
               per: 3 + prng.random() * 2,
             }),
           });
-        } else if (plan[i].tag === 'arch02') {
+        } else if (plan[i].tag === "arch02") {
           // Multi-story building
           this.addChunk({
             tag: plan[i].tag,
@@ -189,7 +197,7 @@ export class SceneManager {
               sto: 2 + Math.floor(prng.random() * 3),
             }),
           });
-        } else if (plan[i].tag === 'arch03') {
+        } else if (plan[i].tag === "arch03") {
           // Pagoda
           this.addChunk({
             tag: plan[i].tag,
@@ -200,7 +208,7 @@ export class SceneManager {
               sto: 5 + Math.floor(prng.random() * 4),
             }),
           });
-        } else if (plan[i].tag === 'arch04') {
+        } else if (plan[i].tag === "arch04") {
           // Transparent multi-story
           this.addChunk({
             tag: plan[i].tag,
@@ -210,7 +218,7 @@ export class SceneManager {
               sto: 1 + Math.floor(prng.random() * 3),
             }),
           });
-        } else if (plan[i].tag === 'tower') {
+        } else if (plan[i].tag === "tower") {
           // Transmission tower
           this.addChunk({
             tag: plan[i].tag,
@@ -220,14 +228,14 @@ export class SceneManager {
               hei: 150 + prng.random() * 100,
             }),
           });
-        } else if (plan[i].tag === 'redcirc') {
+        } else if (plan[i].tag === "redcirc") {
           this.addChunk({
             tag: plan[i].tag,
             x: plan[i].x,
             y: plan[i].y,
             canv: `<circle cx='${plan[i].x}' cy='${plan[i].y}' r='20' stroke='black' fill='red' />`,
           });
-        } else if (plan[i].tag === 'greencirc') {
+        } else if (plan[i].tag === "greencirc") {
           this.addChunk({
             tag: plan[i].tag,
             x: plan[i].x,
@@ -246,13 +254,15 @@ export class SceneManager {
     const maxDistance = this.state.cwid * 10; // Keep chunks within 10 chunk widths (~5120px)
     const beforeCount = this.state.chunks.length;
 
-    this.state.chunks = this.state.chunks.filter(chunk => {
+    this.state.chunks = this.state.chunks.filter((chunk) => {
       return chunk.x > xmin - maxDistance && chunk.x < xmax + maxDistance;
     });
 
     const removed = beforeCount - this.state.chunks.length;
     if (removed > 0) {
-      console.log(`Cleaned up ${removed} distant chunks (${beforeCount} -> ${this.state.chunks.length})`);
+      console.log(
+        `Cleaned up ${removed} distant chunks (${beforeCount} -> ${this.state.chunks.length})`,
+      );
     }
   }
 
@@ -260,7 +270,7 @@ export class SceneManager {
    * Render visible chunks for a given x range
    */
   chunkRender(xmin: number, xmax: number): void {
-    this.state.canv = '';
+    this.state.canv = "";
 
     // Only render chunks that are actually visible (with minimal margin)
     // Reduce margin from cwid (512) to smaller value to limit DOM nodes
@@ -286,7 +296,10 @@ export class SceneManager {
    */
   needUpdate(): boolean {
     // Only update if viewport is approaching the edge of loaded chunks
-    if (this.state.xmin < this.state.cursx && this.state.cursx < this.state.xmax - this.state.windx) {
+    if (
+      this.state.xmin < this.state.cursx &&
+      this.state.cursx < this.state.xmax - this.state.windx
+    ) {
       return false;
     }
     return true;

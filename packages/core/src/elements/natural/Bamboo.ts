@@ -1,6 +1,6 @@
-import { Point } from '../../foundation/geometry';
-import { noise } from '../../foundation/noise';
-import { prng } from '../../foundation/random';
+import { Point } from "../../foundation/geometry";
+import { noise } from "../../foundation/noise";
+import { prng } from "../../foundation/random";
 
 export interface BambooOptions {
   /** Height of the bamboo */
@@ -32,12 +32,7 @@ export class Bamboo {
   /**
    * Generate a complete bamboo composition
    */
-  static generate(
-    xoff: number,
-    yoff: number,
-    seed: number,
-    options: BambooOptions = {}
-  ): string {
+  static generate(xoff: number, yoff: number, seed: number, options: BambooOptions = {}): string {
     prng.seed(seed);
 
     const hei = options.hei ?? 300;
@@ -46,10 +41,10 @@ export class Bamboo {
     const leaves = options.leaves ?? true;
     const leafDensity = options.leafDensity ?? 0.6;
     const bend = options.bend ?? 0.3;
-    const col = options.col ?? '#000000';
+    const col = options.col ?? "#000000";
     const stalks = options.stalks ?? 1;
 
-    let svg = '';
+    let svg = "";
 
     for (let s = 0; s < stalks; s++) {
       const stalkXOffset = s * (wid * 3 + prng.next() * wid * 2);
@@ -65,7 +60,7 @@ export class Bamboo {
         stalkBend,
         col,
         leaves,
-        leafDensity
+        leafDensity,
       );
     }
 
@@ -84,9 +79,9 @@ export class Bamboo {
     bend: number,
     col: string,
     leaves: boolean,
-    leafDensity: number
+    leafDensity: number,
   ): string {
-    let svg = '';
+    let svg = "";
     const n0 = prng.next() * 100;
 
     // Generate segment heights
@@ -124,12 +119,14 @@ export class Bamboo {
       const topTaper = 1 - Math.pow((i + 1) / seg, 0.7) * 0.4;
 
       svg += this.drawSegment(
-        nodePositions[i][0], nodePositions[i][1],
-        nodePositions[i + 1][0], nodePositions[i + 1][1],
+        nodePositions[i][0],
+        nodePositions[i][1],
+        nodePositions[i + 1][0],
+        nodePositions[i + 1][1],
         wid * bottomTaper,
         wid * topTaper,
         col,
-        n0 + i * 10
+        n0 + i * 10,
       );
 
       // Draw node
@@ -139,7 +136,7 @@ export class Bamboo {
           nodePositions[i + 1][1],
           wid * topTaper,
           col,
-          n0 + i
+          n0 + i,
         );
 
         // Add leaves
@@ -152,7 +149,7 @@ export class Bamboo {
             leafCount,
             col,
             leafDir,
-            hei * 0.15
+            hei * 0.15,
           );
         }
       }
@@ -166,7 +163,7 @@ export class Bamboo {
         Math.floor(3 + prng.next() * 4),
         col,
         prng.next() < 0.5 ? -1 : 1,
-        hei * 0.12
+        hei * 0.12,
       );
     }
 
@@ -177,12 +174,14 @@ export class Bamboo {
    * Draw a bamboo segment using SVG path with bezier curves
    */
   private static drawSegment(
-    x1: number, y1: number,
-    x2: number, y2: number,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
     widBottom: number,
     widTop: number,
     col: string,
-    noiseSeed: number
+    noiseSeed: number,
   ): string {
     const dx = x2 - x1;
     const dy = y2 - y1;
@@ -195,24 +194,12 @@ export class Bamboo {
     const halfWT = widTop / 2;
 
     // Bottom corners
-    const bl: Point = [
-      x1 + Math.cos(perpAngle) * halfWB,
-      y1 + Math.sin(perpAngle) * halfWB
-    ];
-    const br: Point = [
-      x1 - Math.cos(perpAngle) * halfWB,
-      y1 - Math.sin(perpAngle) * halfWB
-    ];
+    const bl: Point = [x1 + Math.cos(perpAngle) * halfWB, y1 + Math.sin(perpAngle) * halfWB];
+    const br: Point = [x1 - Math.cos(perpAngle) * halfWB, y1 - Math.sin(perpAngle) * halfWB];
 
     // Top corners
-    const tl: Point = [
-      x2 + Math.cos(perpAngle) * halfWT,
-      y2 + Math.sin(perpAngle) * halfWT
-    ];
-    const tr: Point = [
-      x2 - Math.cos(perpAngle) * halfWT,
-      y2 - Math.sin(perpAngle) * halfWT
-    ];
+    const tl: Point = [x2 + Math.cos(perpAngle) * halfWT, y2 + Math.sin(perpAngle) * halfWT];
+    const tr: Point = [x2 - Math.cos(perpAngle) * halfWT, y2 - Math.sin(perpAngle) * halfWT];
 
     // Control points for bezier curves - create slight inward curve (waist effect)
     const waist = 0.06; // Amount of inward curve
@@ -220,22 +207,30 @@ export class Bamboo {
 
     // Left side control points
     const leftCtrl1: Point = [
-      bl[0] + dx * 0.3 - Math.cos(perpAngle) * len * waist * (noise.noise(noiseSeed, 0) * 0.5 + 0.5),
-      bl[1] + dy * 0.3
+      bl[0] +
+        dx * 0.3 -
+        Math.cos(perpAngle) * len * waist * (noise.noise(noiseSeed, 0) * 0.5 + 0.5),
+      bl[1] + dy * 0.3,
     ];
     const leftCtrl2: Point = [
-      tl[0] - dx * 0.3 - Math.cos(perpAngle) * len * waist * (noise.noise(noiseSeed + 1, 0) * 0.5 + 0.5),
-      tl[1] - dy * 0.3
+      tl[0] -
+        dx * 0.3 -
+        Math.cos(perpAngle) * len * waist * (noise.noise(noiseSeed + 1, 0) * 0.5 + 0.5),
+      tl[1] - dy * 0.3,
     ];
 
     // Right side control points
     const rightCtrl1: Point = [
-      tr[0] - dx * 0.3 + Math.cos(perpAngle) * len * waist * (noise.noise(noiseSeed + 2, 0) * 0.5 + 0.5),
-      tr[1] - dy * 0.3
+      tr[0] -
+        dx * 0.3 +
+        Math.cos(perpAngle) * len * waist * (noise.noise(noiseSeed + 2, 0) * 0.5 + 0.5),
+      tr[1] - dy * 0.3,
     ];
     const rightCtrl2: Point = [
-      br[0] + dx * 0.3 + Math.cos(perpAngle) * len * waist * (noise.noise(noiseSeed + 3, 0) * 0.5 + 0.5),
-      br[1] + dy * 0.3
+      br[0] +
+        dx * 0.3 +
+        Math.cos(perpAngle) * len * waist * (noise.noise(noiseSeed + 3, 0) * 0.5 + 0.5),
+      br[1] + dy * 0.3,
     ];
 
     // Build SVG path
@@ -244,8 +239,8 @@ export class Bamboo {
       `C ${leftCtrl1[0].toFixed(1)} ${leftCtrl1[1].toFixed(1)} ${leftCtrl2[0].toFixed(1)} ${leftCtrl2[1].toFixed(1)} ${tl[0].toFixed(1)} ${tl[1].toFixed(1)}`,
       `L ${tr[0].toFixed(1)} ${tr[1].toFixed(1)}`,
       `C ${rightCtrl1[0].toFixed(1)} ${rightCtrl1[1].toFixed(1)} ${rightCtrl2[0].toFixed(1)} ${rightCtrl2[1].toFixed(1)} ${br[0].toFixed(1)} ${br[1].toFixed(1)}`,
-      'Z'
-    ].join(' ');
+      "Z",
+    ].join(" ");
 
     return `<path d="${d}" fill="${col}" stroke="none"/>`;
   }
@@ -258,9 +253,9 @@ export class Bamboo {
     y: number,
     stalkWidth: number,
     col: string,
-    noiseSeed: number
+    noiseSeed: number,
   ): string {
-    let svg = '';
+    let svg = "";
 
     const nodeWidth = stalkWidth * 1.3;
     const ridgeHeight = stalkWidth * 0.15;
@@ -269,7 +264,15 @@ export class Bamboo {
     // Upper ridge
     svg += this.drawNodeRidge(x, y - gap, nodeWidth, ridgeHeight, col, noiseSeed, true);
     // Lower ridge
-    svg += this.drawNodeRidge(x, y + gap, nodeWidth * 0.95, ridgeHeight * 0.85, col, noiseSeed + 10, false);
+    svg += this.drawNodeRidge(
+      x,
+      y + gap,
+      nodeWidth * 0.95,
+      ridgeHeight * 0.85,
+      col,
+      noiseSeed + 10,
+      false,
+    );
 
     return svg;
   }
@@ -284,7 +287,7 @@ export class Bamboo {
     height: number,
     col: string,
     noiseSeed: number,
-    curveDown: boolean
+    curveDown: boolean,
   ): string {
     const halfW = width / 2;
     const curveAmount = height * (curveDown ? 0.5 : -0.3);
@@ -295,8 +298,8 @@ export class Bamboo {
       `M ${(x - halfW).toFixed(1)} ${y.toFixed(1)}`,
       `C ${(x - halfW * 0.5).toFixed(1)} ${(y + curveAmount - height * 0.3).toFixed(1)} ${(x + halfW * 0.5).toFixed(1)} ${(y + curveAmount - height * 0.3).toFixed(1)} ${(x + halfW).toFixed(1)} ${y.toFixed(1)}`,
       `C ${(x + halfW * 0.5).toFixed(1)} ${(y + curveAmount + height * 0.3).toFixed(1)} ${(x - halfW * 0.5).toFixed(1)} ${(y + curveAmount + height * 0.3).toFixed(1)} ${(x - halfW).toFixed(1)} ${y.toFixed(1)}`,
-      'Z'
-    ].join(' ');
+      "Z",
+    ].join(" ");
 
     return `<path d="${d}" fill="${col}" stroke="none"/>`;
   }
@@ -310,9 +313,9 @@ export class Bamboo {
     count: number,
     col: string,
     direction: number,
-    maxLength: number
+    maxLength: number,
   ): string {
-    let svg = '';
+    let svg = "";
 
     for (let i = 0; i < count; i++) {
       const leafAngle = direction * (0.3 + prng.next() * 0.8) + (prng.next() - 0.5) * 0.4;
@@ -322,14 +325,7 @@ export class Bamboo {
       const offsetX = (prng.next() - 0.5) * 5;
       const offsetY = (prng.next() - 0.5) * 8;
 
-      svg += this.generateLeaf(
-        x + offsetX,
-        y + offsetY,
-        leafAngle,
-        leafLength,
-        leafWidth,
-        col
-      );
+      svg += this.generateLeaf(x + offsetX, y + offsetY, leafAngle, leafLength, leafWidth, col);
     }
 
     return svg;
@@ -347,7 +343,7 @@ export class Bamboo {
     angle: number,
     length: number,
     maxWidth: number,
-    col: string
+    col: string,
   ): string {
     // Leaf direction
     const dx = Math.cos(angle) * length;
@@ -389,8 +385,8 @@ export class Bamboo {
       `C ${(tip[0] - dx * 0.05).toFixed(1)} ${(tip[1] - dy * 0.05).toFixed(1)} ${(p60[0] - px * widthAt60 * 0.1).toFixed(1)} ${(p60[1] - py * widthAt60 * 0.1).toFixed(1)} ${(p60[0] - px * widthAt60 * 0.3).toFixed(1)} ${(p60[1] - py * widthAt60 * 0.3).toFixed(1)}`,
       `C ${(p60[0] - px * widthAt60 * 0.4).toFixed(1)} ${(p60[1] - py * widthAt60 * 0.4).toFixed(1)} ${(p30[0] - px * widthAt30 * 0.4).toFixed(1)} ${(p30[1] - py * widthAt30 * 0.4).toFixed(1)} ${(p30[0] - px * widthAt30 * 0.5).toFixed(1)} ${(p30[1] - py * widthAt30 * 0.5).toFixed(1)}`,
       `C ${(p30[0] - px * widthAt30 * 0.8).toFixed(1)} ${(p30[1] - py * widthAt30 * 0.8).toFixed(1)} ${(x + dx * 0.1 - px * baseWidth).toFixed(1)} ${(y + dy * 0.1 - py * baseWidth).toFixed(1)} ${(x - px * baseWidth * 0.5).toFixed(1)} ${(y - py * baseWidth * 0.5).toFixed(1)}`,
-      'Z'
-    ].join(' ');
+      "Z",
+    ].join(" ");
 
     return `<path d="${d}" fill="${col}" stroke="none"/>`;
   }
@@ -402,15 +398,15 @@ export class Bamboo {
     xoff: number,
     yoff: number,
     seed: number,
-    options: { count?: number; length?: number; col?: string } = {}
+    options: { count?: number; length?: number; col?: string } = {},
   ): string {
     prng.seed(seed);
 
     const count = options.count ?? 5;
     const length = options.length ?? 60;
-    const col = options.col ?? '#000000';
+    const col = options.col ?? "#000000";
 
-    let svg = '';
+    let svg = "";
     for (let i = 0; i < count; i++) {
       const angle = (prng.next() - 0.5) * Math.PI * 0.8;
       const leafLength = length * (0.6 + prng.next() * 0.6);
@@ -422,7 +418,7 @@ export class Bamboo {
         angle,
         leafLength,
         leafWidth,
-        col
+        col,
       );
     }
 
@@ -431,12 +427,7 @@ export class Bamboo {
 }
 
 // Export convenience functions
-export function bamboo(
-  xoff: number,
-  yoff: number,
-  seed: number,
-  options?: BambooOptions
-): string {
+export function bamboo(xoff: number, yoff: number, seed: number, options?: BambooOptions): string {
   return Bamboo.generate(xoff, yoff, seed, options);
 }
 
@@ -444,7 +435,7 @@ export function bambooLeaves(
   xoff: number,
   yoff: number,
   seed: number,
-  options?: { count?: number; length?: number; col?: string }
+  options?: { count?: number; length?: number; col?: string },
 ): string {
   return Bamboo.leaves(xoff, yoff, seed, options);
 }

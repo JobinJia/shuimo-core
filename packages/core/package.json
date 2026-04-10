@@ -1,8 +1,13 @@
 {
   "name": "@shuimo/core",
-  "type": "module",
   "version": "0.1.0",
   "description": "Core library for procedural Chinese landscape painting generation",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",
@@ -21,11 +26,6 @@
       "import": "./dist/drawing.mjs"
     }
   },
-  "main": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "tsc --noEmit && vp pack",
     "test": "vp test",

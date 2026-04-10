@@ -1,4 +1,4 @@
-import { Polygon } from '../foundation/geometry';
+import { Polygon } from "../foundation/geometry";
 
 /**
  * Subdivide a polyline by interpolating between points

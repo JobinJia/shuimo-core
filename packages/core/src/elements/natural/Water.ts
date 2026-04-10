@@ -1,7 +1,7 @@
-import { Polygon } from '../../foundation/geometry';
-import { noise } from '../../foundation/noise';
-import { prng } from '../../foundation/random';
-import { stroke } from '../../drawing/Stroke';
+import { Polygon } from "../../foundation/geometry";
+import { noise } from "../../foundation/noise";
+import { prng } from "../../foundation/random";
+import { stroke } from "../../drawing/Stroke";
 
 export interface WaterOptions {
   /** Height/amplitude of water waves */
@@ -29,7 +29,7 @@ export class Water {
     const hei = options.hei ?? 2;
     const len = options.len ?? 800;
     const clu = options.clu ?? 10;
-    let canv = '';
+    let canv = "";
 
     const ptlist: Polygon[] = [];
     let yk = 0;
@@ -55,9 +55,9 @@ export class Water {
       canv += stroke(
         ptlist[j].map((x) => [x[0] + xoff, x[1] + yoff]),
         {
-          col: 'rgba(100,100,100,' + (0.3 + prng.random() * 0.3).toFixed(3) + ')',
+          col: "rgba(100,100,100," + (0.3 + prng.random() * 0.3).toFixed(3) + ")",
           wid: 1,
-        }
+        },
       );
     }
 
@@ -66,6 +66,11 @@ export class Water {
 }
 
 // Export a convenience function
-export function water(xoff: number, yoff: number, seed: number, options: WaterOptions = {}): string {
+export function water(
+  xoff: number,
+  yoff: number,
+  seed: number,
+  options: WaterOptions = {},
+): string {
   return Water.generate(xoff, yoff, seed, options);
 }

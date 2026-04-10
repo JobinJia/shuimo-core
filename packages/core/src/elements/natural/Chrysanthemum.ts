@@ -1,8 +1,8 @@
-import { Point, Polygon } from '../../foundation/geometry';
-import { noise } from '../../foundation/noise';
-import { prng } from '../../foundation/random';
-import { Brush } from '../../drawing/Brush';
-import { stroke } from '../../drawing/Stroke';
+import { Point, Polygon } from "../../foundation/geometry";
+import { noise } from "../../foundation/noise";
+import { prng } from "../../foundation/random";
+import { Brush } from "../../drawing/Brush";
+import { stroke } from "../../drawing/Stroke";
 
 export interface ChrysanthemumOptions {
   /** Flower size (radius) */
@@ -42,7 +42,7 @@ export class Chrysanthemum {
     xoff: number,
     yoff: number,
     seed: number,
-    options: ChrysanthemumOptions = {}
+    options: ChrysanthemumOptions = {},
   ): string {
     prng.seed(seed);
 
@@ -51,10 +51,10 @@ export class Chrysanthemum {
     const petalCount = options.petalCount ?? 12;
     const withStem = options.withStem ?? true;
     const withLeaves = options.withLeaves ?? true;
-    const col = options.col ?? 'rgba(180,160,80,0.85)';
-    const stemCol = options.stemCol ?? 'rgba(60,80,50,0.85)';
+    const col = options.col ?? "rgba(180,160,80,0.85)";
+    const stemCol = options.stemCol ?? "rgba(60,80,50,0.85)";
 
-    let svg = '';
+    let svg = "";
 
     // Generate stem first (goes behind flower)
     if (withStem) {
@@ -81,9 +81,9 @@ export class Chrysanthemum {
     size: number,
     layers: number,
     basePetalCount: number,
-    col: string
+    col: string,
   ): string {
-    let svg = '';
+    let svg = "";
 
     // Generate petals from outer layer to inner
     // This ensures inner petals are drawn on top
@@ -94,18 +94,19 @@ export class Chrysanthemum {
       // Inner layers have shorter, more petals
       const layerSize = size * (0.4 + layerT * 0.6);
       const layerPetalCount = Math.floor(basePetalCount * (1 + (1 - layerT) * 0.5));
-      const layerRotation = (prng.next() - 0.5) * Math.PI / basePetalCount;
+      const layerRotation = ((prng.next() - 0.5) * Math.PI) / basePetalCount;
 
       // Slightly different color for each layer (inner darker)
       const layerCol = this.adjustColorBrightness(col, 0.8 + layerT * 0.3);
 
       svg += this.generatePetalLayer(
-        x, y,
+        x,
+        y,
         layerSize,
         layerPetalCount,
         layerRotation,
         layerCol,
-        layerT
+        layerT,
       );
     }
 
@@ -125,9 +126,9 @@ export class Chrysanthemum {
     petalCount: number,
     rotation: number,
     col: string,
-    layerT: number
+    layerT: number,
   ): string {
-    let svg = '';
+    let svg = "";
 
     for (let i = 0; i < petalCount; i++) {
       const baseAngle = (i / petalCount) * Math.PI * 2 + rotation;
@@ -143,14 +144,7 @@ export class Chrysanthemum {
       // Petal curve - outer petals curve outward more
       const petalCurve = (0.1 + layerT * 0.2) * (prng.next() < 0.5 ? 1 : -1);
 
-      svg += this.generatePetal(
-        x, y,
-        angle,
-        petalLength,
-        petalWidth,
-        petalCurve,
-        col
-      );
+      svg += this.generatePetal(x, y, angle, petalLength, petalWidth, petalCurve, col);
     }
 
     return svg;
@@ -169,7 +163,7 @@ export class Chrysanthemum {
     length: number,
     width: number,
     curve: number,
-    col: string
+    col: string,
   ): string {
     const points: Polygon = [];
     const steps = 12;
@@ -183,9 +177,13 @@ export class Chrysanthemum {
       // Add slight noise for organic feel
       const noiseOffset = noise.noise(t * 2, n0) * length * 0.03;
 
-      const px = x + Math.cos(angle) * length * t +
+      const px =
+        x +
+        Math.cos(angle) * length * t +
         Math.cos(angle + Math.PI / 2) * (curveOffset + noiseOffset);
-      const py = y + Math.sin(angle) * length * t +
+      const py =
+        y +
+        Math.sin(angle) * length * t +
         Math.sin(angle + Math.PI / 2) * (curveOffset + noiseOffset);
 
       points.push([px, py]);
@@ -207,27 +205,22 @@ export class Chrysanthemum {
       inkEnd: 0.5,
       noise: 0.35,
       flyingWhite: 0.15,
-      texture: 1
+      texture: 1,
     });
   }
 
   /**
    * Generate flower center
    */
-  private static generateFlowerCenter(
-    x: number,
-    y: number,
-    size: number,
-    col: string
-  ): string {
-    let svg = '';
+  private static generateFlowerCenter(x: number, y: number, size: number, col: string): string {
+    let svg = "";
     const darkerCol = this.adjustColorBrightness(col, 0.5);
 
     // Center disk
     svg += Brush.dot(x, y, {
       width: size,
       color: darkerCol,
-      noise: 0.6
+      noise: 0.6,
     });
 
     // Add some small dots for texture
@@ -236,15 +229,11 @@ export class Chrysanthemum {
       const angle = prng.next() * Math.PI * 2;
       const dist = prng.next() * size * 0.6;
 
-      svg += Brush.dot(
-        x + Math.cos(angle) * dist,
-        y + Math.sin(angle) * dist,
-        {
-          width: 1.5,
-          color: this.adjustColorBrightness(darkerCol, 0.7),
-          noise: 0.7
-        }
-      );
+      svg += Brush.dot(x + Math.cos(angle) * dist, y + Math.sin(angle) * dist, {
+        width: 1.5,
+        color: this.adjustColorBrightness(darkerCol, 0.7),
+        noise: 0.7,
+      });
     }
 
     return svg;
@@ -253,12 +242,7 @@ export class Chrysanthemum {
   /**
    * Generate stem
    */
-  private static generateStem(
-    x: number,
-    y: number,
-    length: number,
-    col: string
-  ): string {
+  private static generateStem(x: number, y: number, length: number, col: string): string {
     const points: Polygon = [];
     const steps = 15;
     const n0 = prng.next() * 100;
@@ -271,35 +255,27 @@ export class Chrysanthemum {
       const curveOffset = Math.sin(t * Math.PI) * length * curve;
       const noiseOffset = noise.noise(t * 2, n0) * 5;
 
-      points.push([
-        x + curveOffset + noiseOffset,
-        y + t * length
-      ]);
+      points.push([x + curveOffset + noiseOffset, y + t * length]);
     }
 
     return stroke(points, {
       wid: 4,
       col: col,
       noi: 0.3,
-      fun: (t: number) => 1 - t * 0.3  // Taper towards bottom
+      fun: (t: number) => 1 - t * 0.3, // Taper towards bottom
     });
   }
 
   /**
    * Generate leaves
    */
-  private static generateLeaves(
-    x: number,
-    y: number,
-    size: number,
-    col: string
-  ): string {
-    let svg = '';
+  private static generateLeaves(x: number, y: number, size: number, col: string): string {
+    let svg = "";
     const leafCount = 2 + Math.floor(prng.next() * 2);
 
     for (let i = 0; i < leafCount; i++) {
       const side = i % 2 === 0 ? -1 : 1;
-      const leafAngle = side * (Math.PI / 4 + prng.next() * Math.PI / 6);
+      const leafAngle = side * (Math.PI / 4 + (prng.next() * Math.PI) / 6);
       const leafLength = size * (0.8 + prng.next() * 0.4);
 
       const leafY = y + size * (0.3 + prng.next() * 0.5);
@@ -320,9 +296,9 @@ export class Chrysanthemum {
     y: number,
     angle: number,
     length: number,
-    col: string
+    col: string,
   ): string {
-    let svg = '';
+    let svg = "";
     const width = length * 0.4;
 
     // Main leaf stroke
@@ -336,8 +312,12 @@ export class Chrysanthemum {
       const noiseOffset = noise.noise(t * 3, n0) * length * 0.02;
 
       mainPoints.push([
-        x + Math.cos(angle) * length * t + Math.cos(angle + Math.PI / 2) * (length * curve + noiseOffset),
-        y + Math.sin(angle) * length * t + Math.sin(angle + Math.PI / 2) * (length * curve + noiseOffset)
+        x +
+          Math.cos(angle) * length * t +
+          Math.cos(angle + Math.PI / 2) * (length * curve + noiseOffset),
+        y +
+          Math.sin(angle) * length * t +
+          Math.sin(angle + Math.PI / 2) * (length * curve + noiseOffset),
       ]);
     }
 
@@ -353,7 +333,7 @@ export class Chrysanthemum {
       inkEnd: 0.5,
       noise: 0.4,
       flyingWhite: 0.1,
-      texture: 2
+      texture: 2,
     });
 
     // Add lobes (simplified serrated edges)
@@ -365,22 +345,19 @@ export class Chrysanthemum {
 
       // Alternate sides
       const side = i % 2 === 0 ? 1 : -1;
-      const lobeAngle = angle + side * (Math.PI / 3 + prng.next() * Math.PI / 6);
+      const lobeAngle = angle + side * (Math.PI / 3 + (prng.next() * Math.PI) / 6);
       const lobeLength = width * (0.4 + prng.next() * 0.3);
 
       const lobePoints: Polygon = [
         pt,
-        [
-          pt[0] + Math.cos(lobeAngle) * lobeLength,
-          pt[1] + Math.sin(lobeAngle) * lobeLength
-        ]
+        [pt[0] + Math.cos(lobeAngle) * lobeLength, pt[1] + Math.sin(lobeAngle) * lobeLength],
       ];
 
       svg += stroke(lobePoints, {
         wid: 2,
         col: col,
         noi: 0.3,
-        fun: (p: number) => 1 - p * 0.5
+        fun: (p: number) => 1 - p * 0.5,
       });
     }
 
@@ -409,14 +386,14 @@ export class Chrysanthemum {
     xoff: number,
     yoff: number,
     seed: number,
-    options: { size?: number; layers?: number; petalCount?: number; col?: string } = {}
+    options: { size?: number; layers?: number; petalCount?: number; col?: string } = {},
   ): string {
     prng.seed(seed);
 
     const size = options.size ?? 60;
     const layers = options.layers ?? 4;
     const petalCount = options.petalCount ?? 12;
-    const col = options.col ?? 'rgba(180,160,80,0.85)';
+    const col = options.col ?? "rgba(180,160,80,0.85)";
 
     return this.generateFlower(xoff, yoff, size, layers, petalCount, col);
   }
@@ -427,7 +404,7 @@ export function chrysanthemum(
   xoff: number,
   yoff: number,
   seed: number,
-  options?: ChrysanthemumOptions
+  options?: ChrysanthemumOptions,
 ): string {
   return Chrysanthemum.generate(xoff, yoff, seed, options);
 }
@@ -436,7 +413,7 @@ export function chrysanthemumFlower(
   xoff: number,
   yoff: number,
   seed: number,
-  options?: { size?: number; layers?: number; petalCount?: number; col?: string }
+  options?: { size?: number; layers?: number; petalCount?: number; col?: string },
 ): string {
   return Chrysanthemum.flower(xoff, yoff, seed, options);
 }

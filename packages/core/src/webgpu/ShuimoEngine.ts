@@ -4,7 +4,7 @@
  * 统一管理 WebGPU 设备和上下文，提供完整的水墨画渲染能力
  */
 
-import { prng } from '../foundation/random';
+import { prng } from "../foundation/random";
 
 export interface ShuimoEngineOptions {
   /** 画布背景色 */
@@ -262,7 +262,7 @@ const blobShader = /* wgsl */ `
 export class ShuimoEngine {
   private device: GPUDevice | null = null;
   private context: GPUCanvasContext | null = null;
-  private format: GPUTextureFormat = 'bgra8unorm';
+  private format: GPUTextureFormat = "bgra8unorm";
 
   private strokePipeline: GPURenderPipeline | null = null;
   private blobPipeline: GPURenderPipeline | null = null;
@@ -291,21 +291,21 @@ export class ShuimoEngine {
    */
   async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
     if (!navigator.gpu) {
-      console.error('WebGPU 不支持');
+      console.error("WebGPU 不支持");
       return false;
     }
 
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) {
-      console.error('无法获取 GPU adapter');
+      console.error("无法获取 GPU adapter");
       return false;
     }
 
     this.device = await adapter.requestDevice();
-    this.context = canvas.getContext('webgpu');
+    this.context = canvas.getContext("webgpu");
 
     if (!this.context) {
-      console.error('无法获取 WebGPU context');
+      console.error("无法获取 WebGPU context");
       return false;
     }
 
@@ -316,7 +316,7 @@ export class ShuimoEngine {
     this.context.configure({
       device: this.device,
       format: this.format,
-      alphaMode: 'premultiplied',
+      alphaMode: "premultiplied",
     });
 
     await this.createBuffers();
@@ -363,54 +363,60 @@ export class ShuimoEngine {
     const strokeModule = this.device.createShaderModule({ code: strokeShader });
 
     this.strokePipeline = this.device.createRenderPipeline({
-      layout: 'auto',
+      layout: "auto",
       vertex: {
         module: strokeModule,
-        entryPoint: 'vertexMain',
-        buffers: [{
-          arrayStride: 16,
-          attributes: [
-            { shaderLocation: 0, offset: 0, format: 'float32x2' },
-            { shaderLocation: 1, offset: 8, format: 'float32' },
-            { shaderLocation: 2, offset: 12, format: 'float32' },
-          ],
-        }],
+        entryPoint: "vertexMain",
+        buffers: [
+          {
+            arrayStride: 16,
+            attributes: [
+              { shaderLocation: 0, offset: 0, format: "float32x2" },
+              { shaderLocation: 1, offset: 8, format: "float32" },
+              { shaderLocation: 2, offset: 12, format: "float32" },
+            ],
+          },
+        ],
       },
       fragment: {
         module: strokeModule,
-        entryPoint: 'fragmentMain',
-        targets: [{
-          format: this.format,
-          blend: {
-            color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
-            alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+        entryPoint: "fragmentMain",
+        targets: [
+          {
+            format: this.format,
+            blend: {
+              color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha", operation: "add" },
+              alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha", operation: "add" },
+            },
           },
-        }],
+        ],
       },
-      primitive: { topology: 'triangle-list' },
+      primitive: { topology: "triangle-list" },
     });
 
     // Blob pipeline
     const blobModule = this.device.createShaderModule({ code: blobShader });
 
     this.blobPipeline = this.device.createRenderPipeline({
-      layout: 'auto',
+      layout: "auto",
       vertex: {
         module: blobModule,
-        entryPoint: 'vertexMain',
+        entryPoint: "vertexMain",
       },
       fragment: {
         module: blobModule,
-        entryPoint: 'fragmentMain',
-        targets: [{
-          format: this.format,
-          blend: {
-            color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
-            alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+        entryPoint: "fragmentMain",
+        targets: [
+          {
+            format: this.format,
+            blend: {
+              color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha", operation: "add" },
+              alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha", operation: "add" },
+            },
           },
-        }],
+        ],
       },
-      primitive: { topology: 'triangle-list' },
+      primitive: { topology: "triangle-list" },
     });
   }
 
@@ -424,17 +430,19 @@ export class ShuimoEngine {
     const textureView = this.context.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        clearValue: {
-          r: this.backgroundColor[0],
-          g: this.backgroundColor[1],
-          b: this.backgroundColor[2],
-          a: this.backgroundColor[3],
+      colorAttachments: [
+        {
+          view: textureView,
+          clearValue: {
+            r: this.backgroundColor[0],
+            g: this.backgroundColor[1],
+            b: this.backgroundColor[2],
+            a: this.backgroundColor[3],
+          },
+          loadOp: "clear",
+          storeOp: "store",
         },
-        loadOp: 'clear',
-        storeOp: 'store',
-      }],
+      ],
     });
     renderPass.end();
 
@@ -473,7 +481,8 @@ export class ShuimoEngine {
       const pressure = curr.pressure ?? 1;
 
       // 计算切线
-      let dx = 0, dy = 0;
+      let dx = 0,
+        dy = 0;
       if (i === 0) {
         dx = points[1].x - curr.x;
         dy = points[1].y - curr.y;
@@ -530,11 +539,15 @@ export class ShuimoEngine {
 
     // 更新参数 (vec4 需要 16 字节对齐)
     const params = new Float32Array([
-      this.canvasWidth, this.canvasHeight,
-      0, 0,  // padding for vec4 alignment
+      this.canvasWidth,
+      this.canvasHeight,
+      0,
+      0, // padding for vec4 alignment
       ...color,
-      softness, inkDensity,
-      0, 0,
+      softness,
+      inkDensity,
+      0,
+      0,
     ]);
     this.device.queue.writeBuffer(this.strokeParamsBuffer!, 0, params);
 
@@ -548,17 +561,19 @@ export class ShuimoEngine {
     const textureView = this.context.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        loadOp: 'load',
-        storeOp: 'store',
-      }],
+      colorAttachments: [
+        {
+          view: textureView,
+          loadOp: "load",
+          storeOp: "store",
+        },
+      ],
     });
 
     renderPass.setPipeline(this.strokePipeline!);
     renderPass.setBindGroup(0, bindGroup);
     renderPass.setVertexBuffer(0, this.strokeVertexBuffer!);
-    renderPass.setIndexBuffer(this.strokeIndexBuffer!, 'uint32');
+    renderPass.setIndexBuffer(this.strokeIndexBuffer!, "uint32");
     renderPass.drawIndexed((pointCount - 1) * 6);
     renderPass.end();
 
@@ -582,12 +597,18 @@ export class ShuimoEngine {
     } = options;
 
     const params = new Float32Array([
-      x, y,
-      length, width,
-      angle, noiseAmount,
-      softness, seed,
-      this.canvasWidth, this.canvasHeight,
-      0, 0,
+      x,
+      y,
+      length,
+      width,
+      angle,
+      noiseAmount,
+      softness,
+      seed,
+      this.canvasWidth,
+      this.canvasHeight,
+      0,
+      0,
       ...color,
     ]);
     this.device.queue.writeBuffer(this.blobParamsBuffer!, 0, params);
@@ -601,11 +622,13 @@ export class ShuimoEngine {
     const textureView = this.context.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        loadOp: 'load',
-        storeOp: 'store',
-      }],
+      colorAttachments: [
+        {
+          view: textureView,
+          loadOp: "load",
+          storeOp: "store",
+        },
+      ],
     });
 
     renderPass.setPipeline(this.blobPipeline!);
@@ -650,7 +673,12 @@ export class ShuimoEngine {
     };
 
     // Generate mountain ridge contour
-    const generateRidge = (baseY: number, ridgeWidth: number, ridgeHeight: number, layerSeed: number): PathPoint[] => {
+    const generateRidge = (
+      baseY: number,
+      ridgeWidth: number,
+      ridgeHeight: number,
+      layerSeed: number,
+    ): PathPoint[] => {
       const points: PathPoint[] = [];
       const resolution = 50;
 
@@ -814,7 +842,7 @@ export class ShuimoEngine {
                 noiseAmount: 0.4,
                 softness: 0.5,
                 seed: layerSeed + i * 100 + j,
-              }
+              },
             );
           }
         }
@@ -933,7 +961,7 @@ export class ShuimoEngine {
    */
   drawTexture(
     region: { x: number; y: number; width: number; height: number },
-    options: TextureOptions = {}
+    options: TextureOptions = {},
   ): void {
     if (!this.isInitialized) return;
 

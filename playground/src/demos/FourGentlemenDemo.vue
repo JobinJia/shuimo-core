@@ -1,41 +1,35 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import {
-  Bamboo,
-  Orchid,
-  WinterPlum,
-  Chrysanthemum,
-  prng
-} from '@shuimo/core'
+import { onMounted, ref } from "vue";
+import { Bamboo, Orchid, WinterPlum, Chrysanthemum, prng } from "@shuimo/core";
 
 // Element types
-type ElementType = 'bamboo' | 'orchid' | 'winterPlum' | 'chrysanthemum'
+type ElementType = "bamboo" | "orchid" | "winterPlum" | "chrysanthemum";
 
 // State
-const selectedElement = ref<ElementType>('bamboo')
-const seedInput = ref(String(Date.now()))
-const canvasContainer = ref<HTMLDivElement | null>(null)
+const selectedElement = ref<ElementType>("bamboo");
+const seedInput = ref(String(Date.now()));
+const canvasContainer = ref<HTMLDivElement | null>(null);
 
 // Element configurations for the menu
 const elements = [
-  { id: 'bamboo' as ElementType, name: 'Bamboo', chinese: '竹' },
-  { id: 'orchid' as ElementType, name: 'Orchid', chinese: '兰' },
-  { id: 'winterPlum' as ElementType, name: 'Winter Plum', chinese: '梅' },
-  { id: 'chrysanthemum' as ElementType, name: 'Chrysanthemum', chinese: '菊' },
-]
+  { id: "bamboo" as ElementType, name: "Bamboo", chinese: "竹" },
+  { id: "orchid" as ElementType, name: "Orchid", chinese: "兰" },
+  { id: "winterPlum" as ElementType, name: "Winter Plum", chinese: "梅" },
+  { id: "chrysanthemum" as ElementType, name: "Chrysanthemum", chinese: "菊" },
+];
 
 // Generate element with appropriate sizing
 function generateElement(type: ElementType, seed: number): string {
-  prng.seed(seed)
+  prng.seed(seed);
 
-  let width = 600
-  let height = 600
-  let content = ''
+  let width = 600;
+  let height = 600;
+  let content = "";
 
   switch (type) {
-    case 'bamboo':
-      width = 500
-      height = 600
+    case "bamboo":
+      width = 500;
+      height = 600;
       content = Bamboo.generate(150, 550, seed, {
         hei: 450,
         wid: 10,
@@ -44,101 +38,101 @@ function generateElement(type: ElementType, seed: number): string {
         leafDensity: 0.7,
         bend: 0.25,
         stalks: 3,
-        col: 'rgba(50,70,50,0.85)'
-      })
-      break
+        col: "rgba(50,70,50,0.85)",
+      });
+      break;
 
-    case 'orchid':
-      width = 500
-      height = 500
+    case "orchid":
+      width = 500;
+      height = 500;
       content = Orchid.generate(250, 400, seed, {
         leafCount: 6,
         leafLength: 180,
         hasFlower: true,
         flowerCount: 2,
-        col: 'rgba(45,65,45,0.85)',
-        flowerCol: 'rgba(100,80,100,0.8)'
-      })
-      break
+        col: "rgba(45,65,45,0.85)",
+        flowerCol: "rgba(100,80,100,0.8)",
+      });
+      break;
 
-    case 'winterPlum':
-      width = 600
-      height = 550
+    case "winterPlum":
+      width = 600;
+      height = 550;
       content = WinterPlum.generate(100, 500, seed, {
         hei: 350,
         wid: 12,
         branches: 2,
         flowerDensity: 0.5,
-        flowerColor: 'rgba(200,170,120,0.85)',
+        flowerColor: "rgba(200,170,120,0.85)",
         withBuds: true,
-        col: 'rgba(60,45,35,0.9)'
-      })
-      break
+        col: "rgba(60,45,35,0.9)",
+      });
+      break;
 
-    case 'chrysanthemum':
-      width = 450
-      height = 550
+    case "chrysanthemum":
+      width = 450;
+      height = 550;
       content = Chrysanthemum.generate(225, 200, seed, {
         size: 80,
         petalLayers: 5,
         petalCount: 14,
         withStem: true,
         withLeaves: true,
-        col: 'rgba(200,180,80,0.85)',
-        stemCol: 'rgba(50,70,45,0.85)'
-      })
-      break
+        col: "rgba(200,180,80,0.85)",
+        stemCol: "rgba(50,70,45,0.85)",
+      });
+      break;
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     <rect width="${width}" height="${height}" fill="#f8f6f0"/>
     ${content}
-  </svg>`
+  </svg>`;
 }
 
 function renderElement() {
-  if (!canvasContainer.value) return
+  if (!canvasContainer.value) return;
 
-  const seed = Number.parseInt(seedInput.value) || Date.now()
-  const svg = generateElement(selectedElement.value, seed)
-  canvasContainer.value.innerHTML = svg
+  const seed = Number.parseInt(seedInput.value) || Date.now();
+  const svg = generateElement(selectedElement.value, seed);
+  canvasContainer.value.innerHTML = svg;
 }
 
 function selectElement(type: ElementType) {
-  selectedElement.value = type
-  renderElement()
+  selectedElement.value = type;
+  renderElement();
 }
 
 function regenerateWithSeed() {
-  renderElement()
+  renderElement();
 }
 
 function randomSeed() {
-  seedInput.value = String(Date.now())
-  renderElement()
+  seedInput.value = String(Date.now());
+  renderElement();
 }
 
 function downloadSVG() {
-  if (!canvasContainer.value) return
+  if (!canvasContainer.value) return;
 
-  const svgElement = canvasContainer.value.querySelector('svg')
-  if (!svgElement) return
+  const svgElement = canvasContainer.value.querySelector("svg");
+  if (!svgElement) return;
 
-  const serializer = new XMLSerializer()
-  const svgString = serializer.serializeToString(svgElement)
-  const blob = new Blob([svgString], { type: 'image/svg+xml' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `${selectedElement.value}-${Date.now()}.svg`
-  link.click()
-  URL.revokeObjectURL(url)
+  const serializer = new XMLSerializer();
+  const svgString = serializer.serializeToString(svgElement);
+  const blob = new Blob([svgString], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${selectedElement.value}-${Date.now()}.svg`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 onMounted(() => {
-  seedInput.value = String(Date.now())
-  renderElement()
-})
+  seedInput.value = String(Date.now());
+  renderElement();
+});
 </script>
 
 <template>
@@ -158,30 +152,22 @@ onMounted(() => {
               type="text"
               placeholder="Seed"
               @keyup.enter="regenerateWithSeed"
-            >
-            <button @click="randomSeed" title="Random seed">
-              🎲
-            </button>
+            />
+            <button @click="randomSeed" title="Random seed">🎲</button>
           </div>
         </div>
 
         <div class="control-group">
-          <button class="regenerate-btn" @click="randomSeed">
-            🔄 Regenerate
-          </button>
+          <button class="regenerate-btn" @click="randomSeed">🔄 Regenerate</button>
         </div>
 
         <div class="control-group">
-          <button class="download-btn" @click="downloadSVG">
-            Download SVG
-          </button>
+          <button class="download-btn" @click="downloadSVG">Download SVG</button>
         </div>
       </div>
 
       <div class="element-menu">
-        <div class="category-name">
-          Select Element
-        </div>
+        <div class="category-name">Select Element</div>
         <div class="element-list">
           <button
             v-for="element in elements"
@@ -199,8 +185,8 @@ onMounted(() => {
       <div class="info-panel">
         <div class="info-title">About Four Gentlemen</div>
         <p class="info-text">
-          The Four Gentlemen (四君子) represent the four seasons and noble qualities
-          in traditional Chinese painting:
+          The Four Gentlemen (四君子) represent the four seasons and noble qualities in traditional
+          Chinese painting:
         </p>
         <ul class="info-list">
           <li><strong>Plum (梅)</strong> - Winter, resilience</li>

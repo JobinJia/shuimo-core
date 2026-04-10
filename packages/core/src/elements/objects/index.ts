@@ -6,5 +6,5 @@ export {
   type Arch04Options,
   type Boat01Options,
   type TransmissionTower01Options,
-} from './Arch';
-export { Man, type ManOptions, type HatOptions, type StickOptions } from './Man';
+} from "./Arch";
+export { Man, type ManOptions, type HatOptions, type StickOptions } from "./Man";

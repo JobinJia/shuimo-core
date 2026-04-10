@@ -7,9 +7,9 @@
  * based on shape position during generation.
  */
 
-import type { LayerType } from './types'
-import { noise } from './FlowerNoise'
-import { mapval } from './FlowerMath'
+import type { LayerType } from "./types";
+import { noise } from "./FlowerNoise";
+import { mapval } from "./FlowerMath";
 
 // ============================================================================
 // Pre-computation Filter Functions
@@ -23,16 +23,19 @@ import { mapval } from './FlowerMath'
  * @param y - Y coordinate
  * @returns Color multipliers {r, g, b, a}
  */
-export function getWispyAdjustment(x: number, y: number): { r: number, g: number, b: number, a: number } {
-  const n = noise(x * 0.2, y * 0.2)
-  const m = noise(x * 0.5, y * 0.5, 2)
+export function getWispyAdjustment(
+  x: number,
+  y: number,
+): { r: number; g: number; b: number; a: number } {
+  const n = noise(x * 0.2, y * 0.2);
+  const m = noise(x * 0.5, y * 0.5, 2);
 
   return {
     r: 1.0,
     g: mapval(m, 0, 1, 0.95, 1),
     b: mapval(m, 0, 1, 0.9, 1),
     a: mapval(n, 0, 1, 0.5, 1),
-  }
+  };
 }
 
 /**
@@ -44,8 +47,8 @@ export function getWispyAdjustment(x: number, y: number): { r: number, g: number
  * @returns Alpha multiplier (0-1)
  */
 export function getFadeAdjustment(x: number, y: number): number {
-  const n = noise(x * 0.01, y * 0.01)
-  return Math.min(Math.max(mapval(n, 0, 1, 0, 1), 0), 1)
+  const n = noise(x * 0.01, y * 0.01);
+  return Math.min(Math.max(mapval(n, 0, 1, 0, 1), 0), 1);
 }
 
 /**
@@ -66,14 +69,14 @@ export function applyWispy(
   a: number,
   x: number,
   y: number,
-): { r: number, g: number, b: number, a: number } {
-  const adj = getWispyAdjustment(x, y)
+): { r: number; g: number; b: number; a: number } {
+  const adj = getWispyAdjustment(x, y);
   return {
     r: r * adj.r,
     g: g * adj.g,
     b: b * adj.b,
     a: a * adj.a,
-  }
+  };
 }
 
 /**
@@ -85,7 +88,7 @@ export function applyWispy(
  * @returns Adjusted alpha
  */
 export function applyFade(a: number, x: number, y: number): number {
-  return a * getFadeAdjustment(x, y)
+  return a * getFadeAdjustment(x, y);
 }
 
 /**
@@ -107,19 +110,19 @@ export function applyFadeAndWispy(
   a: number,
   x: number,
   y: number,
-): { r: number, g: number, b: number, a: number } {
+): { r: number; g: number; b: number; a: number } {
   // Apply fade first
-  const fadedA = applyFade(a, x, y)
+  const fadedA = applyFade(a, x, y);
 
   // Then apply wispy
-  return applyWispy(r, g, b, fadedA, x, y)
+  return applyWispy(r, g, b, fadedA, x, y);
 }
 
 // ============================================================================
 // Layer Filter Types
 // ============================================================================
 
-export type FilterType = 'wispy' | 'fade'
+export type FilterType = "wispy" | "fade";
 // LayerType is imported from types.ts
 
 /**
@@ -127,12 +130,20 @@ export type FilterType = 'wispy' | 'fade'
  * - lay0: fade + wispy (branches, leaves, stems)
  * - lay1: wispy only (flower petals)
  */
-export function getLayerFilter(layerType: LayerType): (r: number, g: number, b: number, a: number, x: number, y: number) => { r: number, g: number, b: number, a: number } {
-  if (layerType === 'lay0') {
-    return applyFadeAndWispy
-  }
-  else {
-    return applyWispy
+export function getLayerFilter(
+  layerType: LayerType,
+): (
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+  x: number,
+  y: number,
+) => { r: number; g: number; b: number; a: number } {
+  if (layerType === "lay0") {
+    return applyFadeAndWispy;
+  } else {
+    return applyWispy;
   }
 }
 
@@ -147,4 +158,4 @@ export const Filter = {
   applyFade,
   applyFadeAndWispy,
   getLayerFilter,
-}
+};

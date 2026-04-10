@@ -1,33 +1,39 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { generateStampAsync, type StampOptions, type StampType, type StampShape, type StampTextCarving } from '@shuimo/core'
+import { computed, onMounted, ref, watch } from "vue";
+import {
+  generateStampAsync,
+  type StampOptions,
+  type StampType,
+  type StampShape,
+  type StampTextCarving,
+} from "@shuimo/core";
 
 const FONT_URLS: Record<string, string | undefined> = {
-  峄山碑篆体: '/fonts/yishanbeizhuanti.ttf',
-}
+  峄山碑篆体: "/fonts/yishanbeizhuanti.ttf",
+};
 
 // Text configuration
-const textLines = ref(['水墨', '江南'])
-const initialText = '水墨\n江南'
-const fontsReady = ref(false)
+const textLines = ref(["水墨", "江南"]);
+const initialText = "水墨\n江南";
+const fontsReady = ref(false);
 
 interface StampTuningProfile {
-  offsetX: number
-  offsetY: number
-  columnSpacing: number
-  characterSpacing: number
-  paddingX: number
-  paddingY: number
-  borderScaleX: number
-  borderScaleY: number
-  noiseAmountPx: number
-  borderPointsPx: number
-  cornerRadiusPx: number
-  borderWidthPx: number
-  regularShape: boolean
+  offsetX: number;
+  offsetY: number;
+  columnSpacing: number;
+  characterSpacing: number;
+  paddingX: number;
+  paddingY: number;
+  borderScaleX: number;
+  borderScaleY: number;
+  noiseAmountPx: number;
+  borderPointsPx: number;
+  cornerRadiusPx: number;
+  borderWidthPx: number;
+  regularShape: boolean;
 }
 
-const shapeProfiles: Record<Exclude<StampShape, 'auto'> | 'auto', StampTuningProfile> = {
+const shapeProfiles: Record<Exclude<StampShape, "auto"> | "auto", StampTuningProfile> = {
   auto: {
     offsetX: 0,
     offsetY: 0,
@@ -50,8 +56,8 @@ const shapeProfiles: Record<Exclude<StampShape, 'auto'> | 'auto', StampTuningPro
     characterSpacing: 0.045,
     paddingX: 0.015,
     paddingY: 0.02,
-    borderScaleX: 1.00,
-    borderScaleY: 1.00,
+    borderScaleX: 1.0,
+    borderScaleY: 1.0,
     noiseAmountPx: 8,
     borderPointsPx: 24,
     cornerRadiusPx: 10,
@@ -65,8 +71,8 @@ const shapeProfiles: Record<Exclude<StampShape, 'auto'> | 'auto', StampTuningPro
     characterSpacing: 0.045,
     paddingX: 0.015,
     paddingY: 0.02,
-    borderScaleX: 1.00,
-    borderScaleY: 1.00,
+    borderScaleX: 1.0,
+    borderScaleY: 1.0,
     noiseAmountPx: 9,
     borderPointsPx: 24,
     cornerRadiusPx: 10,
@@ -80,8 +86,8 @@ const shapeProfiles: Record<Exclude<StampShape, 'auto'> | 'auto', StampTuningPro
     characterSpacing: 0.04,
     paddingX: 0.06,
     paddingY: 0.06,
-    borderScaleX: 1.00,
-    borderScaleY: 1.00,
+    borderScaleX: 1.0,
+    borderScaleY: 1.0,
     noiseAmountPx: 9,
     borderPointsPx: 32,
     cornerRadiusPx: 10,
@@ -103,94 +109,90 @@ const shapeProfiles: Record<Exclude<StampShape, 'auto'> | 'auto', StampTuningPro
     borderWidthPx: 4,
     regularShape: false,
   },
-}
+};
 
 // Stamp parameters
-const stampType = ref<StampType>('yang')
-const stampShape = ref<StampShape>('auto')
-const color = ref('#C8102E')
-const fontFamily = ref('峄山碑篆体')
-const fontSize = ref(100)
-const fontWeight = ref<string | number>('normal')
-const textCarving = ref<StampTextCarving>('normal')
-const offsetX = ref(0)
-const offsetY = ref(0)
-const columnSpacing = ref(0.012)
-const characterSpacing = ref(0.05)
-const paddingX = ref(0.025)
-const paddingY = ref(0.04)
-const borderScaleX = ref(1.0)
-const borderScaleY = ref(1.015)
-const noiseAmount = ref(10)
-const borderPoints = ref(28)
-const cornerRadius = ref(10)
-const borderWidth = ref(6)
-const regularShape = ref(false)
-const seed = ref(12345)
+const stampType = ref<StampType>("yang");
+const stampShape = ref<StampShape>("auto");
+const color = ref("#C8102E");
+const fontFamily = ref("峄山碑篆体");
+const fontSize = ref(100);
+const fontWeight = ref<string | number>("normal");
+const textCarving = ref<StampTextCarving>("normal");
+const offsetX = ref(0);
+const offsetY = ref(0);
+const columnSpacing = ref(0.012);
+const characterSpacing = ref(0.05);
+const paddingX = ref(0.025);
+const paddingY = ref(0.04);
+const borderScaleX = ref(1.0);
+const borderScaleY = ref(1.015);
+const noiseAmount = ref(10);
+const borderPoints = ref(28);
+const cornerRadius = ref(10);
+const borderWidth = ref(6);
+const regularShape = ref(false);
+const seed = ref(12345);
 
 onMounted(async () => {
-  await document.fonts.ready
-  await waitForFont(fontFamily.value, fontSize.value)
-  fontsReady.value = true
-})
+  await document.fonts.ready;
+  await waitForFont(fontFamily.value, fontSize.value);
+  fontsReady.value = true;
+});
 
 // Text input
-const textInput = ref(initialText)
-const userModifiedText = ref(false)
-const userModifiedTuning = ref(false)
-const applyingTuningProfile = ref(false)
+const textInput = ref(initialText);
+const userModifiedText = ref(false);
+const userModifiedTuning = ref(false);
+const applyingTuningProfile = ref(false);
 
 async function waitForFont(fontFamily: string, fontSize: number) {
-  if (typeof document === 'undefined' || !document.fonts)
-    return
+  if (typeof document === "undefined" || !document.fonts) return;
 
-  const fontSpec = `${fontSize}px ${fontFamily}`
+  const fontSpec = `${fontSize}px ${fontFamily}`;
 
   for (let attempt = 0; attempt < 20; attempt++) {
-    if (document.fonts.check(fontSpec))
-      return
+    if (document.fonts.check(fontSpec)) return;
 
     try {
-      await document.fonts.load(fontSpec)
-    }
-    catch {
+      await document.fonts.load(fontSpec);
+    } catch {
       // 忽略瞬时失败，继续等待字体注册完成。
     }
 
-    if (document.fonts.check(fontSpec))
-      return
+    if (document.fonts.check(fontSpec)) return;
 
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 }
 
 function applyTuningProfile(profile: StampTuningProfile) {
-  applyingTuningProfile.value = true
-  offsetX.value = profile.offsetX
-  offsetY.value = profile.offsetY
-  columnSpacing.value = profile.columnSpacing
-  characterSpacing.value = profile.characterSpacing
-  paddingX.value = profile.paddingX
-  paddingY.value = profile.paddingY
-  borderScaleX.value = profile.borderScaleX
-  borderScaleY.value = profile.borderScaleY
-  noiseAmount.value = profile.noiseAmountPx
-  borderPoints.value = profile.borderPointsPx
-  cornerRadius.value = profile.cornerRadiusPx
-  borderWidth.value = profile.borderWidthPx
-  regularShape.value = profile.regularShape
-  applyingTuningProfile.value = false
+  applyingTuningProfile.value = true;
+  offsetX.value = profile.offsetX;
+  offsetY.value = profile.offsetY;
+  columnSpacing.value = profile.columnSpacing;
+  characterSpacing.value = profile.characterSpacing;
+  paddingX.value = profile.paddingX;
+  paddingY.value = profile.paddingY;
+  borderScaleX.value = profile.borderScaleX;
+  borderScaleY.value = profile.borderScaleY;
+  noiseAmount.value = profile.noiseAmountPx;
+  borderPoints.value = profile.borderPointsPx;
+  cornerRadius.value = profile.cornerRadiusPx;
+  borderWidth.value = profile.borderWidthPx;
+  regularShape.value = profile.regularShape;
+  applyingTuningProfile.value = false;
 }
 
 // Sync text lines with input and track user modifications
 watch(textInput, (newValue, oldValue) => {
-  textLines.value = newValue.split('\n').filter(line => line.trim())
+  textLines.value = newValue.split("\n").filter((line) => line.trim());
 
   // Mark as user modified if the change wasn't from preset application
   if (oldValue !== undefined && newValue !== initialText) {
-    userModifiedText.value = true
+    userModifiedText.value = true;
   }
-})
+});
 
 watch(
   [
@@ -209,165 +211,163 @@ watch(
     regularShape,
   ],
   () => {
-    if (applyingTuningProfile.value)
-      return
-    userModifiedTuning.value = true
+    if (applyingTuningProfile.value) return;
+    userModifiedTuning.value = true;
   },
-)
+);
 
 watch(stampShape, (shape) => {
   if (!userModifiedTuning.value) {
-    applyTuningProfile(shapeProfiles[shape])
+    applyTuningProfile(shapeProfiles[shape]);
   }
-})
+});
 
 const stampOptions = computed<StampOptions>(() => ({
-    text: textLines.value,
-    type: stampType.value,
-    shape: stampShape.value,
-    color: color.value,
-    fontFamily: fontFamily.value,
-    fontSize: fontSize.value,
-    fontWeight: fontWeight.value,
-    textCarving: textCarving.value,
-    offsetX: offsetX.value,
-    offsetY: offsetY.value,
-    columnSpacing: columnSpacing.value,
-    characterSpacing: characterSpacing.value,
-    paddingX: paddingX.value,
-    paddingY: paddingY.value,
-    borderScaleX: borderScaleX.value,
-    borderScaleY: borderScaleY.value,
-    noiseAmountPx: noiseAmount.value,
-    borderPointsPx: borderPoints.value,
-    cornerRadiusPx: cornerRadius.value,
-    borderWidthPx: borderWidth.value,
-    regularShape: regularShape.value,
-    seed: seed.value,
-  }))
+  text: textLines.value,
+  type: stampType.value,
+  shape: stampShape.value,
+  color: color.value,
+  fontFamily: fontFamily.value,
+  fontSize: fontSize.value,
+  fontWeight: fontWeight.value,
+  textCarving: textCarving.value,
+  offsetX: offsetX.value,
+  offsetY: offsetY.value,
+  columnSpacing: columnSpacing.value,
+  characterSpacing: characterSpacing.value,
+  paddingX: paddingX.value,
+  paddingY: paddingY.value,
+  borderScaleX: borderScaleX.value,
+  borderScaleY: borderScaleY.value,
+  noiseAmountPx: noiseAmount.value,
+  borderPointsPx: borderPoints.value,
+  cornerRadiusPx: cornerRadius.value,
+  borderWidthPx: borderWidth.value,
+  regularShape: regularShape.value,
+  seed: seed.value,
+}));
 
-const stampSvg = ref('')
-let renderToken = 0
+const stampSvg = ref("");
+let renderToken = 0;
 
 watch(
   [stampOptions, fontsReady],
   async ([options, ready]) => {
     if (!ready) {
-      stampSvg.value = ''
-      return
+      stampSvg.value = "";
+      return;
     }
 
-    const currentToken = ++renderToken
+    const currentToken = ++renderToken;
     const svg = await generateStampAsync({
       ...options,
-      fontUrl: FONT_URLS[options.fontFamily ?? ''],
-    })
-    if (currentToken === renderToken)
-      stampSvg.value = svg
+      fontUrl: FONT_URLS[options.fontFamily ?? ""],
+    });
+    if (currentToken === renderToken) stampSvg.value = svg;
   },
   { immediate: true },
-)
+);
 
 function randomizeSeed() {
-  seed.value = Math.floor(Math.random() * 100000)
+  seed.value = Math.floor(Math.random() * 100000);
 }
 
 function resetDefaults() {
-  textInput.value = initialText
-  textLines.value = ['水墨', '江南']
-  userModifiedText.value = false
-  userModifiedTuning.value = false
-  stampType.value = 'yang'
-  stampShape.value = 'auto'
-  color.value = '#C8102E'
-  fontFamily.value = '峄山碑篆体'
-  fontSize.value = 100
-  fontWeight.value = 'normal'
-  textCarving.value = 'normal'
-  applyTuningProfile(shapeProfiles.auto)
-  seed.value = 12345
+  textInput.value = initialText;
+  textLines.value = ["水墨", "江南"];
+  userModifiedText.value = false;
+  userModifiedTuning.value = false;
+  stampType.value = "yang";
+  stampShape.value = "auto";
+  color.value = "#C8102E";
+  fontFamily.value = "峄山碑篆体";
+  fontSize.value = 100;
+  fontWeight.value = "normal";
+  textCarving.value = "normal";
+  applyTuningProfile(shapeProfiles.auto);
+  seed.value = 12345;
 }
 
 function downloadSVG() {
-  const blob = new Blob([stampSvg.value], { type: 'image/svg+xml' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `stamp-${Date.now()}.svg`
-  link.click()
-  URL.revokeObjectURL(url)
+  const blob = new Blob([stampSvg.value], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `stamp-${Date.now()}.svg`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 // Preset examples
 const presets = [
   {
-    name: '阴章 - 自动',
+    name: "阴章 - 自动",
     config: {
-      text: '落梅听\n风雪',
-      type: 'yin' as StampType,
-      shape: 'auto' as StampShape,
+      text: "落梅听\n风雪",
+      type: "yin" as StampType,
+      shape: "auto" as StampShape,
       fontSize: 70,
       ...shapeProfiles.auto,
       seed: 12345,
     },
   },
   {
-    name: '阳章 - 正方形',
+    name: "阳章 - 正方形",
     config: {
-      text: '月落\n乌啼',
-      type: 'yang' as StampType,
-      shape: 'square' as StampShape,
+      text: "月落\n乌啼",
+      type: "yang" as StampType,
+      shape: "square" as StampShape,
       fontSize: 70,
       ...shapeProfiles.square,
       seed: 11112,
     },
   },
   {
-    name: '阴章 - 长方形',
+    name: "阴章 - 长方形",
     config: {
-      text: '明月\n别枝\n惊鹊',
-      type: 'yin' as StampType,
-      shape: 'rectangle' as StampShape,
+      text: "明月\n别枝\n惊鹊",
+      type: "yin" as StampType,
+      shape: "rectangle" as StampShape,
       fontSize: 70,
       ...shapeProfiles.rectangle,
       seed: 22221,
     },
   },
   {
-    name: '阴章 - 圆形',
+    name: "阴章 - 圆形",
     config: {
-      text: '兰',
-      type: 'yin' as StampType,
-      shape: 'circle' as StampShape,
+      text: "兰",
+      type: "yin" as StampType,
+      shape: "circle" as StampShape,
       fontSize: 70,
       ...shapeProfiles.circle,
       seed: 33333,
     },
   },
   {
-    name: '阳章 - 椭圆',
+    name: "阳章 - 椭圆",
     config: {
-      text: '隔窗\n听雨',
-      type: 'yang' as StampType,
-      shape: 'ellipse' as StampShape,
+      text: "隔窗\n听雨",
+      type: "yang" as StampType,
+      shape: "ellipse" as StampShape,
       fontSize: 70,
       ...shapeProfiles.ellipse,
       seed: 44444,
     },
   },
-]
+];
 
-function applyPreset(preset: typeof presets[0]) {
+function applyPreset(preset: (typeof presets)[0]) {
   // Only update text if user hasn't modified it
   if (!userModifiedText.value) {
-    textInput.value = preset.config.text
-    textLines.value = preset.config.text.split('\n').filter(line => line.trim())
+    textInput.value = preset.config.text;
+    textLines.value = preset.config.text.split("\n").filter((line) => line.trim());
   }
 
-  stampType.value = preset.config.type
-  stampShape.value = preset.config.shape
-  fontSize.value = preset.config.fontSize
-  userModifiedTuning.value = false
+  stampType.value = preset.config.type;
+  stampShape.value = preset.config.shape;
+  fontSize.value = preset.config.fontSize;
+  userModifiedTuning.value = false;
   applyTuningProfile({
     offsetX: preset.config.offsetX,
     offsetY: preset.config.offsetY,
@@ -382,9 +382,9 @@ function applyPreset(preset: typeof presets[0]) {
     cornerRadiusPx: preset.config.cornerRadiusPx,
     borderWidthPx: preset.config.borderWidthPx,
     regularShape: preset.config.regularShape,
-  })
-  seed.value = preset.config.seed
-  userModifiedTuning.value = false
+  });
+  seed.value = preset.config.seed;
+  userModifiedTuning.value = false;
 }
 </script>
 
@@ -414,15 +414,8 @@ function applyPreset(preset: typeof presets[0]) {
         <!-- Text Input -->
         <div class="control-section">
           <h4>印章文字</h4>
-          <textarea
-            v-model="textInput"
-            class="text-input"
-            placeholder="每行一个字段"
-            rows="3"
-          />
-          <p class="hint">
-            每行一列，从右到左排列
-          </p>
+          <textarea v-model="textInput" class="text-input" placeholder="每行一个字段" rows="3" />
+          <p class="hint">每行一列，从右到左排列</p>
         </div>
 
         <!-- Type & Shape -->
@@ -451,12 +444,10 @@ function applyPreset(preset: typeof presets[0]) {
           </div>
           <div class="control-row checkbox-row">
             <label class="checkbox-label">
-              <input v-model="regularShape" type="checkbox" class="checkbox-input">
+              <input v-model="regularShape" type="checkbox" class="checkbox-input" />
               <span class="checkbox-text">规则形状 (仅非 auto 形状)</span>
             </label>
-            <p class="hint">
-              开启后，square、rectangle、circle、ellipse 将生成完美几何形状
-            </p>
+            <p class="hint">开启后，square、rectangle、circle、ellipse 将生成完美几何形状</p>
           </div>
         </div>
 
@@ -467,8 +458,8 @@ function applyPreset(preset: typeof presets[0]) {
             <label>
               <span class="label-text">印泥颜色</span>
               <div class="color-input-group">
-                <input v-model="color" type="color" class="color-picker">
-                <input v-model="color" type="text" class="color-text">
+                <input v-model="color" type="color" class="color-picker" />
+                <input v-model="color" type="text" class="color-text" />
               </div>
             </label>
           </div>
@@ -518,60 +509,146 @@ function applyPreset(preset: typeof presets[0]) {
           <div class="control-row">
             <label>
               <span class="label-text">字体大小: {{ fontSize }}px</span>
-              <input v-model.number="fontSize" type="range" min="20" max="200" class="range-input">
+              <input
+                v-model.number="fontSize"
+                type="range"
+                min="20"
+                max="200"
+                class="range-input"
+              />
             </label>
           </div>
           <div class="control-row">
             <label>
-              <span class="label-text">水平偏移: {{ offsetX.toFixed(2) }} ({{ offsetX === -1 ? '左' : offsetX === 0 ? '中' : offsetX === 1 ? '右' : offsetX < 0 ? '偏左' : '偏右' }})</span>
-              <input v-model.number="offsetX" type="range" min="-1" max="1" step="0.05" class="range-input">
+              <span class="label-text"
+                >水平偏移: {{ offsetX.toFixed(2) }} ({{
+                  offsetX === -1
+                    ? "左"
+                    : offsetX === 0
+                      ? "中"
+                      : offsetX === 1
+                        ? "右"
+                        : offsetX < 0
+                          ? "偏左"
+                          : "偏右"
+                }})</span
+              >
+              <input
+                v-model.number="offsetX"
+                type="range"
+                min="-1"
+                max="1"
+                step="0.05"
+                class="range-input"
+              />
             </label>
           </div>
           <div class="control-row">
             <label>
-              <span class="label-text">垂直偏移: {{ offsetY.toFixed(2) }} ({{ offsetY === -1 ? '上' : offsetY === 0 ? '中' : offsetY === 1 ? '下' : offsetY < 0 ? '偏上' : '偏下' }})</span>
-              <input v-model.number="offsetY" type="range" min="-1" max="1" step="0.05" class="range-input">
+              <span class="label-text"
+                >垂直偏移: {{ offsetY.toFixed(2) }} ({{
+                  offsetY === -1
+                    ? "上"
+                    : offsetY === 0
+                      ? "中"
+                      : offsetY === 1
+                        ? "下"
+                        : offsetY < 0
+                          ? "偏上"
+                          : "偏下"
+                }})</span
+              >
+              <input
+                v-model.number="offsetY"
+                type="range"
+                min="-1"
+                max="1"
+                step="0.05"
+                class="range-input"
+              />
             </label>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">列间距 (左右): {{ columnSpacing.toFixed(2) }}</span>
-              <input v-model.number="columnSpacing" type="range" min="-0.5" max="1.0" step="0.01" class="range-input">
+              <input
+                v-model.number="columnSpacing"
+                type="range"
+                min="-0.5"
+                max="1.0"
+                step="0.01"
+                class="range-input"
+              />
             </label>
             <p class="hint">控制文字列之间的水平间距</p>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">字间距 (上下): {{ characterSpacing.toFixed(2) }}</span>
-              <input v-model.number="characterSpacing" type="range" min="-0.2" max="0.5" step="0.01" class="range-input">
+              <input
+                v-model.number="characterSpacing"
+                type="range"
+                min="-0.2"
+                max="0.5"
+                step="0.01"
+                class="range-input"
+              />
             </label>
             <p class="hint">控制同一列中文字的垂直间距</p>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">水平留白: {{ paddingX.toFixed(2) }}</span>
-              <input v-model.number="paddingX" type="range" min="-0.1" max="0.5" step="0.01" class="range-input">
+              <input
+                v-model.number="paddingX"
+                type="range"
+                min="-0.1"
+                max="0.5"
+                step="0.01"
+                class="range-input"
+              />
             </label>
             <p class="hint">控制文字左右两侧的留白</p>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">垂直留白: {{ paddingY.toFixed(2) }}</span>
-              <input v-model.number="paddingY" type="range" min="0" max="0.5" step="0.01" class="range-input">
+              <input
+                v-model.number="paddingY"
+                type="range"
+                min="0"
+                max="0.5"
+                step="0.01"
+                class="range-input"
+              />
             </label>
             <p class="hint">控制文字上下两侧的留白</p>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">边框宽度缩放: {{ borderScaleX.toFixed(2) }}</span>
-              <input v-model.number="borderScaleX" type="range" min="0.5" max="2.0" step="0.01" class="range-input">
+              <input
+                v-model.number="borderScaleX"
+                type="range"
+                min="0.5"
+                max="2.0"
+                step="0.01"
+                class="range-input"
+              />
             </label>
             <p class="hint">水平方向放大或缩小印章边框 (1.0 = 默认)</p>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">边框高度缩放: {{ borderScaleY.toFixed(2) }}</span>
-              <input v-model.number="borderScaleY" type="range" min="0.5" max="2.0" step="0.01" class="range-input">
+              <input
+                v-model.number="borderScaleY"
+                type="range"
+                min="0.5"
+                max="2.0"
+                step="0.01"
+                class="range-input"
+              />
             </label>
             <p class="hint">垂直方向放大或缩小印章边框 (1.0 = 默认)</p>
           </div>
@@ -583,25 +660,51 @@ function applyPreset(preset: typeof presets[0]) {
           <div class="control-row">
             <label>
               <span class="label-text">不规则度: {{ noiseAmount }}</span>
-              <input v-model.number="noiseAmount" type="range" min="0" max="50" class="range-input">
+              <input
+                v-model.number="noiseAmount"
+                type="range"
+                min="0"
+                max="50"
+                class="range-input"
+              />
             </label>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">边框点数: {{ borderPoints }}</span>
-              <input v-model.number="borderPoints" type="range" min="8" max="96" step="4" class="range-input">
+              <input
+                v-model.number="borderPoints"
+                type="range"
+                min="8"
+                max="96"
+                step="4"
+                class="range-input"
+              />
             </label>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">圆角半径: {{ cornerRadius }}</span>
-              <input v-model.number="cornerRadius" type="range" min="0" max="60" class="range-input">
+              <input
+                v-model.number="cornerRadius"
+                type="range"
+                min="0"
+                max="60"
+                class="range-input"
+              />
             </label>
           </div>
           <div class="control-row">
             <label>
               <span class="label-text">边框宽度: {{ borderWidth }}px</span>
-              <input v-model.number="borderWidth" type="range" min="0.5" max="15" step="0.5" class="range-input">
+              <input
+                v-model.number="borderWidth"
+                type="range"
+                min="0.5"
+                max="15"
+                step="0.5"
+                class="range-input"
+              />
             </label>
             <p class="hint">仅阳章 (白底红字) 显示边框</p>
           </div>
@@ -614,10 +717,8 @@ function applyPreset(preset: typeof presets[0]) {
             <label>
               <span class="label-text">Seed</span>
               <div class="seed-input-group">
-                <input v-model.number="seed" type="number" class="number-input">
-                <button class="icon-btn" @click="randomizeSeed" title="随机种子">
-                  🎲
-                </button>
+                <input v-model.number="seed" type="number" class="number-input" />
+                <button class="icon-btn" @click="randomizeSeed" title="随机种子">🎲</button>
               </div>
             </label>
           </div>
@@ -626,12 +727,8 @@ function applyPreset(preset: typeof presets[0]) {
         <!-- Actions -->
         <div class="control-section">
           <div class="action-buttons">
-            <button class="action-btn primary" @click="downloadSVG">
-              下载 SVG
-            </button>
-            <button class="action-btn" @click="resetDefaults">
-              重置默认值
-            </button>
+            <button class="action-btn primary" @click="downloadSVG">下载 SVG</button>
+            <button class="action-btn" @click="resetDefaults">重置默认值</button>
           </div>
         </div>
       </div>

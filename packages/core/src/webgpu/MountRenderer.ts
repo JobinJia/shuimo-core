@@ -5,7 +5,7 @@
  * 包含轮廓生成、纹理绘制、墨色渲染
  */
 
-import { prng } from '../foundation/random';
+import { prng } from "../foundation/random";
 
 export interface MountOptions {
   /** 山峰高度 */
@@ -237,7 +237,7 @@ const mountRenderShader = /* wgsl */ `
 export class MountRenderer {
   private device: GPUDevice | null = null;
   private context: GPUCanvasContext | null = null;
-  private format: GPUTextureFormat = 'bgra8unorm';
+  private format: GPUTextureFormat = "bgra8unorm";
 
   private computePipeline: GPUComputePipeline | null = null;
   private renderPipeline: GPURenderPipeline | null = null;
@@ -258,21 +258,21 @@ export class MountRenderer {
    */
   async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
     if (!navigator.gpu) {
-      console.error('WebGPU 不支持');
+      console.error("WebGPU 不支持");
       return false;
     }
 
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) {
-      console.error('无法获取 GPU adapter');
+      console.error("无法获取 GPU adapter");
       return false;
     }
 
     this.device = await adapter.requestDevice();
-    this.context = canvas.getContext('webgpu');
+    this.context = canvas.getContext("webgpu");
 
     if (!this.context) {
-      console.error('无法获取 WebGPU context');
+      console.error("无法获取 WebGPU context");
       return false;
     }
 
@@ -283,7 +283,7 @@ export class MountRenderer {
     this.context.configure({
       device: this.device,
       format: this.format,
-      alphaMode: 'premultiplied',
+      alphaMode: "premultiplied",
     });
 
     await this.createBuffers();
@@ -325,10 +325,10 @@ export class MountRenderer {
     });
 
     this.computePipeline = this.device.createComputePipeline({
-      layout: 'auto',
+      layout: "auto",
       compute: {
         module: computeModule,
-        entryPoint: 'generateOutline',
+        entryPoint: "generateOutline",
       },
     });
 
@@ -337,40 +337,44 @@ export class MountRenderer {
     });
 
     this.renderPipeline = this.device.createRenderPipeline({
-      layout: 'auto',
+      layout: "auto",
       vertex: {
         module: renderModule,
-        entryPoint: 'pointVertexMain',
-        buffers: [{
-          arrayStride: 16,
-          attributes: [
-            { shaderLocation: 0, offset: 0, format: 'float32x2' },
-            { shaderLocation: 1, offset: 8, format: 'float32' },
-            { shaderLocation: 2, offset: 12, format: 'float32' },
-          ],
-        }],
+        entryPoint: "pointVertexMain",
+        buffers: [
+          {
+            arrayStride: 16,
+            attributes: [
+              { shaderLocation: 0, offset: 0, format: "float32x2" },
+              { shaderLocation: 1, offset: 8, format: "float32" },
+              { shaderLocation: 2, offset: 12, format: "float32" },
+            ],
+          },
+        ],
       },
       fragment: {
         module: renderModule,
-        entryPoint: 'fragmentMain',
-        targets: [{
-          format: this.format,
-          blend: {
-            color: {
-              srcFactor: 'src-alpha',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
-            alpha: {
-              srcFactor: 'one',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
+        entryPoint: "fragmentMain",
+        targets: [
+          {
+            format: this.format,
+            blend: {
+              color: {
+                srcFactor: "src-alpha",
+                dstFactor: "one-minus-src-alpha",
+                operation: "add",
+              },
+              alpha: {
+                srcFactor: "one",
+                dstFactor: "one-minus-src-alpha",
+                operation: "add",
+              },
             },
           },
-        }],
+        ],
       },
       primitive: {
-        topology: 'point-list',
+        topology: "point-list",
       },
     });
   }
@@ -396,18 +400,33 @@ export class MountRenderer {
 
     // 更新参数
     const paramsData = new Float32Array([
-      width, height, x, y,
-      seed, layers, textureDensity, inkDensity,
-      mistAmount, 0, totalPoints, 0,
+      width,
+      height,
+      x,
+      y,
+      seed,
+      layers,
+      textureDensity,
+      inkDensity,
+      mistAmount,
+      0,
+      totalPoints,
+      0,
     ]);
     this.device.queue.writeBuffer(this.paramsBuffer!, 0, paramsData);
 
     // 更新渲染参数
     const renderParamsData = new Float32Array([
-      this.canvasWidth, this.canvasHeight,
-      0.1, 0.1, 0.12,  // inkColor
-      0.96, 0.94, 0.9, // paperColor
-      mistAmount, 0,
+      this.canvasWidth,
+      this.canvasHeight,
+      0.1,
+      0.1,
+      0.12, // inkColor
+      0.96,
+      0.94,
+      0.9, // paperColor
+      mistAmount,
+      0,
     ]);
     this.device.queue.writeBuffer(this.renderParamsBuffer!, 0, renderParamsData);
 
@@ -423,9 +442,7 @@ export class MountRenderer {
 
     const renderBindGroup = this.device.createBindGroup({
       layout: this.renderPipeline!.getBindGroupLayout(0),
-      entries: [
-        { binding: 0, resource: { buffer: this.renderParamsBuffer! } },
-      ],
+      entries: [{ binding: 0, resource: { buffer: this.renderParamsBuffer! } }],
     });
 
     const commandEncoder = this.device.createCommandEncoder();
@@ -440,11 +457,13 @@ export class MountRenderer {
     // Render pass
     const textureView = this.context.getCurrentTexture().createView();
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        loadOp: 'load',
-        storeOp: 'store',
-      }],
+      colorAttachments: [
+        {
+          view: textureView,
+          loadOp: "load",
+          storeOp: "store",
+        },
+      ],
     });
 
     renderPass.setPipeline(this.renderPipeline!);
@@ -466,12 +485,14 @@ export class MountRenderer {
     const textureView = this.context.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        clearValue: { r: color[0], g: color[1], b: color[2], a: color[3] },
-        loadOp: 'clear',
-        storeOp: 'store',
-      }],
+      colorAttachments: [
+        {
+          view: textureView,
+          clearValue: { r: color[0], g: color[1], b: color[2], a: color[3] },
+          loadOp: "clear",
+          storeOp: "store",
+        },
+      ],
     });
     renderPass.end();
 

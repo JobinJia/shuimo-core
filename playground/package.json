@@ -1,16 +1,16 @@
 {
   "name": "@shuimo/playground",
-  "type": "module",
   "version": "0.1.0",
   "private": true,
   "description": "Interactive playground for testing @shuimo/core library",
+  "type": "module",
   "scripts": {
     "dev": "vp dev",
     "build": "vp build",
     "build:check": "tsc && vp build",
     "preview": "vp preview",
-    "lint": "eslint --fix .",
-    "lint:check": "eslint ."
+    "lint": "vp check --fix",
+    "lint:check": "vp check"
   },
   "dependencies": {
     "@shuimo/core": "workspace:*",

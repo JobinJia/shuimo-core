@@ -20,6 +20,7 @@ pnpm playground       # Start playground dev server (Vue 3 + Vite, port 3000)
 ```
 
 Core package scripts (run from `packages/core/`):
+
 ```bash
 pnpm test:ui          # Vitest interactive UI
 pnpm test:coverage    # Vitest with v8 coverage
@@ -29,6 +30,7 @@ pnpm vitest run src/path/to/test.test.ts  # Run a single test file
 ## Monorepo Structure
 
 pnpm workspaces (`packages/*`, `playground`, `examples/*`):
+
 - **`packages/core`** (`@shuimo/core`) — the library, ESM-only (`.mjs`), bundled with tsdown
 - **`playground`** (`@shuimo/playground`) — Vue 3 + Vue Router demo app consuming the core
 

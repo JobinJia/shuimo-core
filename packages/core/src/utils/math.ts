@@ -1,4 +1,4 @@
-import { Point } from '../foundation/geometry';
+import { Point } from "../foundation/geometry";
 
 const PI = Math.PI;
 const TWO_PI = 2 * PI;
@@ -66,7 +66,7 @@ export function fmtNum(n: number): string {
  * @returns Cleaned value
  */
 export function unNan(value: any): any {
-  if (typeof value !== 'object' || value === null) {
+  if (typeof value !== "object" || value === null) {
     return value || 0;
   } else {
     return value.map(unNan);
@@ -97,7 +97,7 @@ export function mapval(
   istart: number,
   istop: number,
   ostart: number,
-  ostop: number
+  ostop: number,
 ): number {
   return ostart + (ostop - ostart) * (((value - istart) * 1.0) / (istop - istart));
 }

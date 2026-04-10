@@ -1,5 +1,5 @@
-import { noise } from '../foundation/noise';
-import { prng } from '../foundation/random';
+import { noise } from "../foundation/noise";
+import { prng } from "../foundation/random";
 
 export interface PlanItem {
   /** Element type tag */
@@ -24,7 +24,7 @@ export class MountPlanner {
     x: number,
     y: number,
     f: (x: number, y: number) => number,
-    r: number
+    r: number,
   ): boolean {
     const z0 = f(x, y);
     if (z0 <= 0.3) {
@@ -47,14 +47,14 @@ export class MountPlanner {
     reg: PlanItem[],
     r: PlanItem,
     mind: number = 10,
-    planmtx: number[]
+    planmtx: number[],
   ): boolean {
     for (let k = 0; k < reg.length; k++) {
       if (Math.abs(reg[k].x - r.x) < mind) {
         return false;
       }
     }
-    console.log('+');
+    console.log("+");
     reg.push(r);
     return true;
   }
@@ -99,7 +99,7 @@ export class MountPlanner {
         if (this.locmax(i, j, ns, 2)) {
           const xof = i + 2 * (prng.random() - 0.5) * 500;
           const yof = j + 300;
-          const r: PlanItem = { tag: 'mount', x: xof, y: yof, h: ns(i, j) };
+          const r: PlanItem = { tag: "mount", x: xof, y: yof, h: ns(i, j) };
           const res = this.chadd(reg, r, 10, planmtx);
           if (res) {
             for (let k = Math.floor((xof - mwid) / xstep); k < (xof + mwid) / xstep; k++) {
@@ -112,7 +112,7 @@ export class MountPlanner {
       // Place distant mountains periodically
       if (Math.abs(i) % 1000 < Math.max(1, xstep - 1)) {
         const r: PlanItem = {
-          tag: 'distmount',
+          tag: "distmount",
           x: i,
           y: 280 - prng.random() * 50,
           h: ns(i, 0),
@@ -129,7 +129,7 @@ export class MountPlanner {
         if (prng.random() < 0.01) {
           for (let j = 0; j < 4 * prng.random(); j++) {
             const r: PlanItem = {
-              tag: 'flatmount',
+              tag: "flatmount",
               x: i + 2 * (prng.random() - 0.5) * 700,
               y: 700 - j * 50,
               h: ns(i, j),
@@ -143,7 +143,7 @@ export class MountPlanner {
     // Place boats
     for (let i = xmin; i < xmax; i += xstep) {
       if (prng.random() < 0.2) {
-        const r: PlanItem = { tag: 'boat', x: i, y: 300 + prng.random() * 390, h: 0 };
+        const r: PlanItem = { tag: "boat", x: i, y: 300 + prng.random() * 390, h: 0 };
         this.chadd(reg, r, 400, planmtx);
       }
     }
@@ -155,9 +155,9 @@ export class MountPlanner {
       if ((planmtx[mtxIdx] ?? 0) > 0 && prng.random() < 0.05) {
         // Place houses on mountain foothills (high y = low on screen = ground level)
         const r: PlanItem = {
-          tag: 'arch01',
+          tag: "arch01",
           x: i + (prng.random() - 0.5) * 200,
-          y: 680 + prng.random() * 50,  // Near bottom of scene (ground level)
+          y: 680 + prng.random() * 50, // Near bottom of scene (ground level)
           h: 0,
         };
         this.chadd(reg, r, 150, planmtx);
@@ -168,9 +168,9 @@ export class MountPlanner {
     for (let i = xmin; i < xmax; i += xstep) {
       if (prng.random() < 0.02) {
         const r: PlanItem = {
-          tag: 'arch02',
+          tag: "arch02",
           x: i + (prng.random() - 0.5) * 100,
-          y: 700 + prng.random() * 30,  // Ground level
+          y: 700 + prng.random() * 30, // Ground level
           h: 0,
         };
         this.chadd(reg, r, 200, planmtx);
@@ -183,9 +183,9 @@ export class MountPlanner {
       if ((planmtx[mtxIdx] ?? 0) > 0 && prng.random() < 0.015) {
         // Place pagodas on elevated positions near mountains
         const r: PlanItem = {
-          tag: 'arch03',
+          tag: "arch03",
           x: i + (prng.random() - 0.5) * 100,
-          y: 620 + prng.random() * 80,  // Slightly elevated
+          y: 620 + prng.random() * 80, // Slightly elevated
           h: 0,
         };
         this.chadd(reg, r, 300, planmtx);
@@ -196,9 +196,9 @@ export class MountPlanner {
     for (let i = xmin; i < xmax; i += xstep) {
       if (prng.random() < 0.015) {
         const r: PlanItem = {
-          tag: 'arch04',
+          tag: "arch04",
           x: i + (prng.random() - 0.5) * 100,
-          y: 690 + prng.random() * 40,  // Ground level
+          y: 690 + prng.random() * 40, // Ground level
           h: 0,
         };
         this.chadd(reg, r, 250, planmtx);
@@ -209,9 +209,9 @@ export class MountPlanner {
     for (let i = xmin; i < xmax; i += xstep) {
       if (prng.random() < 0.005) {
         const r: PlanItem = {
-          tag: 'tower',
+          tag: "tower",
           x: i,
-          y: 720 + prng.random() * 30,  // Ground level
+          y: 720 + prng.random() * 30, // Ground level
           h: 0,
         };
         this.chadd(reg, r, 500, planmtx);

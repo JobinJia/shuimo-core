@@ -1,4 +1,4 @@
-import { prng } from '../random';
+import { prng } from "../random";
 
 /**
  * Worley Noise Generator (Cellular Noise / Voronoi Noise)
@@ -13,7 +13,7 @@ import { prng } from '../random';
 
 export interface WorleyNoiseOptions {
   /** Distance metric to use */
-  distanceFunc?: 'euclidean' | 'manhattan' | 'chebyshev';
+  distanceFunc?: "euclidean" | "manhattan" | "chebyshev";
   /** Which feature point distance to return (F1, F2, F3...) */
   featurePoint?: number;
   /** Grid cell size (smaller = more feature points, finer detail) */
@@ -46,7 +46,7 @@ export class WorleyNoise {
    */
   noise2D(x: number, y: number, options: WorleyNoiseOptions = {}): number {
     const {
-      distanceFunc = 'euclidean',
+      distanceFunc = "euclidean",
       featurePoint = 1, // F1 by default (closest point)
       cellSize = 1.0,
       jitter = 1.0,
@@ -79,13 +79,7 @@ export class WorleyNoise {
         const featureY = neighborY + randomY * jitter + (1 - jitter) * 0.5;
 
         // Calculate distance from current point to feature point
-        const dist = this.distance(
-          scaledX,
-          scaledY,
-          featureX,
-          featureY,
-          distanceFunc,
-        );
+        const dist = this.distance(scaledX, scaledY, featureX, featureY, distanceFunc);
 
         distances.push(dist);
       }
@@ -101,11 +95,11 @@ export class WorleyNoise {
 
     // Normalize to approximate [0, 1] range
     // For euclidean distance with cellSize=1, typical max is ~sqrt(2)
-    if (distanceFunc === 'euclidean') {
+    if (distanceFunc === "euclidean") {
       result = Math.min(result / (cellSize * 1.5), 1.0);
-    } else if (distanceFunc === 'manhattan') {
+    } else if (distanceFunc === "manhattan") {
       result = Math.min(result / (cellSize * 2.0), 1.0);
-    } else if (distanceFunc === 'chebyshev') {
+    } else if (distanceFunc === "chebyshev") {
       result = Math.min(result / cellSize, 1.0);
     }
 
@@ -115,22 +109,16 @@ export class WorleyNoise {
   /**
    * Calculate distance between two points
    */
-  private distance(
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    metric: string,
-  ): number {
+  private distance(x1: number, y1: number, x2: number, y2: number, metric: string): number {
     const dx = x2 - x1;
     const dy = y2 - y1;
 
     switch (metric) {
-      case 'euclidean':
+      case "euclidean":
         return Math.sqrt(dx * dx + dy * dy);
-      case 'manhattan':
+      case "manhattan":
         return Math.abs(dx) + Math.abs(dy);
-      case 'chebyshev':
+      case "chebyshev":
         return Math.max(Math.abs(dx), Math.abs(dy));
       default:
         return Math.sqrt(dx * dx + dy * dy);
@@ -142,7 +130,7 @@ export class WorleyNoise {
    * This creates high values at cell boundaries
    */
   edgeNoise2D(x: number, y: number, options: WorleyNoiseOptions = {}): number {
-    const { cellSize = 1.0, jitter = 1.0, distanceFunc = 'euclidean' } = options;
+    const { cellSize = 1.0, jitter = 1.0, distanceFunc = "euclidean" } = options;
 
     const scaledX = x / cellSize;
     const scaledY = y / cellSize;
@@ -162,13 +150,7 @@ export class WorleyNoise {
         const featureX = neighborX + randomX * jitter + (1 - jitter) * 0.5;
         const featureY = neighborY + randomY * jitter + (1 - jitter) * 0.5;
 
-        const dist = this.distance(
-          scaledX,
-          scaledY,
-          featureX,
-          featureY,
-          distanceFunc,
-        );
+        const dist = this.distance(scaledX, scaledY, featureX, featureY, distanceFunc);
 
         distances.push(dist);
       }

@@ -9,33 +9,33 @@
  * 3. 动画化展示绘画过程
  */
 
-export * from './types'
-export { StrokeTrajectoryEstimator } from './StrokeTrajectory'
-export { BrushFootprintGenerator } from './BrushFootprint'
-export { StrokeAnimator } from './StrokeAnimator'
-export { ContourExtractor } from './ContourExtractor'
+export * from "./types";
+export { StrokeTrajectoryEstimator } from "./StrokeTrajectory";
+export { BrushFootprintGenerator } from "./BrushFootprint";
+export { StrokeAnimator } from "./StrokeAnimator";
+export { ContourExtractor } from "./ContourExtractor";
 
 // 导入用于类型注解
-import { StrokeTrajectoryEstimator } from './StrokeTrajectory'
-import { BrushFootprintGenerator } from './BrushFootprint'
-import { StrokeAnimator } from './StrokeAnimator'
-import { ContourExtractor } from './ContourExtractor'
-import type { StrokeShape, DrawingTrajectory } from './types'
+import { StrokeTrajectoryEstimator } from "./StrokeTrajectory";
+import { BrushFootprintGenerator } from "./BrushFootprint";
+import { StrokeAnimator } from "./StrokeAnimator";
+import { ContourExtractor } from "./ContourExtractor";
+import type { StrokeShape, DrawingTrajectory } from "./types";
 
 /**
  * 快捷工具类 - 集成完整流程
  */
 export class StrokeAnimation {
-  private trajectoryEstimator: StrokeTrajectoryEstimator
-  private footprintGenerator: BrushFootprintGenerator
-  private animator: StrokeAnimator | null = null
+  private trajectoryEstimator: StrokeTrajectoryEstimator;
+  private footprintGenerator: BrushFootprintGenerator;
+  private animator: StrokeAnimator | null = null;
 
   constructor(canvas?: HTMLCanvasElement) {
-    this.trajectoryEstimator = new StrokeTrajectoryEstimator()
-    this.footprintGenerator = new BrushFootprintGenerator()
+    this.trajectoryEstimator = new StrokeTrajectoryEstimator();
+    this.footprintGenerator = new BrushFootprintGenerator();
 
     if (canvas) {
-      this.animator = new StrokeAnimator(canvas)
+      this.animator = new StrokeAnimator(canvas);
     }
   }
 
@@ -44,54 +44,54 @@ export class StrokeAnimation {
    */
   async createAnimation(
     shape: StrokeShape,
-    numFootprints: number = 50
+    numFootprints: number = 50,
   ): Promise<DrawingTrajectory> {
     // 1. 估算轨迹
-    const trajectory = this.trajectoryEstimator.estimateTrajectory(shape)
+    const trajectory = this.trajectoryEstimator.estimateTrajectory(shape);
 
     // 2. 生成足迹
     const footprints = this.footprintGenerator.generateFootprints(
       trajectory,
       shape.contour,
-      numFootprints
-    )
+      numFootprints,
+    );
 
     // 3. 更新轨迹的足迹数据
-    trajectory.footprints = footprints
+    trajectory.footprints = footprints;
 
     // 4. 设置到动画器
     if (this.animator) {
-      this.animator.setTrajectory(trajectory)
+      this.animator.setTrajectory(trajectory);
     }
 
-    return trajectory
+    return trajectory;
   }
 
   /**
    * 设置动画器
    */
   setAnimator(canvas: HTMLCanvasElement): void {
-    this.animator = new StrokeAnimator(canvas)
+    this.animator = new StrokeAnimator(canvas);
   }
 
   /**
    * 获取动画器
    */
   getAnimator(): StrokeAnimator | null {
-    return this.animator
+    return this.animator;
   }
 
   /**
    * 获取轨迹估算器
    */
   getTrajectoryEstimator(): StrokeTrajectoryEstimator {
-    return this.trajectoryEstimator
+    return this.trajectoryEstimator;
   }
 
   /**
    * 获取足迹生成器
    */
   getFootprintGenerator(): BrushFootprintGenerator {
-    return this.footprintGenerator
+    return this.footprintGenerator;
   }
 }

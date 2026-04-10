@@ -28,8 +28,12 @@
         <div class="control-section">
           <h3>绘制控制</h3>
           <button @click="clearCanvas" class="btn">清空画布</button>
-          <button @click="generateAnimation" :disabled="!hasStroke || isProcessing" class="btn btn-primary">
-            {{ isProcessing ? '处理中...' : '生成动画' }}
+          <button
+            @click="generateAnimation"
+            :disabled="!hasStroke || isProcessing"
+            class="btn btn-primary"
+          >
+            {{ isProcessing ? "处理中..." : "生成动画" }}
           </button>
         </div>
 
@@ -85,13 +89,7 @@
 
           <div class="slider-control">
             <label>足迹数量: {{ numFootprints }}</label>
-            <input
-              type="range"
-              v-model.number="numFootprints"
-              min="10"
-              max="100"
-              step="5"
-            />
+            <input type="range" v-model.number="numFootprints" min="10" max="100" step="5" />
           </div>
 
           <div class="slider-control">
@@ -121,297 +119,299 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { Vector2, Experimental } from '@shuimo/core'
+import { ref, onMounted, onUnmounted } from "vue";
+import { Vector2, Experimental } from "@shuimo/core";
 
 // 使用实验性功能的类
-type StrokeTrajectoryEstimator = InstanceType<typeof Experimental.StrokeTrajectoryEstimator>
-type BrushFootprintGenerator = InstanceType<typeof Experimental.BrushFootprintGenerator>
-type StrokeAnimator = InstanceType<typeof Experimental.StrokeAnimator>
-type ContourExtractor = InstanceType<typeof Experimental.ContourExtractor>
+type StrokeTrajectoryEstimator = InstanceType<typeof Experimental.StrokeTrajectoryEstimator>;
+type BrushFootprintGenerator = InstanceType<typeof Experimental.BrushFootprintGenerator>;
+type StrokeAnimator = InstanceType<typeof Experimental.StrokeAnimator>;
+type ContourExtractor = InstanceType<typeof Experimental.ContourExtractor>;
 
 // 类型导入
-type StrokeShape = Experimental.StrokeShape
-type StrokeContour = Experimental.StrokeContour
+type StrokeShape = Experimental.StrokeShape;
+type StrokeContour = Experimental.StrokeContour;
 
 // Canvas设置
-const canvasRef = ref<HTMLCanvasElement | null>(null)
-const canvasWidth = 800
-const canvasHeight = 600
+const canvasRef = ref<HTMLCanvasElement | null>(null);
+const canvasWidth = 800;
+const canvasHeight = 600;
 
 // 绘制状态
-const isDrawing = ref(false)
-const currentPath = ref<Vector2[]>([])
-const hasStroke = ref(false)
-const drawnImageData = ref<ImageData | null>(null)
+const isDrawing = ref(false);
+const currentPath = ref<Vector2[]>([]);
+const hasStroke = ref(false);
+const drawnImageData = ref<ImageData | null>(null);
 
 // 动画状态
-const hasAnimation = ref(false)
-const isPlaying = ref(false)
-const isProcessing = ref(false)
-const progress = ref(0)
+const hasAnimation = ref(false);
+const isPlaying = ref(false);
+const isProcessing = ref(false);
+const progress = ref(0);
 
 // 控制参数
-const animationSpeed = ref(30)
-const showTrajectory = ref(false)
-const showFootprintBounds = ref(false)
-const dryBrushStrength = ref(0.5)
-const numFootprints = ref(50)
-const strokeScale = ref(14)
+const animationSpeed = ref(30);
+const showTrajectory = ref(false);
+const showFootprintBounds = ref(false);
+const dryBrushStrength = ref(0.5);
+const numFootprints = ref(50);
+const strokeScale = ref(14);
 
 // 统计信息
 const statsInfo = ref<{
-  trajectoryPoints: number
-  footprints: number
-  processingTime: number
-} | null>(null)
+  trajectoryPoints: number;
+  footprints: number;
+  processingTime: number;
+} | null>(null);
 
 // 动画组件
-let drawingCtx: CanvasRenderingContext2D | null = null
-let trajectoryEstimator: StrokeTrajectoryEstimator | null = null
-let footprintGenerator: BrushFootprintGenerator | null = null
-let contourExtractor: ContourExtractor | null = null
-let animator: StrokeAnimator | null = null
-let animationFrameId: number | null = null
+let drawingCtx: CanvasRenderingContext2D | null = null;
+let trajectoryEstimator: StrokeTrajectoryEstimator | null = null;
+let footprintGenerator: BrushFootprintGenerator | null = null;
+let contourExtractor: ContourExtractor | null = null;
+let animator: StrokeAnimator | null = null;
+let animationFrameId: number | null = null;
 
 onMounted(() => {
-  if (!canvasRef.value) return
+  if (!canvasRef.value) return;
 
-  drawingCtx = canvasRef.value.getContext('2d')
-  if (!drawingCtx) return
+  drawingCtx = canvasRef.value.getContext("2d");
+  if (!drawingCtx) return;
 
   // 初始化组件
-  trajectoryEstimator = new Experimental.StrokeTrajectoryEstimator()
-  footprintGenerator = new Experimental.BrushFootprintGenerator()
-  contourExtractor = new Experimental.ContourExtractor()
+  trajectoryEstimator = new Experimental.StrokeTrajectoryEstimator();
+  footprintGenerator = new Experimental.BrushFootprintGenerator();
+  contourExtractor = new Experimental.ContourExtractor();
 
   // 设置画布样式
-  drawingCtx.lineCap = 'round'
-  drawingCtx.lineJoin = 'round'
-  drawingCtx.lineWidth = 15
+  drawingCtx.lineCap = "round";
+  drawingCtx.lineJoin = "round";
+  drawingCtx.lineWidth = 15;
 
   // 监听动画进度
-  startProgressMonitoring()
-})
+  startProgressMonitoring();
+});
 
 onUnmounted(() => {
   if (animationFrameId) {
-    cancelAnimationFrame(animationFrameId)
+    cancelAnimationFrame(animationFrameId);
   }
   if (animator) {
-    animator.destroy()
+    animator.destroy();
   }
-})
+});
 
 // 开始绘制
 function startDrawing(e: MouseEvent) {
-  if (!canvasRef.value || !drawingCtx) return
+  if (!canvasRef.value || !drawingCtx) return;
 
-  isDrawing.value = true
-  const rect = canvasRef.value.getBoundingClientRect()
-  const x = e.clientX - rect.left
-  const y = e.clientY - rect.top
+  isDrawing.value = true;
+  const rect = canvasRef.value.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
 
-  currentPath.value = [new Vector2(x, y)]
+  currentPath.value = [new Vector2(x, y)];
 
-  drawingCtx.beginPath()
-  drawingCtx.moveTo(x, y)
+  drawingCtx.beginPath();
+  drawingCtx.moveTo(x, y);
 }
 
 // 绘制中
 function draw(e: MouseEvent) {
-  if (!isDrawing.value || !canvasRef.value || !drawingCtx) return
+  if (!isDrawing.value || !canvasRef.value || !drawingCtx) return;
 
-  const rect = canvasRef.value.getBoundingClientRect()
-  const x = e.clientX - rect.left
-  const y = e.clientY - rect.top
+  const rect = canvasRef.value.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
 
-  currentPath.value.push(new Vector2(x, y))
+  currentPath.value.push(new Vector2(x, y));
 
-  drawingCtx.lineTo(x, y)
-  drawingCtx.strokeStyle = '#000'
-  drawingCtx.stroke()
+  drawingCtx.lineTo(x, y);
+  drawingCtx.strokeStyle = "#000";
+  drawingCtx.stroke();
 }
 
 // 停止绘制
 function stopDrawing() {
-  if (!isDrawing.value) return
+  if (!isDrawing.value) return;
 
-  isDrawing.value = false
+  isDrawing.value = false;
 
   if (currentPath.value.length > 2) {
-    hasStroke.value = true
+    hasStroke.value = true;
     // 保存绘制的图像数据
     if (drawingCtx && canvasRef.value) {
       drawnImageData.value = drawingCtx.getImageData(
         0,
         0,
         canvasRef.value.width,
-        canvasRef.value.height
-      )
+        canvasRef.value.height,
+      );
     }
   }
 }
 
 // 清空画布
 function clearCanvas() {
-  if (!drawingCtx || !canvasRef.value) return
+  if (!drawingCtx || !canvasRef.value) return;
 
-  drawingCtx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
-  currentPath.value = []
-  hasStroke.value = false
-  hasAnimation.value = false
-  drawnImageData.value = null
-  statsInfo.value = null
+  drawingCtx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height);
+  currentPath.value = [];
+  hasStroke.value = false;
+  hasAnimation.value = false;
+  drawnImageData.value = null;
+  statsInfo.value = null;
 
   if (animator) {
-    animator.destroy()
-    animator = null
+    animator.destroy();
+    animator = null;
   }
 }
 
 // 生成动画
 async function generateAnimation() {
-  if (!trajectoryEstimator || !footprintGenerator || !canvasRef.value || !drawingCtx) return
-  if (!drawnImageData.value || currentPath.value.length < 2) return
+  if (!trajectoryEstimator || !footprintGenerator || !canvasRef.value || !drawingCtx) return;
+  if (!drawnImageData.value || currentPath.value.length < 2) return;
 
-  isProcessing.value = true
-  const startTime = performance.now()
+  isProcessing.value = true;
+  const startTime = performance.now();
 
   try {
     // 1. 构建笔画形状
-    const strokeShape = buildStrokeShape()
+    const strokeShape = buildStrokeShape();
 
     // 2. 估算轨迹
-    const trajectory = trajectoryEstimator.estimateTrajectory(strokeShape)
+    const trajectory = trajectoryEstimator.estimateTrajectory(strokeShape);
 
     // 3. 生成足迹
     const footprints = footprintGenerator.generateFootprints(
       trajectory,
       strokeShape.contour,
-      numFootprints.value
-    )
-    trajectory.footprints = footprints
+      numFootprints.value,
+    );
+    trajectory.footprints = footprints;
 
-    const processingTime = performance.now() - startTime
+    const processingTime = performance.now() - startTime;
 
     // 4. 创建动画器
     if (animator) {
-      animator.destroy()
+      animator.destroy();
     }
-    animator = new Experimental.StrokeAnimator(canvasRef.value)
-    animator.setTrajectory(trajectory)
-    animator.setSpeed(animationSpeed.value)
+    animator = new Experimental.StrokeAnimator(canvasRef.value);
+    animator.setTrajectory(trajectory);
+    animator.setSpeed(animationSpeed.value);
 
     // 更新渲染配置
-    updateRenderConfig()
+    updateRenderConfig();
     // 设置笔画粗细
-    updateStrokeScale()
+    updateStrokeScale();
 
     // 更新统计信息
     statsInfo.value = {
       trajectoryPoints: trajectory.points.length,
       footprints: footprints.length,
-      processingTime: Math.round(processingTime)
-    }
+      processingTime: Math.round(processingTime),
+    };
 
-    hasAnimation.value = true
+    hasAnimation.value = true;
 
     // 清空画布并准备播放动画
-    drawingCtx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
+    drawingCtx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height);
   } catch (error) {
-    console.error('生成动画失败:', error)
-    alert('生成动画失败，请重试')
+    console.error("生成动画失败:", error);
+    alert("生成动画失败，请重试");
   } finally {
-    isProcessing.value = false
+    isProcessing.value = false;
   }
 }
 
 // 构建笔画形状
 function buildStrokeShape(): StrokeShape {
   if (!drawnImageData.value || !contourExtractor) {
-    throw new Error('No drawn image data or contour extractor')
+    throw new Error("No drawn image data or contour extractor");
   }
 
   // 使用轮廓提取器从图像中提取真实轮廓
-  const contour = contourExtractor.extractContour(drawnImageData.value)
+  const contour = contourExtractor.extractContour(drawnImageData.value);
 
   if (!contour) {
     // 如果轮廓提取失败，回退到使用绘制路径
-    console.warn('轮廓提取失败，使用绘制路径作为备选')
+    console.warn("轮廓提取失败，使用绘制路径作为备选");
     return {
       imageData: drawnImageData.value,
       contour: {
         points: currentPath.value,
         startIndex: 0,
-        endIndex: currentPath.value.length - 1
-      }
-    }
+        endIndex: currentPath.value.length - 1,
+      },
+    };
   }
 
-  console.log(`提取到轮廓点数: ${contour.points.length}, 起点索引: ${contour.startIndex}, 终点索引: ${contour.endIndex}`)
+  console.log(
+    `提取到轮廓点数: ${contour.points.length}, 起点索引: ${contour.startIndex}, 终点索引: ${contour.endIndex}`,
+  );
 
   return {
     imageData: drawnImageData.value,
-    contour
-  }
+    contour,
+  };
 }
 
 // 播放动画
 function playAnimation() {
-  if (!animator) return
-  animator.play()
-  isPlaying.value = true
+  if (!animator) return;
+  animator.play();
+  isPlaying.value = true;
 }
 
 // 暂停动画
 function pauseAnimation() {
-  if (!animator) return
-  animator.pause()
-  isPlaying.value = false
+  if (!animator) return;
+  animator.pause();
+  isPlaying.value = false;
 }
 
 // 重置动画
 function resetAnimation() {
-  if (!animator) return
-  animator.reset()
-  isPlaying.value = false
-  progress.value = 0
+  if (!animator) return;
+  animator.reset();
+  isPlaying.value = false;
+  progress.value = 0;
 }
 
 // 更新速度
 function updateSpeed() {
-  if (!animator) return
-  animator.setSpeed(animationSpeed.value)
+  if (!animator) return;
+  animator.setSpeed(animationSpeed.value);
 }
 
 // 更新渲染配置
 function updateRenderConfig() {
-  if (!animator) return
+  if (!animator) return;
   animator.setRenderConfig({
     showTrajectory: showTrajectory.value,
     showFootprintBounds: showFootprintBounds.value,
-    dryBrushStrength: dryBrushStrength.value
-  })
+    dryBrushStrength: dryBrushStrength.value,
+  });
 }
 
 // 更新笔画粗细
 function updateStrokeScale() {
-  if (!animator) return
-  animator.setStrokeScale(strokeScale.value)
+  if (!animator) return;
+  animator.setStrokeScale(strokeScale.value);
 }
 
 // 监听动画进度
 function startProgressMonitoring() {
   const updateProgress = () => {
     if (animator && isPlaying.value) {
-      const state = animator.getAnimationState()
-      progress.value = state.progress
-      isPlaying.value = state.isPlaying
+      const state = animator.getAnimationState();
+      progress.value = state.progress;
+      isPlaying.value = state.isPlaying;
     }
-    animationFrameId = requestAnimationFrame(updateProgress)
-  }
-  updateProgress()
+    animationFrameId = requestAnimationFrame(updateProgress);
+  };
+  updateProgress();
 }
 </script>
 
@@ -541,7 +541,7 @@ canvas {
   color: #666;
 }
 
-.slider-control input[type='range'] {
+.slider-control input[type="range"] {
   width: 100%;
 }
 
@@ -559,7 +559,7 @@ canvas {
   cursor: pointer;
 }
 
-.checkbox-group input[type='checkbox'] {
+.checkbox-group input[type="checkbox"] {
   margin-right: 8px;
 }
 

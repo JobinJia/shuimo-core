@@ -5,7 +5,7 @@
  * 核心算法：多层轮廓线 + 皴法纹理采样
  */
 
-import { prng } from '../foundation/random';
+import { prng } from "../foundation/random";
 
 type Point = [number, number];
 type Polygon = Point[];
@@ -120,9 +120,18 @@ class PerlinNoiseGen {
       zi <<= 1;
       zf *= 2;
 
-      if (xf >= 1.0) { xi++; xf--; }
-      if (yf >= 1.0) { yi++; yf--; }
-      if (zf >= 1.0) { zi++; zf--; }
+      if (xf >= 1.0) {
+        xi++;
+        xf--;
+      }
+      if (yf >= 1.0) {
+        yi++;
+        yf--;
+      }
+      if (zf >= 1.0) {
+        zi++;
+        zf--;
+      }
     }
 
     return r;
@@ -171,7 +180,7 @@ function triangulate(polygon: Polygon): number[] {
 export class ShuimoRenderer {
   private device: GPUDevice | null = null;
   private context: GPUCanvasContext | null = null;
-  private format: GPUTextureFormat = 'bgra8unorm';
+  private format: GPUTextureFormat = "bgra8unorm";
 
   private polygonPipeline: GPURenderPipeline | null = null;
   private polygonParamsBuffer: GPUBuffer | null = null;
@@ -194,21 +203,21 @@ export class ShuimoRenderer {
 
   async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
     if (!navigator.gpu) {
-      console.error('WebGPU 不支持');
+      console.error("WebGPU 不支持");
       return false;
     }
 
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) {
-      console.error('无法获取 GPU adapter');
+      console.error("无法获取 GPU adapter");
       return false;
     }
 
     this.device = await adapter.requestDevice();
-    this.context = canvas.getContext('webgpu');
+    this.context = canvas.getContext("webgpu");
 
     if (!this.context) {
-      console.error('无法获取 WebGPU context');
+      console.error("无法获取 WebGPU context");
       return false;
     }
 
@@ -219,7 +228,7 @@ export class ShuimoRenderer {
     this.context.configure({
       device: this.device,
       format: this.format,
-      alphaMode: 'premultiplied',
+      alphaMode: "premultiplied",
     });
 
     await this.createResources();
@@ -252,29 +261,31 @@ export class ShuimoRenderer {
     const polygonModule = this.device.createShaderModule({ code: polygonShader });
 
     this.polygonPipeline = this.device.createRenderPipeline({
-      layout: 'auto',
+      layout: "auto",
       vertex: {
         module: polygonModule,
-        entryPoint: 'vertexMain',
-        buffers: [{
-          arrayStride: 8,
-          attributes: [
-            { shaderLocation: 0, offset: 0, format: 'float32x2' },
-          ],
-        }],
+        entryPoint: "vertexMain",
+        buffers: [
+          {
+            arrayStride: 8,
+            attributes: [{ shaderLocation: 0, offset: 0, format: "float32x2" }],
+          },
+        ],
       },
       fragment: {
         module: polygonModule,
-        entryPoint: 'fragmentMain',
-        targets: [{
-          format: this.format,
-          blend: {
-            color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
-            alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+        entryPoint: "fragmentMain",
+        targets: [
+          {
+            format: this.format,
+            blend: {
+              color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha", operation: "add" },
+              alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha", operation: "add" },
+            },
           },
-        }],
+        ],
       },
-      primitive: { topology: 'triangle-list' },
+      primitive: { topology: "triangle-list" },
     });
   }
 
@@ -285,17 +296,19 @@ export class ShuimoRenderer {
     const textureView = this.context.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        clearValue: {
-          r: this.backgroundColor[0],
-          g: this.backgroundColor[1],
-          b: this.backgroundColor[2],
-          a: this.backgroundColor[3],
+      colorAttachments: [
+        {
+          view: textureView,
+          clearValue: {
+            r: this.backgroundColor[0],
+            g: this.backgroundColor[1],
+            b: this.backgroundColor[2],
+            a: this.backgroundColor[3],
+          },
+          loadOp: "clear",
+          storeOp: "store",
         },
-        loadOp: 'clear',
-        storeOp: 'store',
-      }],
+      ],
     });
     renderPass.end();
 
@@ -324,8 +337,10 @@ export class ShuimoRenderer {
 
     // 更新参数
     const params = new Float32Array([
-      this.canvasWidth, this.canvasHeight,
-      0, 0, // padding for vec4 alignment
+      this.canvasWidth,
+      this.canvasHeight,
+      0,
+      0, // padding for vec4 alignment
       ...color,
     ]);
     this.device.queue.writeBuffer(this.polygonParamsBuffer!, 0, params);
@@ -340,17 +355,19 @@ export class ShuimoRenderer {
     const textureView = this.context.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        loadOp: 'load',
-        storeOp: 'store',
-      }],
+      colorAttachments: [
+        {
+          view: textureView,
+          loadOp: "load",
+          storeOp: "store",
+        },
+      ],
     });
 
     renderPass.setPipeline(this.polygonPipeline!);
     renderPass.setBindGroup(0, bindGroup);
     renderPass.setVertexBuffer(0, this.polygonVertexBuffer!);
-    renderPass.setIndexBuffer(this.polygonIndexBuffer!, 'uint32');
+    renderPass.setIndexBuffer(this.polygonIndexBuffer!, "uint32");
     renderPass.drawIndexed(indices.length);
     renderPass.end();
 
@@ -360,7 +377,12 @@ export class ShuimoRenderer {
   /**
    * 绘制笔触（生成闭合多边形然后填充）
    */
-  drawStroke(points: Point[], width: number, color: [number, number, number, number], noiseAmount: number = 0.5): void {
+  drawStroke(
+    points: Point[],
+    width: number,
+    color: [number, number, number, number],
+    noiseAmount: number = 0.5,
+  ): void {
     if (points.length < 2) return;
 
     const n0 = prng.random() * 10;
@@ -411,12 +433,17 @@ export class ShuimoRenderer {
    * 6. TOP 植被
    * 7. MIDDLE/BOTTOM 植被 (if veg=true)
    */
-  drawMountain(xoff: number, yoff: number, seed: number, options: {
-    height?: number;
-    width?: number;
-    texture?: number;
-    vegetation?: boolean;
-  } = {}): void {
+  drawMountain(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: {
+      height?: number;
+      width?: number;
+      texture?: number;
+      vegetation?: boolean;
+    } = {},
+  ): void {
     const h = options.height ?? 200;
     const w = options.width ?? 400;
     const tex = options.texture ?? 200;
@@ -435,10 +462,7 @@ export class ShuimoRenderer {
         let y = Math.cos(x);
         y *= noiseNoise(x + 10, j * 0.15, seed);
         const p = 1 - j / reso[0];
-        ptlist[ptlist.length - 1].push([
-          (x / Math.PI) * w * p,
-          -y * h * p + hoff
-        ]);
+        ptlist[ptlist.length - 1].push([(x / Math.PI) * w * p, -y * h * p + hoff]);
       }
     }
 
@@ -448,12 +472,12 @@ export class ShuimoRenderer {
     // ===== Step 3: 白色背景多边形 =====
     const bgPolygon: Polygon = [...ptlist[0], [0, reso[0] * 4]];
     this.drawPolygon(
-      bgPolygon.map(p => [p[0] + xoff, p[1] + yoff]),
-      [1, 1, 1, 1] // 白色
+      bgPolygon.map((p) => [p[0] + xoff, p[1] + yoff]),
+      [1, 1, 1, 1], // 白色
     );
 
     // ===== Step 4: 轮廓线 =====
-    const outlinePoints: Point[] = ptlist[0].map(p => [p[0] + xoff, p[1] + yoff]);
+    const outlinePoints: Point[] = ptlist[0].map((p) => [p[0] + xoff, p[1] + yoff]);
     this.drawStroke(outlinePoints, 3, [0.39, 0.39, 0.39, 0.3], 1);
 
     // ===== Step 5: 山脚 (foot) =====
@@ -476,7 +500,13 @@ export class ShuimoRenderer {
    * RIM 植被 - 最外层边缘的树（在背景之前绘制）
    * 原版: tree02, clu=2, y-5, i===0 && ns^3<0.1 && abs(y)/h>0.2
    */
-  private drawMountainRimVegetation(ptlist: Polygon[], xoff: number, yoff: number, h: number, seed: number): void {
+  private drawMountainRimVegetation(
+    ptlist: Polygon[],
+    xoff: number,
+    yoff: number,
+    h: number,
+    seed: number,
+  ): void {
     for (let i = 0; i < ptlist.length; i++) {
       for (let j = 0; j < ptlist[i].length; j++) {
         const ns = noiseNoise(j * 0.1, seed);
@@ -498,7 +528,13 @@ export class ShuimoRenderer {
    * TOP 植被 - 山顶树（在纹理之后绘制）
    * 原版: tree02, 默认 clu, ns^3<0.1 && abs(y)/h>0.5
    */
-  private drawMountainTopVegetation(ptlist: Polygon[], xoff: number, yoff: number, h: number, seed: number): void {
+  private drawMountainTopVegetation(
+    ptlist: Polygon[],
+    xoff: number,
+    yoff: number,
+    h: number,
+    seed: number,
+  ): void {
     for (let i = 0; i < ptlist.length; i++) {
       for (let j = 0; j < ptlist[i].length; j++) {
         const ns = noiseNoise(i * 0.1, j * 0.1, seed + 2);
@@ -521,7 +557,13 @@ export class ShuimoRenderer {
    * 原版: tree01, 随机 wid, j%2 && ns^4<0.012 && abs(y)/h<0.3
    * proofRule: counter>2 时返回 true (不绘制)
    */
-  private drawMountainMiddleVegetation(ptlist: Polygon[], xoff: number, yoff: number, h: number, seed: number): void {
+  private drawMountainMiddleVegetation(
+    ptlist: Polygon[],
+    xoff: number,
+    yoff: number,
+    h: number,
+    seed: number,
+  ): void {
     const veglist: Point[] = [];
 
     // 第一步：收集所有符合条件的位置
@@ -572,7 +614,13 @@ export class ShuimoRenderer {
    * BOTTOM 植被 - 山脚边缘树
    * 原版: tree03, 随机 ben, (j===0 || j===length-1) && ns^4<0.012
    */
-  private drawMountainBottomVegetation(ptlist: Polygon[], xoff: number, yoff: number, h: number, seed: number): void {
+  private drawMountainBottomVegetation(
+    ptlist: Polygon[],
+    xoff: number,
+    yoff: number,
+    h: number,
+    seed: number,
+  ): void {
     for (let i = 0; i < ptlist.length; i++) {
       for (let j = 0; j < ptlist[i].length; j++) {
         const ns = noiseNoise(i * 0.2, j * 0.05, seed);
@@ -629,8 +677,10 @@ export class ShuimoRenderer {
           const x1 = ptlist[i][0][0] * (1 - p) + ptlist[ni][0][0] * p;
           let y1 = ptlist[i][0][1] * (1 - p) + ptlist[ni][0][1] * p;
 
-          const x2 = ptlist[i][ptlist[i].length - 1][0] * (1 - p) + ptlist[ni][ptlist[i].length - 1][0] * p;
-          let y2 = ptlist[i][ptlist[i].length - 1][1] * (1 - p) + ptlist[ni][ptlist[i].length - 1][1] * p;
+          const x2 =
+            ptlist[i][ptlist[i].length - 1][0] * (1 - p) + ptlist[ni][ptlist[i].length - 1][0] * p;
+          let y2 =
+            ptlist[i][ptlist[i].length - 1][1] * (1 - p) + ptlist[ni][ptlist[i].length - 1][1] * p;
 
           const vib = -1.7 * (p - 1) * Math.pow(p, 1 / 5);
           y1 += vib * 5 + noiseNoise(xoff * 0.05, i) * 5;
@@ -645,8 +695,8 @@ export class ShuimoRenderer {
     // 绘制白色山脚多边形
     for (let i = 0; i < ftlist.length; i++) {
       this.drawPolygon(
-        ftlist[i].map(p => [p[0] + xoff, p[1] + yoff]),
-        [1, 1, 1, 1]
+        ftlist[i].map((p) => [p[0] + xoff, p[1] + yoff]),
+        [1, 1, 1, 1],
       );
     }
 
@@ -654,10 +704,10 @@ export class ShuimoRenderer {
     for (let j = 0; j < ftlist.length; j++) {
       const opacity = 0.1 + prng.random() * 0.1;
       this.drawStroke(
-        ftlist[j].map(p => [p[0] + xoff, p[1] + yoff]),
+        ftlist[j].map((p) => [p[0] + xoff, p[1] + yoff]),
         1,
         [0.39, 0.39, 0.39, opacity],
-        0.5
+        0.5,
       );
     }
   }
@@ -665,7 +715,13 @@ export class ShuimoRenderer {
   /**
    * 绘制皴法纹理 - 与原版 texture() 函数相同
    */
-  private drawMountainTexture(ptlist: Polygon[], xoff: number, yoff: number, tex: number, seed: number): void {
+  private drawMountainTexture(
+    ptlist: Polygon[],
+    xoff: number,
+    yoff: number,
+    tex: number,
+    seed: number,
+  ): void {
     const reso: [number, number] = [ptlist.length, ptlist[0].length];
     const texlist: Polygon[] = [];
     const wid = 1.5;
@@ -678,7 +734,7 @@ export class ShuimoRenderer {
       if (prng.random() > 0.5) {
         return (1 / 3) * prng.random();
       } else {
-        return (2 / 3) + (1 / 3) * prng.random();
+        return 2 / 3 + (1 / 3) * prng.random();
       }
     };
 
@@ -723,10 +779,10 @@ export class ShuimoRenderer {
       const opacity = baseOpacity + prng.random() * 0.15;
 
       this.drawStroke(
-        texlist[j].map(p => [p[0] + xoff, p[1] + yoff]),
+        texlist[j].map((p) => [p[0] + xoff, p[1] + yoff]),
         wid,
         [0.39, 0.39, 0.39, opacity],
-        0.5
+        0.5,
       );
     }
   }
@@ -734,11 +790,16 @@ export class ShuimoRenderer {
   /**
    * 绘制水面 - 与原版 Water.generate() 相同
    */
-  drawWater(xoff: number, yoff: number, seed: number, options: {
-    height?: number;
-    length?: number;
-    clusters?: number;
-  } = {}): void {
+  drawWater(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: {
+      height?: number;
+      length?: number;
+      clusters?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 2; // 与原版一致，支持 height 选项
     const len = options.length ?? 800;
     const clu = options.clusters ?? 10;
@@ -766,10 +827,10 @@ export class ShuimoRenderer {
     for (let j = 1; j < ptlist.length; j += 1) {
       const opacity = 0.3 + prng.random() * 0.3;
       this.drawStroke(
-        ptlist[j].map(p => [p[0] + xoff, p[1] + yoff]),
+        ptlist[j].map((p) => [p[0] + xoff, p[1] + yoff]),
         1,
         [0.39, 0.39, 0.39, opacity],
-        0.5
+        0.5,
       );
     }
   }
@@ -777,12 +838,17 @@ export class ShuimoRenderer {
   /**
    * 绘制平顶山 - 与原版 Mount.flatMount() 相同
    */
-  drawFlatMount(xoff: number, yoff: number, seed: number, options: {
-    height?: number;
-    width?: number;
-    texture?: number;
-    cho?: number;
-  } = {}): void {
+  drawFlatMount(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: {
+      height?: number;
+      width?: number;
+      texture?: number;
+      cho?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 40 + prng.random() * 400;
     const wid = options.width ?? 400 + prng.random() * 200;
     const tex = options.texture ?? 80;
@@ -814,7 +880,9 @@ export class ShuimoRenderer {
           }
         } else {
           if (flat[flat.length - 1].length % 2 === 1) {
-            flat[flat.length - 1].push(ptlist[ptlist.length - 1][ptlist[ptlist.length - 1].length - 1]);
+            flat[flat.length - 1].push(
+              ptlist[ptlist.length - 1][ptlist[ptlist.length - 1].length - 1],
+            );
           }
         }
 
@@ -825,16 +893,16 @@ export class ShuimoRenderer {
     // 白色背景
     const bgPolygon: Polygon = [...ptlist[0], [0, reso[0] * 4]];
     this.drawPolygon(
-      bgPolygon.map(p => [p[0] + xoff, p[1] + yoff]),
-      [1, 1, 1, 1]
+      bgPolygon.map((p) => [p[0] + xoff, p[1] + yoff]),
+      [1, 1, 1, 1],
     );
 
     // 轮廓线
     this.drawStroke(
-      ptlist[0].map(p => [p[0] + xoff, p[1] + yoff]),
+      ptlist[0].map((p) => [p[0] + xoff, p[1] + yoff]),
       3,
       [0.39, 0.39, 0.39, 0.3],
-      1
+      1,
     );
 
     // 皴法纹理
@@ -852,7 +920,13 @@ export class ShuimoRenderer {
   /**
    * 平顶山纹理
    */
-  private drawFlatMountTexture(ptlist: Polygon[], xoff: number, yoff: number, tex: number, seed: number): void {
+  private drawFlatMountTexture(
+    ptlist: Polygon[],
+    xoff: number,
+    yoff: number,
+    tex: number,
+    seed: number,
+  ): void {
     const reso: [number, number] = [ptlist.length, ptlist[0].length];
     const wid = 2;
     const len = 0.2;
@@ -903,7 +977,12 @@ export class ShuimoRenderer {
   /**
    * 平顶山顶部装饰
    */
-  private drawFlatMountTop(flat: Polygon[], xoff: number, yoff: number, seed: number): { xmin: number; xmax: number; ymin: number; ymax: number } | null {
+  private drawFlatMountTop(
+    flat: Polygon[],
+    xoff: number,
+    yoff: number,
+    seed: number,
+  ): { xmin: number; xmax: number; ymin: number; ymax: number } | null {
     let grlist1: Polygon = [];
     let grlist2: Polygon = [];
 
@@ -942,14 +1021,14 @@ export class ShuimoRenderer {
 
     // 绘制平顶区域
     this.drawPolygon(
-      grlist.map(p => [p[0] + xoff, p[1] + yoff]),
-      [1, 1, 1, 1]
+      grlist.map((p) => [p[0] + xoff, p[1] + yoff]),
+      [1, 1, 1, 1],
     );
     this.drawStroke(
-      grlist.map(p => [p[0] + xoff, p[1] + yoff]),
+      grlist.map((p) => [p[0] + xoff, p[1] + yoff]),
       3,
       [0.39, 0.39, 0.39, 0.2],
-      0.5
+      0.5,
     );
 
     // 返回边界，供 flatDec 使用
@@ -969,10 +1048,7 @@ export class ShuimoRenderer {
       const p1 = plist[i + 1];
       for (let j = 0; j < d; j++) {
         const t = j / d;
-        result.push([
-          p0[0] * (1 - t) + p1[0] * t,
-          p0[1] * (1 - t) + p1[1] * t
-        ]);
+        result.push([p0[0] * (1 - t) + p1[0] * t, p0[1] * (1 - t) + p1[1] * t]);
       }
     }
     result.push(plist[plist.length - 1]);
@@ -983,8 +1059,10 @@ export class ShuimoRenderer {
    * 获取边界
    */
   private getBounds(plist: Polygon): { xmin: number; xmax: number; ymin: number; ymax: number } {
-    let xmin = Infinity, xmax = -Infinity;
-    let ymin = Infinity, ymax = -Infinity;
+    let xmin = Infinity,
+      xmax = -Infinity;
+    let ymin = Infinity,
+      ymax = -Infinity;
 
     for (const p of plist) {
       if (p[0] < xmin) xmin = p[0];
@@ -1018,7 +1096,7 @@ export class ShuimoRenderer {
     xoff: number,
     yoff: number,
     grbd: { xmin: number; xmax: number; ymin: number; ymax: number },
-    seed: number
+    seed: number,
   ): void {
     const tt = this.randChoice([0, 0, 1, 2, 3, 4]);
 
@@ -1032,7 +1110,7 @@ export class ShuimoRenderer {
           width: 10 + prng.random() * 20,
           height: 10 + prng.random() * 20,
           shadow: 2,
-        }
+        },
       );
     }
 
@@ -1045,7 +1123,7 @@ export class ShuimoRenderer {
           xr + Math.min(Math.max(this.normRand(-30, 30), grbd.xmin), grbd.xmax),
           yr,
           seed + j * 10 + k,
-          { height: 60 + prng.random() * 40 }
+          { height: 60 + prng.random() * 40 },
         );
       }
     }
@@ -1062,7 +1140,7 @@ export class ShuimoRenderer {
             width: 50 + prng.random() * 20,
             height: 40 + prng.random() * 20,
             shadow: 5,
-          }
+          },
         );
       }
     } else if (tt === 1) {
@@ -1076,7 +1154,7 @@ export class ShuimoRenderer {
           xoff + i + 20 * this.normRand(-1, 1),
           yoff + (grbd.ymin + grbd.ymax) / 2 + 20,
           seed + Math.floor(i),
-          { height: 100 + prng.random() * 200 }
+          { height: 100 + prng.random() * 200 },
         );
       }
       for (let j = 0; j < prng.random() * 4; j++) {
@@ -1088,7 +1166,7 @@ export class ShuimoRenderer {
             width: 50 + prng.random() * 20,
             height: 40 + prng.random() * 20,
             shadow: 5,
-          }
+          },
         );
       }
     } else if (tt === 2) {
@@ -1106,7 +1184,7 @@ export class ShuimoRenderer {
               width: 50 + prng.random() * 20,
               height: 40 + prng.random() * 20,
               shadow: 5,
-            }
+            },
           );
         }
       }
@@ -1117,7 +1195,7 @@ export class ShuimoRenderer {
           xoff + this.normRand(grbd.xmin, grbd.xmax),
           yoff + (grbd.ymin + grbd.ymax) / 2,
           seed + i,
-          { height: 60 + prng.random() * 60 }
+          { height: 60 + prng.random() * 60 },
         );
       }
     } else if (tt === 4) {
@@ -1131,7 +1209,7 @@ export class ShuimoRenderer {
           xoff + i + 20 * this.normRand(-1, 1),
           yoff + (grbd.ymin + grbd.ymax) / 2 + this.normRand(-1, 1) + 0,
           seed + Math.floor(i),
-          { height: this.normRand(40, 80) }
+          { height: this.normRand(40, 80) },
         );
       }
     }
@@ -1142,7 +1220,7 @@ export class ShuimoRenderer {
         xoff + this.normRand(grbd.xmin, grbd.xmax),
         yoff + this.normRand(grbd.ymin, grbd.ymax),
         seed + i + 1000,
-        {}
+        {},
       );
     }
   }
@@ -1151,11 +1229,16 @@ export class ShuimoRenderer {
    * 绘制雾气山 - 与原版 Mount.mistyMount() 相同
    * 使用多层渐变和柔和的山脊轮廓
    */
-  drawMistyMount(xoff: number, yoff: number, seed: number, options: {
-    height?: number;
-    length?: number;
-    layers?: number;
-  } = {}): void {
+  drawMistyMount(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: {
+      height?: number;
+      length?: number;
+      layers?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 200;
     const len = options.length ?? 2000;
     const layers = options.layers ?? 3;
@@ -1248,10 +1331,10 @@ export class ShuimoRenderer {
       // 远山绘制轮廓线
       if (layerDepth <= 0.6) {
         this.drawStroke(
-          ridgeLine.map(p => [p[0], p[1] + yoff]),
+          ridgeLine.map((p) => [p[0], p[1] + yoff]),
           2,
           [0.2, 0.2, 0.2, strokeBaseOpacity * 1.5],
-          0.3
+          0.3,
         );
       }
 
@@ -1298,7 +1381,7 @@ export class ShuimoRenderer {
           const a = (j / reso) * Math.PI * 2;
           ellipsePoints.push([
             x + Math.cos(a) * pSize * 1.5,
-            particleY + Math.sin(a) * pSize * 0.8
+            particleY + Math.sin(a) * pSize * 0.8,
           ]);
         }
         this.drawPolygon(ellipsePoints, [particleR, particleG, particleB, opacity]);
@@ -1337,10 +1420,13 @@ export class ShuimoRenderer {
 
           // 绘制垂直线条
           this.drawStroke(
-            [[x, startStrokeY], [x, endStrokeY]],
+            [
+              [x, startStrokeY],
+              [x, endStrokeY],
+            ],
             strokeWidth,
             [r - 0.06, g - 0.08, b - 0.06, strokeOpacity],
-            0.3
+            0.3,
           );
         }
       }
@@ -1351,11 +1437,16 @@ export class ShuimoRenderer {
    * 绘制远山 - 100% 还原原版 Mount.distMount()
    * 关键：需要对每个多边形进行三角化，每个三角形根据中点计算灰度
    */
-  drawDistantMount(xoff: number, yoff: number, seed: number, options: {
-    height?: number;
-    length?: number;
-    seg?: number;
-  } = {}): void {
+  drawDistantMount(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: {
+      height?: number;
+      length?: number;
+      seg?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 300;
     const len = options.length ?? 2000;
     const seg = options.seg ?? 5;
@@ -1371,8 +1462,9 @@ export class ShuimoRenderer {
       for (let j = 0; j < seg + 1; j++) {
         const k = i * seg + j;
         const x = xoff + k * span;
-        const y = yoff - hei * noiseNoise(k * 0.05, seed) *
-          Math.pow(Math.sin((Math.PI * k) / (len / span)), 0.5);
+        const y =
+          yoff -
+          hei * noiseNoise(k * 0.05, seed) * Math.pow(Math.sin((Math.PI * k) / (len / span)), 0.5);
         ptlist[ptlist.length - 1].push([x, y]);
       }
 
@@ -1380,8 +1472,9 @@ export class ShuimoRenderer {
       for (let j = 0; j < seg / 2 + 1; j++) {
         const k = i * seg + j * 2;
         const x = xoff + k * span;
-        const y = yoff + 24 * noiseNoise(k * 0.05, 2, seed) *
-          Math.pow(Math.sin((Math.PI * k) / (len / span)), 1);
+        const y =
+          yoff +
+          24 * noiseNoise(k * 0.05, 2, seed) * Math.pow(Math.sin((Math.PI * k) / (len / span)), 1);
         ptlist[ptlist.length - 1].unshift([x, y]);
       }
     }
@@ -1425,11 +1518,7 @@ export class ShuimoRenderer {
 
     // 扇形三角化：从第一个点出发
     for (let i = 1; i < polygon.length - 1; i++) {
-      triangles.push([
-        polygon[0],
-        polygon[i],
-        polygon[i + 1]
-      ]);
+      triangles.push([polygon[0], polygon[i], polygon[i + 1]]);
     }
 
     return triangles;
@@ -1439,10 +1528,15 @@ export class ShuimoRenderer {
    * 绘制树木 - 根据类型选择不同样式
    * type: 1-8 对应原版 tree01-tree08
    */
-  drawTree(x: number, y: number, seed: number, options: {
-    height?: number;
-    type?: number;
-  } = {}): void {
+  drawTree(
+    x: number,
+    y: number,
+    seed: number,
+    options: {
+      height?: number;
+      type?: number;
+    } = {},
+  ): void {
     const type = options.type ?? 1;
     switch (type) {
       case 1:
@@ -1477,10 +1571,15 @@ export class ShuimoRenderer {
   /**
    * tree01 - 简单树，顶部有叶子 (与原版 Tree.tree01 相同)
    */
-  private drawTree01(x: number, y: number, seed: number, options: {
-    height?: number;
-    width?: number;
-  } = {}): void {
+  private drawTree01(
+    x: number,
+    y: number,
+    seed: number,
+    options: {
+      height?: number;
+      width?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 50;
     const wid = options.width ?? 3; // 支持自定义宽度
     const reso = 10;
@@ -1505,8 +1604,8 @@ export class ShuimoRenderer {
           this.drawBlob(blobX, blobY, seed + i * 10 + j, {
             length: prng.random() * 20 * (reso - i) * 0.2 + 10,
             width: prng.random() * 6 + 3,
-            angle: (prng.random() - 0.5) * Math.PI / 6,
-            opacity: prng.random() * 0.2 + 0.5
+            angle: ((prng.random() - 0.5) * Math.PI) / 6,
+            opacity: prng.random() * 0.2 + 0.5,
           });
         }
       }
@@ -1523,10 +1622,15 @@ export class ShuimoRenderer {
   /**
    * tree02 - 聚类墨点树 (与原版 Tree.tree02 相同)
    */
-  private drawTree02(x: number, y: number, seed: number, options: {
-    height?: number;
-    clusters?: number;
-  } = {}): void {
+  private drawTree02(
+    x: number,
+    y: number,
+    seed: number,
+    options: {
+      height?: number;
+      clusters?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 16;
     const wid = 8;
     const clu = options.clusters ?? 5; // 支持自定义聚类数量
@@ -1538,7 +1642,7 @@ export class ShuimoRenderer {
         width: prng.random() * wid * 0.75 + wid * 0.5,
         length: prng.random() * hei * 0.75 + hei * 0.5,
         angle: Math.PI / 2,
-        opacity: 0.5
+        opacity: 0.5,
       });
     }
   }
@@ -1546,10 +1650,15 @@ export class ShuimoRenderer {
   /**
    * tree03 - 弯曲树干的树 (与原版 Tree.tree03 相同)
    */
-  private drawTree03(x: number, y: number, seed: number, options: {
-    height?: number;
-    bend?: number;
-  } = {}): void {
+  private drawTree03(
+    x: number,
+    y: number,
+    seed: number,
+    options: {
+      height?: number;
+      bend?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 50;
     const wid = 5;
     const reso = 10;
@@ -1580,14 +1689,14 @@ export class ShuimoRenderer {
           this.drawBlob(nx + ox * dir, ny + (prng.random() - 0.5) * wid * 2, seed + i * 10 + j, {
             length: ox * 2,
             width: prng.random() * 6 + 3,
-            angle: (prng.random() - 0.5) * Math.PI / 6,
-            opacity: prng.random() * 0.2 + 0.5
+            angle: ((prng.random() - 0.5) * Math.PI) / 6,
+            opacity: prng.random() * 0.2 + 0.5,
           });
         }
       }
 
-      line1.push([nx + ((nslist[i][0] - 0.5) * wid - wid / 2) * (reso - i) / reso, ny]);
-      line2.push([nx + ((nslist[i][1] - 0.5) * wid + wid / 2) * (reso - i) / reso, ny]);
+      line1.push([nx + (((nslist[i][0] - 0.5) * wid - wid / 2) * (reso - i)) / reso, ny]);
+      line2.push([nx + (((nslist[i][1] - 0.5) * wid + wid / 2) * (reso - i)) / reso, ny]);
     }
 
     // 绘制树干（白色填充 + 轮廓）
@@ -1599,9 +1708,14 @@ export class ShuimoRenderer {
   /**
    * tree04 - 有分枝的详细树 (与原版 Tree.tree04 相同)
    */
-  private drawTree04(x: number, y: number, seed: number, options: {
-    height?: number;
-  } = {}): void {
+  private drawTree04(
+    x: number,
+    y: number,
+    seed: number,
+    options: {
+      height?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 300;
     const wid = 6;
 
@@ -1611,16 +1725,16 @@ export class ShuimoRenderer {
     // 绘制主干（白色填充）
     const trunkPolygon: Polygon = [...trlist[0], ...trlist[1].reverse()];
     this.drawPolygon(
-      trunkPolygon.map(p => [p[0] + x, p[1] + y]),
-      [1, 1, 1, 1]
+      trunkPolygon.map((p) => [p[0] + x, p[1] + y]),
+      [1, 1, 1, 1],
     );
 
     // 绘制轮廓
     this.drawStroke(
-      trunkPolygon.map(p => [p[0] + x, p[1] + y]),
+      trunkPolygon.map((p) => [p[0] + x, p[1] + y]),
       2.5,
       [0.39, 0.39, 0.39, 0.4 + prng.random() * 0.1],
-      0.9
+      0.9,
     );
 
     // 绘制树皮纹理
@@ -1631,19 +1745,23 @@ export class ShuimoRenderer {
     for (let i = 0; i < trlistMerged.length; i++) {
       const p = Math.abs(i - trlistMerged.length * 0.5) / (trlistMerged.length * 0.5);
       if (
-        (i >= trlistMerged.length * 0.3 &&
-          i <= trlistMerged.length * 0.7 &&
-          prng.random() < 0.1) ||
+        (i >= trlistMerged.length * 0.3 && i <= trlistMerged.length * 0.7 && prng.random() < 0.1) ||
         i === Math.floor(trlistMerged.length / 2) - 1
       ) {
         const ba = Math.PI * 0.2 - Math.PI * 1.4 * (i > trlistMerged.length / 2 ? 1 : 0);
-        const brlist = this.generateBranch(hei * (prng.random() + 1) * 0.3, wid * 0.5, ba, Math.PI * 0.2, 5);
+        const brlist = this.generateBranch(
+          hei * (prng.random() + 1) * 0.3,
+          wid * 0.5,
+          ba,
+          Math.PI * 0.2,
+          5,
+        );
 
         // 绘制分枝
         const brPolygon: Polygon = [...brlist[0], ...brlist[1].reverse()];
         this.drawPolygon(
-          brPolygon.map(pp => [pp[0] + trlistMerged[i][0] + x, pp[1] + trlistMerged[i][1] + y]),
-          [1, 1, 1, 1]
+          brPolygon.map((pp) => [pp[0] + trlistMerged[i][0] + x, pp[1] + trlistMerged[i][1] + y]),
+          [1, 1, 1, 1],
         );
 
         // 绘制分枝纹理
@@ -1662,7 +1780,7 @@ export class ShuimoRenderer {
                 ang: ba > -Math.PI / 2 ? ba : ba + Math.PI,
                 sca: (0.5 * hei) / 300,
                 dir: ba > -Math.PI / 2 ? 1 : -1,
-              }
+              },
             );
           }
         }
@@ -1673,9 +1791,14 @@ export class ShuimoRenderer {
   /**
    * tree05 - 松树风格 (与原版 Tree.tree05 相同)
    */
-  private drawTree05(x: number, y: number, seed: number, options: {
-    height?: number;
-  } = {}): void {
+  private drawTree05(
+    x: number,
+    y: number,
+    seed: number,
+    options: {
+      height?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 300;
     const wid = 5;
 
@@ -1685,15 +1808,15 @@ export class ShuimoRenderer {
     // 绘制主干
     const trunkPolygon: Polygon = [...trlist[0], ...trlist[1].reverse()];
     this.drawPolygon(
-      trunkPolygon.map(p => [p[0] + x, p[1] + y]),
-      [1, 1, 1, 1]
+      trunkPolygon.map((p) => [p[0] + x, p[1] + y]),
+      [1, 1, 1, 1],
     );
 
     this.drawStroke(
-      trunkPolygon.map(p => [p[0] + x, p[1] + y]),
+      trunkPolygon.map((p) => [p[0] + x, p[1] + y]),
       2.5,
       [0.39, 0.39, 0.39, 0.4 + prng.random() * 0.1],
-      0.9
+      0.9,
     );
 
     this.drawBarkTexture(x, y, trlist);
@@ -1710,7 +1833,13 @@ export class ShuimoRenderer {
       ) {
         const bar = prng.random() * 0.2;
         const ba = -bar * Math.PI - (1 - bar * 2) * Math.PI * (i > trlistMerged.length / 2 ? 1 : 0);
-        const brlist = this.generateBranch(hei * (0.3 * p - prng.random() * 0.05), wid * 0.5, ba, 0.5, 5);
+        const brlist = this.generateBranch(
+          hei * (0.3 * p - prng.random() * 0.05),
+          wid * 0.5,
+          ba,
+          0.5,
+          5,
+        );
 
         // 绘制分枝上的松针（叶子）
         for (let j = 0; j < brlist[0].length; j++) {
@@ -1725,8 +1854,8 @@ export class ShuimoRenderer {
                 ang: ba > -Math.PI / 2 ? ba : ba + Math.PI,
                 sca: (0.2 * hei) / 300,
                 dir: ba > -Math.PI / 2 ? 1 : -1,
-                leafSize: 5
-              }
+                leafSize: 5,
+              },
             );
           }
         }
@@ -1737,9 +1866,14 @@ export class ShuimoRenderer {
   /**
    * tree06 - 分形分枝树 (与原版 Tree.tree06 相同)
    */
-  private drawTree06(x: number, y: number, seed: number, options: {
-    height?: number;
-  } = {}): void {
+  private drawTree06(
+    x: number,
+    y: number,
+    seed: number,
+    options: {
+      height?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 100;
     const wid = 6;
 
@@ -1748,19 +1882,25 @@ export class ShuimoRenderer {
       hei: hei,
       wid: wid,
       ang: -Math.PI / 2,
-      ben: 0
+      ben: 0,
     });
   }
 
   /**
    * 递归分形树
    */
-  private drawFractalTree(xoff: number, yoff: number, dep: number, seed: number, args: {
-    hei?: number;
-    wid?: number;
-    ang?: number;
-    ben?: number;
-  } = {}): Polygon {
+  private drawFractalTree(
+    xoff: number,
+    yoff: number,
+    dep: number,
+    seed: number,
+    args: {
+      hei?: number;
+      wid?: number;
+      ang?: number;
+      ben?: number;
+    } = {},
+  ): Polygon {
     const hei = args.hei ?? 300;
     const wid = args.wid ?? 5;
     const ang = args.ang ?? 0;
@@ -1771,8 +1911,8 @@ export class ShuimoRenderer {
     // 绘制主干
     const trunkPolygon: Polygon = [...trlist[0], ...trlist[1].reverse()];
     this.drawPolygon(
-      trunkPolygon.map(p => [p[0] + xoff, p[1] + yoff]),
-      [1, 1, 1, 1]
+      trunkPolygon.map((p) => [p[0] + xoff, p[1] + yoff]),
+      [1, 1, 1, 1],
     );
 
     this.drawBarkTexture(xoff, yoff, trlist);
@@ -1803,7 +1943,7 @@ export class ShuimoRenderer {
             wid: wid * 0.6,
             ang: ang + ba,
             ben: 0.55,
-          }
+          },
         );
 
         // 添加树枝装饰
@@ -1818,14 +1958,14 @@ export class ShuimoRenderer {
                 ang: ba * (prng.random() * 0.5 + 0.75),
                 sca: 0.3,
                 dir: ba > 0 ? 1 : -1,
-                hasLeaf: false
-              }
+                hasLeaf: false,
+              },
             );
           }
         }
 
         trmlist.push(
-          ...brlist.map(v => [v[0] + trlistMerged[i][0], v[1] + trlistMerged[i][1]] as Point)
+          ...brlist.map((v) => [v[0] + trlistMerged[i][0], v[1] + trlistMerged[i][1]] as Point),
         );
       } else {
         trmlist.push(trlistMerged[i]);
@@ -1834,10 +1974,10 @@ export class ShuimoRenderer {
 
     // 绘制轮廓
     this.drawStroke(
-      trmlist.map(v => [v[0] + xoff, v[1] + yoff]),
+      trmlist.map((v) => [v[0] + xoff, v[1] + yoff]),
       2.5,
       [0.39, 0.39, 0.39, 0.4 + prng.random() * 0.1],
-      0.9
+      0.9,
     );
 
     return trmlist;
@@ -1846,9 +1986,14 @@ export class ShuimoRenderer {
   /**
    * tree07 - 三角化纹理树 (与原版 Tree.tree07 相同)
    */
-  private drawTree07(x: number, y: number, seed: number, options: {
-    height?: number;
-  } = {}): void {
+  private drawTree07(
+    x: number,
+    y: number,
+    seed: number,
+    options: {
+      height?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 60;
     const wid = 4;
     const reso = 10;
@@ -1874,7 +2019,7 @@ export class ShuimoRenderer {
         const blobY = ny + (prng.random() - 0.5) * wid * 0.5;
         const blobLen = prng.random() * 50 + 20;
         const blobWid = prng.random() * 12 + 12;
-        const blobAng = -prng.random() * Math.PI / 6;
+        const blobAng = (-prng.random() * Math.PI) / 6;
 
         // 绘制三角化的叶子形状
         this.drawTriangulatedBlob(blobX, blobY, blobLen, blobWid, blobAng, seed + i);
@@ -1892,29 +2037,40 @@ export class ShuimoRenderer {
   /**
    * tree08 - 精细分枝树 (与原版 Tree.tree08 相同)
    */
-  private drawTree08(x: number, y: number, seed: number, options: {
-    height?: number;
-  } = {}): void {
+  private drawTree08(
+    x: number,
+    y: number,
+    seed: number,
+    options: {
+      height?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 80;
     const wid = 1;
 
     const ang = (simpleNoise(seed, 0) - 0.5) * 2 * Math.PI * 0.2;
-    const trlist = this.generateBranch(hei, wid, -Math.PI / 2 + ang, Math.PI * 0.2, Math.max(5, hei / 20));
+    const trlist = this.generateBranch(
+      hei,
+      wid,
+      -Math.PI / 2 + ang,
+      Math.PI * 0.2,
+      Math.max(5, hei / 20),
+    );
 
     const trlistMerged = trlist[0].concat(trlist[1].reverse());
 
     // 绘制主干
     const trunkPolygon: Polygon = [...trlist[0], ...trlist[1].reverse()];
     this.drawPolygon(
-      trunkPolygon.map(p => [p[0] + x, p[1] + y]),
-      [1, 1, 1, 1]
+      trunkPolygon.map((p) => [p[0] + x, p[1] + y]),
+      [1, 1, 1, 1],
     );
 
     this.drawStroke(
-      trlistMerged.map(v => [v[0] + x, v[1] + y]),
+      trlistMerged.map((v) => [v[0] + x, v[1] + y]),
       2.5,
       [0.39, 0.39, 0.39, 0.6 + prng.random() * 0.1],
-      0.9
+      0.9,
     );
 
     // 在主干上添加分形分枝
@@ -1927,7 +2083,7 @@ export class ShuimoRenderer {
           seed + i,
           {
             ang: -Math.PI / 2 - ang * prng.random(),
-          }
+          },
         );
       } else if (i === Math.floor(trlistMerged.length / 2)) {
         this.drawFracTree08(x + trlistMerged[i][0], y + trlistMerged[i][1], 3, seed + i, {
@@ -1940,11 +2096,17 @@ export class ShuimoRenderer {
   /**
    * tree08 的分形分枝
    */
-  private drawFracTree08(xoff: number, yoff: number, dep: number, seed: number, args: {
-    ang?: number;
-    len?: number;
-    ben?: number;
-  } = {}): void {
+  private drawFracTree08(
+    xoff: number,
+    yoff: number,
+    dep: number,
+    seed: number,
+    args: {
+      ang?: number;
+      len?: number;
+      ben?: number;
+    } = {},
+  ): void {
     const ang = args.ang ?? -Math.PI / 2;
     const len = args.len ?? 15;
     const ben = args.ben ?? 0;
@@ -1957,9 +2119,10 @@ export class ShuimoRenderer {
       [xoff + len, yoff],
     ];
 
-    const bfun = prng.random() > 0.5
-      ? (t: number) => Math.sin(t * Math.PI)
-      : (t: number) => -Math.sin(t * Math.PI);
+    const bfun =
+      prng.random() > 0.5
+        ? (t: number) => Math.sin(t * Math.PI)
+        : (t: number) => -Math.sin(t * Math.PI);
 
     trmlist = this.divPath(trmlist, 10);
 
@@ -2009,7 +2172,13 @@ export class ShuimoRenderer {
   /**
    * 生成分枝结构
    */
-  private generateBranch(hei: number, wid: number, ang: number, ben: number, det: number): [Polygon, Polygon] {
+  private generateBranch(
+    hei: number,
+    wid: number,
+    ang: number,
+    ben: number,
+    det: number,
+  ): [Polygon, Polygon] {
     let nx = 0;
     let ny = 0;
     const tlist: Polygon = [[nx, ny]];
@@ -2077,11 +2246,11 @@ export class ShuimoRenderer {
     for (let i = 2; i < trlist[0].length - 1; i++) {
       const a0 = Math.atan2(
         trlist[0][i][1] - trlist[0][i - 1][1],
-        trlist[0][i][0] - trlist[0][i - 1][0]
+        trlist[0][i][0] - trlist[0][i - 1][0],
       );
       const a1 = Math.atan2(
         trlist[1][i][1] - trlist[1][i - 1][1],
-        trlist[1][i][0] - trlist[1][i - 1][0]
+        trlist[1][i][0] - trlist[1][i - 1][0],
       );
       const p = prng.random();
       const nx = trlist[0][i][0] * (1 - p) + trlist[1][i][0] * p;
@@ -2092,7 +2261,7 @@ export class ShuimoRenderer {
           length: 15,
           width: 6 - Math.abs(p - 0.5) * 10,
           angle: (a0 + a1) / 2,
-          opacity: 0.6
+          opacity: 0.6,
         });
       }
     }
@@ -2101,14 +2270,20 @@ export class ShuimoRenderer {
   /**
    * 绘制树枝
    */
-  private drawTwig(tx: number, ty: number, dep: number, seed: number, options: {
-    dir?: number;
-    sca?: number;
-    wid?: number;
-    ang?: number;
-    hasLeaf?: boolean;
-    leafSize?: number;
-  } = {}): void {
+  private drawTwig(
+    tx: number,
+    ty: number,
+    dep: number,
+    seed: number,
+    options: {
+      dir?: number;
+      sca?: number;
+      wid?: number;
+      ang?: number;
+      hasLeaf?: boolean;
+      leafSize?: number;
+    } = {},
+  ): void {
     const dir = options.dir ?? 1;
     const sca = options.sca ?? 1;
     const wid = options.wid ?? 1;
@@ -2142,7 +2317,7 @@ export class ShuimoRenderer {
           wid: wid,
           dir: dir * (prng.random() > 0.5 ? 1 : -1),
           hasLeaf: hasLeaf,
-          leafSize: leafSize
+          leafSize: leafSize,
         });
       }
 
@@ -2157,8 +2332,8 @@ export class ShuimoRenderer {
               width: (6 + 3 * prng.random()) * wid,
               length: (15 + 12 * prng.random()) * wid,
               angle: ang / 2 + Math.PI / 2 + Math.PI * 0.2 * (prng.random() - 0.5),
-              opacity: 0.5 + dep * 0.2
-            }
+              opacity: 0.5 + dep * 0.2,
+            },
           );
         }
       }
@@ -2170,19 +2345,24 @@ export class ShuimoRenderer {
   /**
    * 绘制三角化blob（用于tree07）
    */
-  private drawTriangulatedBlob(x: number, y: number, len: number, wid: number, ang: number, seed: number): void {
+  private drawTriangulatedBlob(
+    x: number,
+    y: number,
+    len: number,
+    wid: number,
+    ang: number,
+    seed: number,
+  ): void {
     const reso = 20;
     const blobPoints: Polygon = [];
 
     const fun = (t: number) =>
-      t <= 1
-        ? 2.75 * t * Math.pow(1 - t, 1 / 1.8)
-        : 2.75 * (t - 2) * Math.pow(t - 1, 1 / 1.8);
+      t <= 1 ? 2.75 * t * Math.pow(1 - t, 1 / 1.8) : 2.75 * (t - 2) * Math.pow(t - 1, 1 / 1.8);
 
     for (let i = 0; i <= reso; i++) {
       const p = (i / reso) * 2;
       const xo = len / 2 - Math.abs(p - 1) * len;
-      const yo = fun(p) * wid / 2;
+      const yo = (fun(p) * wid) / 2;
       const a = Math.atan2(yo, xo);
       const l = Math.sqrt(xo * xo + yo * yo);
 
@@ -2214,12 +2394,17 @@ export class ShuimoRenderer {
   /**
    * 绘制墨点 (blob) - 与原版 blob() 函数相同
    */
-  private drawBlob(x: number, y: number, seed: number, options: {
-    length?: number;
-    width?: number;
-    angle?: number;
-    opacity?: number;
-  } = {}): void {
+  private drawBlob(
+    x: number,
+    y: number,
+    seed: number,
+    options: {
+      length?: number;
+      width?: number;
+      angle?: number;
+      opacity?: number;
+    } = {},
+  ): void {
     const len = options.length ?? 20;
     const wid = options.width ?? 5;
     const ang = options.angle ?? 0;
@@ -2237,7 +2422,7 @@ export class ShuimoRenderer {
     for (let i = 0; i <= reso; i++) {
       const p = (i / reso) * 2;
       const xo = len / 2 - Math.abs(p - 1) * len;
-      const yo = fun(p) * wid / 2;
+      const yo = (fun(p) * wid) / 2;
       const a = Math.atan2(yo, xo);
       const l = Math.sqrt(xo * xo + yo * yo);
       lalist.push([l, a]);
@@ -2265,12 +2450,17 @@ export class ShuimoRenderer {
   /**
    * 绘制岩石 - 与原版 Mount.rock() 相同
    */
-  drawRock(xoff: number, yoff: number, seed: number, options: {
-    height?: number;
-    width?: number;
-    texture?: number;
-    shadow?: number;
-  } = {}): void {
+  drawRock(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: {
+      height?: number;
+      width?: number;
+      texture?: number;
+      shadow?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 80;
     const wid = options.width ?? 100;
     const tex = options.texture ?? 40;
@@ -2290,7 +2480,8 @@ export class ShuimoRenderer {
 
       for (let j = 0; j < reso[1]; j++) {
         const a = (j / reso[1]) * Math.PI * 2 - Math.PI / 2;
-        let l = (wid * hei) / Math.sqrt(Math.pow(hei * Math.cos(a), 2) + Math.pow(wid * Math.sin(a), 2));
+        let l =
+          (wid * hei) / Math.sqrt(Math.pow(hei * Math.cos(a), 2) + Math.pow(wid * Math.sin(a), 2));
         l *= 0.7 + 0.3 * nslist[j];
 
         const p = 1 - i / reso[0];
@@ -2309,16 +2500,16 @@ export class ShuimoRenderer {
     // 白色背景
     const bgPolygon: Polygon = [...ptlist[0], [0, 0]];
     this.drawPolygon(
-      bgPolygon.map(p => [p[0] + xoff, p[1] + yoff]),
-      [1, 1, 1, 1]
+      bgPolygon.map((p) => [p[0] + xoff, p[1] + yoff]),
+      [1, 1, 1, 1],
     );
 
     // 轮廓线
     this.drawStroke(
-      ptlist[0].map(p => [p[0] + xoff, p[1] + yoff]),
+      ptlist[0].map((p) => [p[0] + xoff, p[1] + yoff]),
       3,
       [0.39, 0.39, 0.39, 0.3],
-      1
+      1,
     );
 
     // 皴法纹理（关键：传递 sha 参数！）
@@ -2329,7 +2520,14 @@ export class ShuimoRenderer {
    * 岩石纹理 - 与原版 Texture.generate() 100% 一致
    * 关键：支持 shadow 参数，先绘制阴影再绘制主纹理
    */
-  private drawRockTexture(ptlist: Polygon[], xoff: number, yoff: number, tex: number, seed: number, sha: number): void {
+  private drawRockTexture(
+    ptlist: Polygon[],
+    xoff: number,
+    yoff: number,
+    tex: number,
+    seed: number,
+    sha: number,
+  ): void {
     const reso: [number, number] = [ptlist.length, ptlist[0].length];
     const wid = 3;
     const len = 0.2;
@@ -2424,10 +2622,15 @@ export class ShuimoRenderer {
   /**
    * 绘制云 - 简化版，减少粒子数量
    */
-  drawCloud(xoff: number, yoff: number, seed: number, options: {
-    size?: number;
-    opacity?: number;
-  } = {}): void {
+  drawCloud(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: {
+      size?: number;
+      opacity?: number;
+    } = {},
+  ): void {
     const size = options.size ?? 200;
     const baseOpacity = options.opacity ?? 0.3;
 
@@ -2452,7 +2655,7 @@ export class ShuimoRenderer {
         const a = (j / reso) * Math.PI * 2;
         ellipsePoints.push([
           px + Math.cos(a) * particleSize * 1.5,
-          py + Math.sin(a) * particleSize * 0.8
+          py + Math.sin(a) * particleSize * 0.8,
         ]);
       }
       this.drawPolygon(ellipsePoints, [0.5, 0.5, 0.5, opacity]);
@@ -2464,12 +2667,17 @@ export class ShuimoRenderer {
   /**
    * 绘制人物 - 简化的骨骼人物
    */
-  drawMan(xoff: number, yoff: number, seed: number, options: {
-    scale?: number;
-    flip?: boolean;
-    hasHat?: boolean;
-    hasStick?: boolean;
-  } = {}): void {
+  drawMan(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: {
+      scale?: number;
+      flip?: boolean;
+      hasHat?: boolean;
+      hasStick?: boolean;
+    } = {},
+  ): void {
     const sca = options.scale ?? 0.5;
     const fli = options.flip ?? false;
     const hasHat = options.hasHat ?? true;
@@ -2478,19 +2686,19 @@ export class ShuimoRenderer {
 
     // 身体各部分角度
     const ang = [
-      0,                                           // 0: 躯干
-      -Math.PI / 2,                                // 1: 脖子
-      simpleNoise(seed, 0) * 0.2,                 // 2: 头
-      Math.PI / 4 * simpleNoise(seed, 1),         // 3: 左腿
-      Math.PI * 3 / 4 * simpleNoise(seed, 2),     // 4: 左脚
-      Math.PI * 3 / 4,                            // 5: 右臂
-      -Math.PI / 4,                               // 6: 右手
-      -Math.PI * 3 / 4 - Math.PI / 4 * simpleNoise(seed, 3), // 7: 左臂
-      -Math.PI / 4,                               // 8: 左手
+      0, // 0: 躯干
+      -Math.PI / 2, // 1: 脖子
+      simpleNoise(seed, 0) * 0.2, // 2: 头
+      (Math.PI / 4) * simpleNoise(seed, 1), // 3: 左腿
+      ((Math.PI * 3) / 4) * simpleNoise(seed, 2), // 4: 左脚
+      (Math.PI * 3) / 4, // 5: 右臂
+      -Math.PI / 4, // 6: 右手
+      (-Math.PI * 3) / 4 - (Math.PI / 4) * simpleNoise(seed, 3), // 7: 左臂
+      -Math.PI / 4, // 8: 左手
     ];
 
     // 身体各部分长度
-    const len = [0, 30, 20, 30, 30, 30, 30, 30, 30].map(v => v * sca);
+    const len = [0, 30, 20, 30, 30, 30, 30, 30, 30].map((v) => v * sca);
 
     // 计算关节位置
     const pts: Point[] = [];
@@ -2532,10 +2740,18 @@ export class ShuimoRenderer {
     if (hasStick) {
       const stickLen = 40 * sca;
       const stickAngle = -Math.PI / 6;
-      this.drawStroke([
-        pts[8],
-        [pts[8][0] + Math.cos(stickAngle) * stickLen * dir, pts[8][1] + Math.sin(stickAngle) * stickLen]
-      ], 1, [0.39, 0.39, 0.39, 0.5], 0.2);
+      this.drawStroke(
+        [
+          pts[8],
+          [
+            pts[8][0] + Math.cos(stickAngle) * stickLen * dir,
+            pts[8][1] + Math.sin(stickAngle) * stickLen,
+          ],
+        ],
+        1,
+        [0.39, 0.39, 0.39, 0.5],
+        0.2,
+      );
     }
   }
 
@@ -2558,12 +2774,17 @@ export class ShuimoRenderer {
   /**
    * 绘制小船 - 与原版 Arch.boat01 相同
    */
-  drawBoat(xoff: number, yoff: number, seed: number, options: {
-    length?: number;
-    scale?: number;
-    flip?: boolean;
-    hasMan?: boolean;
-  } = {}): void {
+  drawBoat(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: {
+      length?: number;
+      scale?: number;
+      flip?: boolean;
+      hasMan?: boolean;
+    } = {},
+  ): void {
     const len = options.length ?? 120;
     const sca = options.scale ?? 1;
     const fli = options.flip ?? false;
@@ -2602,11 +2823,16 @@ export class ShuimoRenderer {
   /**
    * 绘制茅屋 - 与原版 Arch.hut 相同
    */
-  drawHut(xoff: number, yoff: number, seed: number, options: {
-    height?: number;
-    width?: number;
-    texture?: number;
-  } = {}): void {
+  drawHut(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: {
+      height?: number;
+      width?: number;
+      texture?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 40;
     const wid = options.width ?? 180;
     const tex = options.texture ?? 100;
@@ -2627,7 +2853,7 @@ export class ShuimoRenderer {
     // 绘制白色背景
     const bgPolygon: Polygon = [
       ...ptlist[0].slice(0, -1),
-      ...ptlist[ptlist.length - 1].slice(0, -1).reverse()
+      ...ptlist[ptlist.length - 1].slice(0, -1).reverse(),
     ];
     this.drawPolygon(bgPolygon, [1, 1, 1, 1]);
 
@@ -2689,12 +2915,17 @@ export class ShuimoRenderer {
   /**
    * 绘制屋顶 - 与原版 Arch.roof 相同
    */
-  drawRoof(xoff: number, yoff: number, seed: number, options: {
-    height?: number;
-    width?: number;
-    rotation?: number;
-    perspective?: number;
-  } = {}): void {
+  drawRoof(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: {
+      height?: number;
+      width?: number;
+      rotation?: number;
+      perspective?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 20;
     const wid = options.width ?? 120;
     const rot = options.rotation ?? 0.7;
@@ -2716,42 +2947,72 @@ export class ShuimoRenderer {
     this.drawPolygon(roofPolygon, [1, 1, 1, 1]);
 
     // 屋顶轮廓线
-    this.drawStroke([
-      [xoff - wid * 0.5 + quat, yoff - hei - per / 2],
-      [xoff - wid * 0.5 + quat * 0.5, yoff - hei / 2 - per / 4],
-      [xoff - wid * 0.5 - cor, yoff],
-    ], 3, [0.39, 0.39, 0.39, 0.4], 0.5);
+    this.drawStroke(
+      [
+        [xoff - wid * 0.5 + quat, yoff - hei - per / 2],
+        [xoff - wid * 0.5 + quat * 0.5, yoff - hei / 2 - per / 4],
+        [xoff - wid * 0.5 - cor, yoff],
+      ],
+      3,
+      [0.39, 0.39, 0.39, 0.4],
+      0.5,
+    );
 
-    this.drawStroke([
-      [xoff + mid + quat, yoff - hei],
-      [xoff + (mid + quat + wid * 0.5) / 2, yoff - hei / 2],
-      [xoff + wid * 0.5 + cor, yoff],
-    ], 3, [0.39, 0.39, 0.39, 0.4], 0.5);
+    this.drawStroke(
+      [
+        [xoff + mid + quat, yoff - hei],
+        [xoff + (mid + quat + wid * 0.5) / 2, yoff - hei / 2],
+        [xoff + wid * 0.5 + cor, yoff],
+      ],
+      3,
+      [0.39, 0.39, 0.39, 0.4],
+      0.5,
+    );
 
-    this.drawStroke([
-      [xoff + mid + quat, yoff - hei],
-      [xoff + mid + quat / 2, yoff - hei / 2 + per / 2],
-      [xoff + mid + cor, yoff + per],
-    ], 3, [0.39, 0.39, 0.39, 0.4], 0.5);
+    this.drawStroke(
+      [
+        [xoff + mid + quat, yoff - hei],
+        [xoff + mid + quat / 2, yoff - hei / 2 + per / 2],
+        [xoff + mid + cor, yoff + per],
+      ],
+      3,
+      [0.39, 0.39, 0.39, 0.4],
+      0.5,
+    );
 
-    this.drawStroke([
-      [xoff - wid * 0.5 - cor, yoff],
-      [xoff + mid + cor, yoff + per],
-    ], 3, [0.39, 0.39, 0.39, 0.4], 0.5);
+    this.drawStroke(
+      [
+        [xoff - wid * 0.5 - cor, yoff],
+        [xoff + mid + cor, yoff + per],
+      ],
+      3,
+      [0.39, 0.39, 0.39, 0.4],
+      0.5,
+    );
 
-    this.drawStroke([
-      [xoff + wid * 0.5 + cor, yoff],
-      [xoff + mid + cor, yoff + per],
-    ], 3, [0.39, 0.39, 0.39, 0.4], 0.5);
+    this.drawStroke(
+      [
+        [xoff + wid * 0.5 + cor, yoff],
+        [xoff + mid + cor, yoff + per],
+      ],
+      3,
+      [0.39, 0.39, 0.39, 0.4],
+      0.5,
+    );
   }
 
   /**
    * 绘制亭子 (arch01) - 桥亭结构
    */
-  drawPavilion(xoff: number, yoff: number, seed: number, options: {
-    height?: number;
-    width?: number;
-  } = {}): void {
+  drawPavilion(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: {
+      height?: number;
+      width?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 70;
     const wid = options.width ?? 180;
 
@@ -2767,22 +3028,37 @@ export class ShuimoRenderer {
     const mid = -wid * 0.5 + wid * 0.7;
 
     // 左柱
-    this.drawStroke([
-      [xoff - wid * 0.5, yoff - h1],
-      [xoff - wid * 0.5, yoff],
-    ], 3, [0.39, 0.39, 0.39, 0.4], 0.5);
+    this.drawStroke(
+      [
+        [xoff - wid * 0.5, yoff - h1],
+        [xoff - wid * 0.5, yoff],
+      ],
+      3,
+      [0.39, 0.39, 0.39, 0.4],
+      0.5,
+    );
 
     // 右柱
-    this.drawStroke([
-      [xoff + wid * 0.5, yoff - h1],
-      [xoff + wid * 0.5, yoff],
-    ], 3, [0.39, 0.39, 0.39, 0.4], 0.5);
+    this.drawStroke(
+      [
+        [xoff + wid * 0.5, yoff - h1],
+        [xoff + wid * 0.5, yoff],
+      ],
+      3,
+      [0.39, 0.39, 0.39, 0.4],
+      0.5,
+    );
 
     // 中柱
-    this.drawStroke([
-      [xoff + mid, yoff - h1],
-      [xoff + mid, yoff + per],
-    ], 3, [0.39, 0.39, 0.39, 0.4], 0.5);
+    this.drawStroke(
+      [
+        [xoff + mid, yoff - h1],
+        [xoff + mid, yoff + per],
+      ],
+      3,
+      [0.39, 0.39, 0.39, 0.4],
+      0.5,
+    );
 
     // 可能添加一个人物
     if (simpleNoise(seed * 2, 0) > 0.5) {
@@ -2796,11 +3072,16 @@ export class ShuimoRenderer {
   /**
    * 绘制宝塔 (arch03) - 多层塔式建筑
    */
-  drawPagoda(xoff: number, yoff: number, seed: number, options: {
-    height?: number;
-    width?: number;
-    stories?: number;
-  } = {}): void {
+  drawPagoda(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: {
+      height?: number;
+      width?: number;
+      stories?: number;
+    } = {},
+  ): void {
     const hei = options.height ?? 15;
     const wid = options.width ?? 50;
     const sto = options.stories ?? 5;
@@ -2836,11 +3117,16 @@ export class ShuimoRenderer {
       // 屋檐线条
       for (let j = 0; j < 4; j++) {
         const fx = roofWid * (j / 3 - 0.5);
-        this.drawStroke([
-          [xoff, yoff - hoff - storyHei - roofHei],
-          [xoff + fx * 0.5, yoff - hoff - storyHei - roofHei * 0.5],
-          [xoff + (roofWid * 0.5 + cor) * (j / 3 - 0.5) * 2, yoff - hoff - storyHei],
-        ], 1.5, [0.39, 0.39, 0.39, 0.4], 0.5);
+        this.drawStroke(
+          [
+            [xoff, yoff - hoff - storyHei - roofHei],
+            [xoff + fx * 0.5, yoff - hoff - storyHei - roofHei * 0.5],
+            [xoff + (roofWid * 0.5 + cor) * (j / 3 - 0.5) * 2, yoff - hoff - storyHei],
+          ],
+          1.5,
+          [0.39, 0.39, 0.39, 0.4],
+          0.5,
+        );
       }
 
       hoff += storyHei * 1.5;

@@ -25,12 +25,7 @@
               </div>
             </transition>
           </div>
-          <router-link
-            v-else
-            :to="item.path"
-            class="nav-item"
-            active-class="active"
-          >
+          <router-link v-else :to="item.path" class="nav-item" active-class="active">
             {{ item.name }}
           </router-link>
         </template>
@@ -43,64 +38,60 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref } from "vue";
 
-const expandedGroups = ref(['Generator', 'Flower', 'Shanshui', 'Stamp', 'Experimental', 'WebGPU'])
+const expandedGroups = ref(["Generator", "Flower", "Shanshui", "Stamp", "Experimental", "WebGPU"]);
 
 const menuItems = [
   {
-    name: 'Generator',
-    children: [
-      { path: '/painting-generator', name: 'Painting Generator' },
-    ]
+    name: "Generator",
+    children: [{ path: "/painting-generator", name: "Painting Generator" }],
   },
   {
-    name: 'Flower',
+    name: "Flower",
     children: [
-      { path: '/flower-canvas', name: 'Canvas' },
-      { path: '/flower-svg', name: 'SVG' },
-    ]
+      { path: "/flower-canvas", name: "Canvas" },
+      { path: "/flower-svg", name: "SVG" },
+    ],
   },
   {
-    name: 'Shanshui',
+    name: "Shanshui",
     children: [
-      { path: '/shanshui', name: 'Main' },
-      { path: '/shanshui-elements', name: 'Elements' },
-      { path: '/four-gentlemen', name: 'Four Gentlemen' },
-      { path: '/misty-mount', name: 'Misty Mount' },
-      { path: '/cloud', name: 'Cloud' },
-      { path: '/xuan-paper', name: 'Xuan Paper' },
-    ]
+      { path: "/shanshui", name: "Main" },
+      { path: "/shanshui-elements", name: "Elements" },
+      { path: "/four-gentlemen", name: "Four Gentlemen" },
+      { path: "/misty-mount", name: "Misty Mount" },
+      { path: "/cloud", name: "Cloud" },
+      { path: "/xuan-paper", name: "Xuan Paper" },
+    ],
   },
   {
-    name: 'Stamp',
+    name: "Stamp",
     children: [
-      { path: '/stamp', name: 'Basic' },
-      { path: '/stamp-playground', name: 'Playground' },
-    ]
+      { path: "/stamp", name: "Basic" },
+      { path: "/stamp-playground", name: "Playground" },
+    ],
   },
   {
-    name: 'Experimental',
-    children: [
-      { path: '/stroke-animation', name: 'Stroke Animation' },
-    ]
+    name: "Experimental",
+    children: [{ path: "/stroke-animation", name: "Stroke Animation" }],
   },
   {
-    name: 'WebGPU',
+    name: "WebGPU",
     children: [
-      { path: '/ink-diffusion', name: 'Ink Diffusion' },
-      { path: '/webgpu-shanshui', name: 'Shanshui' },
-      { path: '/webgpu-scroll', name: 'Scroll (Main)' },
-    ]
+      { path: "/ink-diffusion", name: "Ink Diffusion" },
+      { path: "/webgpu-shanshui", name: "Shanshui" },
+      { path: "/webgpu-scroll", name: "Scroll (Main)" },
+    ],
   },
-]
+];
 
 function toggleGroup(groupName: string) {
-  const index = expandedGroups.value.indexOf(groupName)
+  const index = expandedGroups.value.indexOf(groupName);
   if (index > -1) {
-    expandedGroups.value.splice(index, 1)
+    expandedGroups.value.splice(index, 1);
   } else {
-    expandedGroups.value.push(groupName)
+    expandedGroups.value.push(groupName);
   }
 }
 </script>

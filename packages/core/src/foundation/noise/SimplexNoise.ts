@@ -7,7 +7,7 @@
  * Based on Stefan Gustavson's implementation
  */
 
-import { prng } from '../random';
+import { prng } from "../random";
 
 export class SimplexNoise {
   // Simplex skewing constants for 2D
@@ -16,9 +16,18 @@ export class SimplexNoise {
 
   // Gradients for 2D
   private readonly grad3 = [
-    [1, 1, 0], [-1, 1, 0], [1, -1, 0], [-1, -1, 0],
-    [1, 0, 1], [-1, 0, 1], [1, 0, -1], [-1, 0, -1],
-    [0, 1, 1], [0, -1, 1], [0, 1, -1], [0, -1, -1],
+    [1, 1, 0],
+    [-1, 1, 0],
+    [1, -1, 0],
+    [-1, -1, 0],
+    [1, 0, 1],
+    [-1, 0, 1],
+    [1, 0, -1],
+    [-1, 0, -1],
+    [0, 1, 1],
+    [0, -1, 1],
+    [0, 1, -1],
+    [0, -1, -1],
   ];
 
   // Permutation table

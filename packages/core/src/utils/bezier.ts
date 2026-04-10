@@ -1,5 +1,5 @@
-import { Point } from '../foundation/geometry';
-import { PolyTools } from '../foundation/geometry/PolyTools';
+import { Point } from "../foundation/geometry";
+import { PolyTools } from "../foundation/geometry/PolyTools";
 
 /**
  * Generate a smooth Bezier curve through multiple control points

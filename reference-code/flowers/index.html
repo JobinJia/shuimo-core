@@ -22,9 +22,9 @@
             <div id="options" class="option-bar">
               <i class="material-icons button" onclick="location.reload()">refresh</i>
               <i class="material-icons button" onclick="makeDownload()">file_download</i>
-              <i class="material-icons button" onclick="toggle('summary','block')">list</i>
-              <i class="material-icons button" onclick="toggle('settings','table')">settings</i>
-              <i class="material-icons button" onclick="toggle('share','table')">share</i>
+              <i class="material-icons button" onclick="toggle('summary', 'block')">list</i>
+              <i class="material-icons button" onclick="toggle('settings', 'table')">settings</i>
+              <i class="material-icons button" onclick="toggle('share', 'table')">share</i>
             </div>
           </td>
         </tr>
@@ -40,7 +40,9 @@
             <div id="settings" style="display: none" class="emerge">
               <p>Seed: <input title="random seed" id="inp-seed" /></p>
               <p align="center">
-                <button onclick="reloadWSeed(document.getElementById('inp-seed').value)">Generate</button>
+                <button onclick="reloadWSeed(document.getElementById('inp-seed').value)">
+                  Generate
+                </button>
               </p>
             </div>
           </td>

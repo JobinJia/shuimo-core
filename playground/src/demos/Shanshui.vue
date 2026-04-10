@@ -1,210 +1,208 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { generateShanshui, getSceneStats } from '../shanshui'
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { generateShanshui, getSceneStats } from "../shanshui";
 
 // State
-const showSettings = ref(false)
-const seedInput = ref(String(Date.now()))
-const scrollStep = ref(200)
-const autoScroll = ref(true) // Auto-scroll enabled by default
-const hoveredBtn = ref<'left' | 'right' | null>(null)
-const canvasContainer = ref<HTMLDivElement | null>(null)
-const svgContent = ref('')
+const showSettings = ref(false);
+const seedInput = ref(String(Date.now()));
+const scrollStep = ref(200);
+const autoScroll = ref(true); // Auto-scroll enabled by default
+const hoveredBtn = ref<"left" | "right" | null>(null);
+const canvasContainer = ref<HTMLDivElement | null>(null);
+const svgContent = ref("");
 
 // Scroll state
-const chunkPreloadDistance = 512
-let currentX = 0 // Current viewBox x position
-let targetX = 0 // Target x position for smooth scrolling
-let animationFrameId: number | null = null
-let cachedSvgElement: SVGElement | null = null // Cache SVG element reference
-let lastUpdateCheckTime = 0 // Timestamp of last update check
-const updateCheckInterval = 100 // Check for updates every 100ms (10fps) instead of 60fps
+const chunkPreloadDistance = 512;
+let currentX = 0; // Current viewBox x position
+let targetX = 0; // Target x position for smooth scrolling
+let animationFrameId: number | null = null;
+let cachedSvgElement: SVGElement | null = null; // Cache SVG element reference
+let lastUpdateCheckTime = 0; // Timestamp of last update check
+const updateCheckInterval = 100; // Check for updates every 100ms (10fps) instead of 60fps
 
 // Computed
 const canvasStyle = computed(() => ({
   backgroundImage: `url(${generateBackgroundTexture()})`,
-}))
+}));
 
 // Methods
 function toggleSettings() {
-  showSettings.value = !showSettings.value
+  showSettings.value = !showSettings.value;
 }
 
 function regenerateWithSeed() {
-  const seed = seedInput.value || String(Date.now())
-  seedInput.value = seed
-  currentX = 0
-  targetX = 0
-  renderScene()
+  const seed = seedInput.value || String(Date.now());
+  seedInput.value = seed;
+  currentX = 0;
+  targetX = 0;
+  renderScene();
 }
 
 function scrollLeft() {
-  xcroll(-scrollStep.value)
+  xcroll(-scrollStep.value);
 }
 
 function scrollRight() {
-  xcroll(scrollStep.value)
+  xcroll(scrollStep.value);
 }
 
 function toggleAutoScroll() {
   if (autoScroll.value) {
-    startAutoScroll()
+    startAutoScroll();
   } else {
-    stopAutoScroll()
+    stopAutoScroll();
   }
 }
 
 // Smooth auto-scroll animation
 function startAutoScroll() {
-  if (animationFrameId !== null)
-    return // Already running
+  if (animationFrameId !== null) return; // Already running
 
   const animate = (timestamp: number) => {
     if (!autoScroll.value) {
-      animationFrameId = null
-      return
+      animationFrameId = null;
+      return;
     }
 
     // Increment target position (slower than original's 1px per ms)
-    targetX += 0.5 // 0.5px per frame at 60fps ≈ 30px/sec
+    targetX += 0.5; // 0.5px per frame at 60fps ≈ 30px/sec
 
     // Smooth interpolation toward target
-    const smoothing = 0.1
-    currentX += (targetX - currentX) * smoothing
+    const smoothing = 0.1;
+    currentX += (targetX - currentX) * smoothing;
 
     // Always update viewBox for smooth scrolling (cheap operation)
-    viewUpdate()
+    viewUpdate();
 
     // Throttle heavy chunk loading checks (expensive operation)
     if (timestamp - lastUpdateCheckTime >= updateCheckInterval) {
-      checkAndUpdateChunks()
-      lastUpdateCheckTime = timestamp
+      checkAndUpdateChunks();
+      lastUpdateCheckTime = timestamp;
     }
 
     // Continue animation
-    animationFrameId = requestAnimationFrame(animate)
-  }
+    animationFrameId = requestAnimationFrame(animate);
+  };
 
-  animationFrameId = requestAnimationFrame(animate)
+  animationFrameId = requestAnimationFrame(animate);
 }
 
 function stopAutoScroll() {
   if (animationFrameId !== null) {
-    cancelAnimationFrame(animationFrameId)
-    animationFrameId = null
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
   }
 }
 
 // Manual scroll (instant jump)
 function xcroll(v: number) {
-  currentX += v
-  targetX = currentX // Snap target to current
-  updateView()
+  currentX += v;
+  targetX = currentX; // Snap target to current
+  updateView();
 }
 
 // Check if chunks need loading and update if necessary
 function checkAndUpdateChunks() {
-  const stats = getSceneStats()
-  const needsUpdate
-    = stats.chunkCount === 0
-      || currentX < stats.xmin + chunkPreloadDistance
-      || currentX + 3000 > stats.xmax - chunkPreloadDistance
+  const stats = getSceneStats();
+  const needsUpdate =
+    stats.chunkCount === 0 ||
+    currentX < stats.xmin + chunkPreloadDistance ||
+    currentX + 3000 > stats.xmax - chunkPreloadDistance;
 
   if (needsUpdate) {
-    update()
+    update();
   }
 }
 
 // Update the view - for manual scrolling (instant)
 function updateView() {
-  viewUpdate()
-  checkAndUpdateChunks()
+  viewUpdate();
+  checkAndUpdateChunks();
 }
 
 function viewUpdate() {
   // Use cached SVG element to avoid repeated DOM queries
   if (!cachedSvgElement && canvasContainer.value) {
-    cachedSvgElement = canvasContainer.value.querySelector('svg')
+    cachedSvgElement = canvasContainer.value.querySelector("svg");
   }
 
   if (cachedSvgElement) {
-    const zoom = 1.142
-    const viewBox = `${currentX} 0 ${3000 / zoom} ${800 / zoom}`
-    cachedSvgElement.setAttribute('viewBox', viewBox)
+    const zoom = 1.142;
+    const viewBox = `${currentX} 0 ${3000 / zoom} ${800 / zoom}`;
+    cachedSvgElement.setAttribute("viewBox", viewBox);
   }
 }
 
 function update() {
-  if (!canvasContainer.value)
-    return
+  if (!canvasContainer.value) return;
 
-  const seed = Number.parseInt(seedInput.value) || Date.now()
-  const result = generateShanshui(Math.floor(currentX), seed)
+  const seed = Number.parseInt(seedInput.value) || Date.now();
+  const result = generateShanshui(Math.floor(currentX), seed);
 
   // Only update DOM if new chunks were actually generated
   if (result.contentChanged) {
-    svgContent.value = result.svg
-    canvasContainer.value.innerHTML = result.svg
+    svgContent.value = result.svg;
+    canvasContainer.value.innerHTML = result.svg;
 
     // Clear cached SVG element since we just replaced the DOM
-    cachedSvgElement = null
+    cachedSvgElement = null;
   }
 }
 
 function renderScene() {
-  update()
+  update();
 }
 
 function downloadSVG() {
-  const svg = svgContent.value
-  const blob = new Blob([svg], { type: 'image/svg+xml' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `shanshui-${Date.now()}.svg`
-  link.click()
-  URL.revokeObjectURL(url)
+  const svg = svgContent.value;
+  const blob = new Blob([svg], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `shanshui-${Date.now()}.svg`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function generateBackgroundTexture(): string {
   // Generate a simple paper-like texture
-  const canvas = document.createElement('canvas')
-  canvas.width = 512
-  canvas.height = 512
-  const ctx = canvas.getContext('2d')!
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext("2d")!;
 
   for (let i = 0; i < 256; i++) {
     for (let j = 0; j < 256; j++) {
-      const c = 245 + Math.random() * 10 - Math.random() * 20
-      const r = Math.floor(c)
-      const g = Math.floor(c * 0.95)
-      const b = Math.floor(c * 0.85)
-      ctx.fillStyle = `rgb(${r},${g},${b})`
+      const c = 245 + Math.random() * 10 - Math.random() * 20;
+      const r = Math.floor(c);
+      const g = Math.floor(c * 0.95);
+      const b = Math.floor(c * 0.85);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
 
-      ctx.fillRect(i * 2, j * 2, 2, 2)
-      ctx.fillRect(512 - i * 2, j * 2, 2, 2)
-      ctx.fillRect(i * 2, 512 - j * 2, 2, 2)
-      ctx.fillRect(512 - i * 2, 512 - j * 2, 2, 2)
+      ctx.fillRect(i * 2, j * 2, 2, 2);
+      ctx.fillRect(512 - i * 2, j * 2, 2, 2);
+      ctx.fillRect(i * 2, 512 - j * 2, 2, 2);
+      ctx.fillRect(512 - i * 2, 512 - j * 2, 2, 2);
     }
   }
 
-  return canvas.toDataURL('image/png')
+  return canvas.toDataURL("image/png");
 }
 
 // Lifecycle
 onMounted(() => {
-  seedInput.value = String(Date.now())
-  renderScene()
+  seedInput.value = String(Date.now());
+  renderScene();
 
   // Start auto-scroll by default
   if (autoScroll.value) {
-    startAutoScroll()
+    startAutoScroll();
   }
-})
+});
 
 onUnmounted(() => {
-  stopAutoScroll()
-})
+  stopAutoScroll();
+});
 </script>
 
 <template>
@@ -212,7 +210,7 @@ onUnmounted(() => {
     <!-- Settings Panel -->
     <div class="settings-panel">
       <button class="settings-btn" title="Settings" @click="toggleSettings">
-        {{ showSettings ? '✕' : '☰' }}
+        {{ showSettings ? "✕" : "☰" }}
       </button>
 
       <div v-if="showSettings" class="settings-menu">
@@ -225,10 +223,8 @@ onUnmounted(() => {
               type="text"
               placeholder="Random seed"
               @keyup.enter="regenerateWithSeed"
-            >
-            <button @click="regenerateWithSeed">
-              Generate
-            </button>
+            />
+            <button @click="regenerateWithSeed">Generate</button>
           </div>
         </div>
 
@@ -236,9 +232,7 @@ onUnmounted(() => {
         <div class="setting-group">
           <label>VIEW</label>
           <div class="input-group">
-            <button title="Scroll left" @click="scrollLeft">
-              &lt;
-            </button>
+            <button title="Scroll left" @click="scrollLeft">&lt;</button>
             <input
               v-model.number="scrollStep"
               type="number"
@@ -246,18 +240,12 @@ onUnmounted(() => {
               max="1000"
               step="50"
               title="Scroll step"
-            >
-            <button title="Scroll right" @click="scrollRight">
-              &gt;
-            </button>
+            />
+            <button title="Scroll right" @click="scrollRight">&gt;</button>
           </div>
           <div class="checkbox-group">
             <label>
-              <input
-                v-model="autoScroll"
-                type="checkbox"
-                @change="toggleAutoScroll"
-              >
+              <input v-model="autoScroll" type="checkbox" @change="toggleAutoScroll" />
               Auto-scroll
             </label>
           </div>
@@ -266,9 +254,7 @@ onUnmounted(() => {
         <!-- Save Control -->
         <div class="setting-group">
           <label>SAVE</label>
-          <button class="download-btn" @click="downloadSVG">
-            Download as .SVG
-          </button>
+          <button class="download-btn" @click="downloadSVG">Download as .SVG</button>
         </div>
       </div>
     </div>

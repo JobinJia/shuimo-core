@@ -1,13 +1,13 @@
-import { Polygon, PolyTools } from '../../foundation/geometry';
-import { noise, SimplexNoise, WorleyNoise } from '../../foundation/noise';
-import { prng } from '../../foundation/random';
-import { stroke } from '../../drawing/Stroke';
-import { texture } from '../../drawing/Texture';
-import { poly } from '../../utils/svg';
-import { randChoice, normRand } from '../../utils/random';
-import { loopNoise } from '../../utils/math';
-import { div } from '../../drawing/div';
-import { Tree } from './Tree';
+import { Polygon, PolyTools } from "../../foundation/geometry";
+import { noise, SimplexNoise, WorleyNoise } from "../../foundation/noise";
+import { prng } from "../../foundation/random";
+import { stroke } from "../../drawing/Stroke";
+import { texture } from "../../drawing/Texture";
+import { poly } from "../../utils/svg";
+import { randChoice, normRand } from "../../utils/random";
+import { loopNoise } from "../../utils/math";
+import { div } from "../../drawing/div";
+import { Tree } from "./Tree";
 
 export interface MountainOptions {
   hei?: number;
@@ -99,8 +99,10 @@ function foot(ptlist: Polygon[], options: FootOptions = {}): string | Polygon[] 
         const x1 = ptlist[i][0][0] * (1 - p) + ptlist[ni][0][0] * p;
         let y1 = ptlist[i][0][1] * (1 - p) + ptlist[ni][0][1] * p;
 
-        const x2 = ptlist[i][ptlist[i].length - 1][0] * (1 - p) + ptlist[ni][ptlist[i].length - 1][0] * p;
-        let y2 = ptlist[i][ptlist[i].length - 1][1] * (1 - p) + ptlist[ni][ptlist[i].length - 1][1] * p;
+        const x2 =
+          ptlist[i][ptlist[i].length - 1][0] * (1 - p) + ptlist[ni][ptlist[i].length - 1][0] * p;
+        let y2 =
+          ptlist[i][ptlist[i].length - 1][1] * (1 - p) + ptlist[ni][ptlist[i].length - 1][1] * p;
 
         const vib = -1.7 * (p - 1) * Math.pow(p, 1 / 5);
         y1 += vib * 5 + noise.noise(xof * 0.05, i) * 5;
@@ -112,13 +114,13 @@ function foot(ptlist: Polygon[], options: FootOptions = {}): string | Polygon[] 
     }
   }
 
-  let canv = '';
+  let canv = "";
   for (let i = 0; i < ftlist.length; i++) {
     canv += poly(ftlist[i], {
       xof: xof,
       yof: yof,
-      fil: 'white',
-      str: 'none',
+      fil: "white",
+      str: "none",
     });
   }
 
@@ -126,9 +128,9 @@ function foot(ptlist: Polygon[], options: FootOptions = {}): string | Polygon[] 
     canv += stroke(
       ftlist[j].map((x) => [x[0] + xof, x[1] + yof]),
       {
-        col: 'rgba(100,100,100,' + (0.1 + prng.random() * 0.1).toFixed(3) + ')',
+        col: "rgba(100,100,100," + (0.1 + prng.random() * 0.1).toFixed(3) + ")",
         wid: 1,
-      }
+      },
     );
   }
 
@@ -142,7 +144,12 @@ export class Mount {
   /**
    * Generate a main mountain with vegetation
    */
-  static mountain(xoff: number, yoff: number, seed: number, options: MountainOptions = {}): string | [Polygon[]] {
+  static mountain(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: MountainOptions = {},
+  ): string | [Polygon[]] {
     const hei = options.hei ?? 100 + prng.random() * 400;
     const wid = options.wid ?? 400 + prng.random() * 200;
     const tex = options.tex ?? 200;
@@ -152,7 +159,7 @@ export class Mount {
 
     seed = seed ?? 0;
 
-    let canv = '';
+    let canv = "";
 
     const ptlist: Polygon[] = [];
     const h = hei;
@@ -175,7 +182,7 @@ export class Mount {
     function vegetate(
       treeFunc: (x: number, y: number) => string,
       growthRule: (i: number, j: number) => boolean,
-      proofRule: (veglist: Polygon, i: number) => boolean
+      proofRule: (veglist: Polygon, i: number) => boolean,
     ): void {
       const veglist: Polygon = [];
       for (let i = 0; i < ptlist.length; i += 1) {
@@ -196,28 +203,31 @@ export class Mount {
     vegetate(
       (x, y) =>
         Tree.tree02(x + xoff, y + yoff - 5, {
-          col: 'rgba(100,100,100,' + (noise.noise(0.01 * x, 0.01 * y) * 0.5 * 0.3 + 0.5).toFixed(3) + ')',
+          col:
+            "rgba(100,100,100," +
+            (noise.noise(0.01 * x, 0.01 * y) * 0.5 * 0.3 + 0.5).toFixed(3) +
+            ")",
           clu: 2,
         }),
       (i, j) => {
         const ns = noise.noise(j * 0.1, seed);
         return i === 0 && ns * ns * ns < 0.1 && Math.abs(ptlist[i][j][1]) / h > 0.2;
       },
-      (veglist, i) => true
+      (veglist, i) => true,
     );
 
     // WHITE BG
     canv += poly(ptlist[0].concat([[0, reso[0] * 4]]), {
       xof: xoff,
       yof: yoff,
-      fil: 'white',
-      str: 'none',
+      fil: "white",
+      str: "none",
     });
 
     // OUTLINE
     canv += stroke(
       ptlist[0].map((x) => [x[0] + xoff, x[1] + yoff]),
-      { col: 'rgba(100,100,100,0.3)', noi: 1, wid: 3 }
+      { col: "rgba(100,100,100,0.3)", noi: 1, wid: 3 },
     );
 
     canv += foot(ptlist, { xof: xoff, yof: yoff }) as string;
@@ -228,11 +238,11 @@ export class Mount {
       sha: randChoice([0, 0, 0, 0, 5]),
       col: (progress: number, layerDepth: number) => {
         // If user provided a custom color string, use it
-        if (typeof col === 'string') {
+        if (typeof col === "string") {
           return col;
         }
         // If user provided a custom color function, use it
-        if (typeof col === 'function') {
+        if (typeof col === "function") {
           return col(progress);
         }
         // Default gradient: darker at bottom (layerDepth=1), lighter at top (layerDepth=0)
@@ -251,13 +261,16 @@ export class Mount {
     vegetate(
       (x, y) =>
         Tree.tree02(x + xoff, y + yoff, {
-          col: 'rgba(100,100,100,' + (noise.noise(0.01 * x, 0.01 * y) * 0.5 * 0.3 + 0.5).toFixed(3) + ')',
+          col:
+            "rgba(100,100,100," +
+            (noise.noise(0.01 * x, 0.01 * y) * 0.5 * 0.3 + 0.5).toFixed(3) +
+            ")",
         }),
       (i, j) => {
         const ns = noise.noise(i * 0.1, j * 0.1, seed + 2);
         return ns * ns * ns < 0.1 && Math.abs(ptlist[i][j][1]) / h > 0.5;
       },
-      (veglist, i) => true
+      (veglist, i) => true,
     );
 
     if (veg) {
@@ -269,7 +282,10 @@ export class Mount {
           return Tree.tree01(x + xoff, y + yoff, {
             hei: ht,
             wid: prng.random() * 3 + 1,
-            col: 'rgba(100,100,100,' + (noise.noise(0.01 * x, 0.01 * y) * 0.5 * 0.3 + 0.3).toFixed(3) + ')',
+            col:
+              "rgba(100,100,100," +
+              (noise.noise(0.01 * x, 0.01 * y) * 0.5 * 0.3 + 0.3).toFixed(3) +
+              ")",
           });
         },
         (i, j) => {
@@ -281,7 +297,8 @@ export class Mount {
           for (let j = 0; j < veglist.length; j++) {
             if (
               i !== j &&
-              Math.pow(veglist[i][0] - veglist[j][0], 2) + Math.pow(veglist[i][1] - veglist[j][1], 2) <
+              Math.pow(veglist[i][0] - veglist[j][0], 2) +
+                Math.pow(veglist[i][1] - veglist[j][1], 2) <
                 30 * 30
             ) {
               counter++;
@@ -291,7 +308,7 @@ export class Mount {
             }
           }
           return false;
-        }
+        },
       );
 
       // BOTTOM
@@ -304,14 +321,17 @@ export class Mount {
           return Tree.tree03(x + xoff, y + yoff, {
             hei: ht,
             ben: (x: number) => Math.pow(x * bc, bp),
-            col: 'rgba(100,100,100,' + (noise.noise(0.01 * x, 0.01 * y) * 0.5 * 0.3 + 0.3).toFixed(3) + ')',
+            col:
+              "rgba(100,100,100," +
+              (noise.noise(0.01 * x, 0.01 * y) * 0.5 * 0.3 + 0.3).toFixed(3) +
+              ")",
           });
         },
         (i, j) => {
           const ns = noise.noise(i * 0.2, j * 0.05, seed);
           return (j === 0 || j === ptlist[i].length - 1) && ns * ns * ns * ns < 0.012;
         },
-        (veglist, i) => true
+        (veglist, i) => true,
       );
     }
 
@@ -328,7 +348,12 @@ export class Mount {
   /**
    * Generate a flat-topped mountain
    */
-  static flatMount(xoff: number, yoff: number, seed: number, options: FlatMountOptions = {}): string {
+  static flatMount(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: FlatMountOptions = {},
+  ): string {
     const hei = options.hei ?? 40 + prng.random() * 400;
     const wid = options.wid ?? 400 + prng.random() * 200;
     const tex = options.tex ?? 80;
@@ -337,7 +362,7 @@ export class Mount {
 
     seed = seed ?? 0;
 
-    let canv = '';
+    let canv = "";
     const ptlist: Polygon[] = [];
     const reso = [5, 50];
     let hoff = 0;
@@ -363,7 +388,9 @@ export class Mount {
           }
         } else {
           if (flat[flat.length - 1].length % 2 === 1) {
-            flat[flat.length - 1].push(ptlist[ptlist.length - 1][ptlist[ptlist.length - 1].length - 1]);
+            flat[flat.length - 1].push(
+              ptlist[ptlist.length - 1][ptlist[ptlist.length - 1].length - 1],
+            );
           }
         }
 
@@ -375,14 +402,14 @@ export class Mount {
     canv += poly(ptlist[0].concat([[0, reso[0] * 4]]), {
       xof: xoff,
       yof: yoff,
-      fil: 'white',
-      str: 'none',
+      fil: "white",
+      str: "none",
     });
 
     // OUTLINE
     canv += stroke(
       ptlist[0].map((x) => [x[0] + xoff, x[1] + yoff]),
-      { col: 'rgba(100,100,100,0.3)', noi: 1, wid: 3 }
+      { col: "rgba(100,100,100,0.3)", noi: 1, wid: 3 },
     );
 
     canv += texture(ptlist, {
@@ -439,8 +466,8 @@ export class Mount {
     canv += poly(grlist, {
       xof: xoff,
       yof: yoff,
-      str: 'none',
-      fil: 'white',
+      str: "none",
+      fil: "white",
       wid: 2,
     });
 
@@ -448,8 +475,8 @@ export class Mount {
       grlist.map((x) => [x[0] + xoff, x[1] + yoff]),
       {
         wid: 3,
-        col: 'rgba(100,100,100,0.2)',
-      }
+        col: "rgba(100,100,100,0.2)",
+      },
     );
 
     function bound(plist: Polygon): Bounds {
@@ -485,7 +512,7 @@ export class Mount {
    * Add decorations to flat mountain
    */
   static flatDec(xoff: number, yoff: number, grbd: Bounds): string {
-    let canv = '';
+    let canv = "";
 
     const tt = randChoice([0, 0, 1, 2, 3, 4]);
 
@@ -499,7 +526,7 @@ export class Mount {
           wid: 10 + prng.random() * 20,
           hei: 10 + prng.random() * 20,
           sha: 2,
-        }
+        },
       );
     }
 
@@ -525,7 +552,7 @@ export class Mount {
             wid: 50 + prng.random() * 20,
             hei: 40 + prng.random() * 20,
             sha: 5,
-          }
+          },
         );
       }
     } else if (tt === 1) {
@@ -534,9 +561,13 @@ export class Mount {
       const xmin = grbd.xmin * (1 - pmin) + grbd.xmax * pmin;
       const xmax = grbd.xmin * (1 - pmax) + grbd.xmax * pmax;
       for (let i = xmin; i < xmax; i += 30) {
-        canv += Tree.tree05(xoff + i + 20 * normRand(-1, 1), yoff + (grbd.ymin + grbd.ymax) / 2 + 20, {
-          hei: 100 + prng.random() * 200,
-        });
+        canv += Tree.tree05(
+          xoff + i + 20 * normRand(-1, 1),
+          yoff + (grbd.ymin + grbd.ymax) / 2 + 20,
+          {
+            hei: 100 + prng.random() * 200,
+          },
+        );
       }
       for (let j = 0; j < prng.random() * 4; j++) {
         canv += Mount.rock(
@@ -547,7 +578,7 @@ export class Mount {
             wid: 50 + prng.random() * 20,
             hei: 40 + prng.random() * 20,
             sha: 5,
-          }
+          },
         );
       }
     } else if (tt === 2) {
@@ -564,15 +595,19 @@ export class Mount {
               wid: 50 + prng.random() * 20,
               hei: 40 + prng.random() * 20,
               sha: 5,
-            }
+            },
           );
         }
       }
     } else if (tt === 3) {
       for (let i = 0; i < randChoice([1, 1, 1, 1, 2, 2, 3]); i++) {
-        canv += Tree.tree06(xoff + normRand(grbd.xmin, grbd.xmax), yoff + (grbd.ymin + grbd.ymax) / 2, {
-          hei: 60 + prng.random() * 60,
-        });
+        canv += Tree.tree06(
+          xoff + normRand(grbd.xmin, grbd.xmax),
+          yoff + (grbd.ymin + grbd.ymax) / 2,
+          {
+            hei: 60 + prng.random() * 60,
+          },
+        );
       }
     } else if (tt === 4) {
       const pmin = prng.random() * 0.5;
@@ -583,14 +618,17 @@ export class Mount {
         canv += Tree.tree07(
           xoff + i + 20 * normRand(-1, 1),
           yoff + (grbd.ymin + grbd.ymax) / 2 + normRand(-1, 1) + 0,
-          { hei: normRand(40, 80) }
+          { hei: normRand(40, 80) },
         );
       }
     }
 
     // Small trees
     for (let i = 0; i < 50 * prng.random(); i++) {
-      canv += Tree.tree02(xoff + normRand(grbd.xmin, grbd.xmax), yoff + normRand(grbd.ymin, grbd.ymax));
+      canv += Tree.tree02(
+        xoff + normRand(grbd.xmin, grbd.xmax),
+        yoff + normRand(grbd.ymin, grbd.ymax),
+      );
     }
 
     // Note: Architecture would require Arch class implementation
@@ -602,13 +640,18 @@ export class Mount {
   /**
    * Generate distant mountain silhouette
    */
-  static distMount(xoff: number, yoff: number, seed: number, options: DistMountOptions = {}): string {
+  static distMount(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: DistMountOptions = {},
+  ): string {
     const hei = options.hei ?? 300;
     const len = options.len ?? 2000;
     const seg = options.seg ?? 5;
 
     seed = seed ?? 0;
-    let canv = '';
+    let canv = "";
     const span = 10;
 
     const ptlist: Polygon[] = [];
@@ -618,14 +661,20 @@ export class Mount {
       for (let j = 0; j < seg + 1; j++) {
         const tran = (k: number) => [
           xoff + k * span,
-          yoff - hei * noise.noise(k * 0.05, seed) * Math.pow(Math.sin((Math.PI * k) / (len / span)), 0.5),
+          yoff -
+            hei *
+              noise.noise(k * 0.05, seed) *
+              Math.pow(Math.sin((Math.PI * k) / (len / span)), 0.5),
         ];
         ptlist[ptlist.length - 1].push(tran(i * seg + j) as [number, number]);
       }
       for (let j = 0; j < seg / 2 + 1; j++) {
         const tran = (k: number) => [
           xoff + k * span,
-          yoff + 24 * noise.noise(k * 0.05, 2, seed) * Math.pow(Math.sin((Math.PI * k) / (len / span)), 1),
+          yoff +
+            24 *
+              noise.noise(k * 0.05, 2, seed) *
+              Math.pow(Math.sin((Math.PI * k) / (len / span)), 1),
         ];
         ptlist[ptlist.length - 1].unshift(tran(i * seg + j * 2) as [number, number]);
       }
@@ -634,12 +683,12 @@ export class Mount {
     for (let i = 0; i < ptlist.length; i++) {
       const getCol = (x: number, y: number) => {
         const c = (noise.noise(x * 0.02, y * 0.02, yoff) * 55 + 200) | 0;
-        return 'rgb(' + c + ',' + c + ',' + c + ')';
+        return "rgb(" + c + "," + c + "," + c + ")";
       };
 
       canv += poly(ptlist[i], {
         fil: getCol(ptlist[i][ptlist[i].length - 1][0], ptlist[i][ptlist[i].length - 1][1]),
-        str: 'none',
+        str: "none",
         wid: 1,
       });
 
@@ -663,14 +712,19 @@ export class Mount {
    * Generate misty mountain with soft gradients and halo effects
    * Uses Simplex Noise to create natural mountain contours
    */
-  static mistyMount(xoff: number, yoff: number, seed: number, options: MistyMountOptions = {}): string {
+  static mistyMount(
+    xoff: number,
+    yoff: number,
+    seed: number,
+    options: MistyMountOptions = {},
+  ): string {
     const hei = options.hei ?? 200;
     const len = options.len ?? 2000;
     const layers = options.layers ?? 3;
     const filterOnly = options.filterOnly ?? false;
 
     seed = seed ?? 0;
-    let canv = '';
+    let canv = "";
 
     // Create Simplex Noise instance with seed
     const simplex = new SimplexNoise(seed);
@@ -785,8 +839,8 @@ export class Mount {
         for (let octave = 0; octave < 6; octave++) {
           noiseValue += simplex.noise2D(t * frequency, layerSeed + octave) * amplitude;
           maxValue += amplitude;
-          amplitude *= 0.5;  // Persistence: each octave has half the amplitude
-          frequency *= 2.0;  // Lacunarity: each octave has double the frequency
+          amplitude *= 0.5; // Persistence: each octave has half the amplitude
+          frequency *= 2.0; // Lacunarity: each octave has double the frequency
         }
 
         // Normalize to [-1, 1]
@@ -825,9 +879,9 @@ export class Mount {
       // Color gradation: ink cyan-blue tone (墨青色) - traditional Chinese ink wash
       // Far: (50, 65, 80) light ink cyan
       // Near: (15, 20, 30) deep ink cyan, almost black
-      const r = Math.round(50 - layerDepth * 35);   // 50 to 15
-      const g = Math.round(65 - layerDepth * 45);   // 65 to 20
-      const b = Math.round(80 - layerDepth * 50);   // 80 to 30
+      const r = Math.round(50 - layerDepth * 35); // 50 to 15
+      const g = Math.round(65 - layerDepth * 45); // 65 to 20
+      const b = Math.round(80 - layerDepth * 50); // 80 to 30
 
       // Render all layers to create depth effect
       // First: Draw opaque background to block mountains behind (occlusion effect)
@@ -864,7 +918,9 @@ export class Mount {
         </defs>`;
 
         // 绘制山体（深色底 + 噪声淡化）
-        const texturePointsStr = mountainPoly.map(p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(' ');
+        const texturePointsStr = mountainPoly
+          .map((p) => `${p[0].toFixed(2)},${p[1].toFixed(2)}`)
+          .join(" ");
         canv += `<polygon
           points="${texturePointsStr}"
           fill="url(#${gradientId})"
@@ -880,7 +936,7 @@ export class Mount {
         } else {
           // Far mountains: darker stroke for depth (浓墨) - crisp outline without blur
           canv += stroke(ridgeLine, {
-            col: 'rgba(20, 20, 20, 0.9)',
+            col: "rgba(20, 20, 20, 0.9)",
             wid: 4,
             noi: 1,
           });
@@ -947,7 +1003,8 @@ export class Mount {
         const particleB = Math.max(0, b - 10);
 
         // Draw ink particle as small circle with soft edges
-        canv += `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${baseSize.toFixed(2)}" ` +
+        canv +=
+          `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${baseSize.toFixed(2)}" ` +
           `fill="rgba(${particleR}, ${particleG}, ${particleB}, ${opacity.toFixed(3)})" ` +
           `filter="url(#${particleFilterId})" />`;
       }
@@ -1003,7 +1060,8 @@ export class Mount {
           const strokeB = Math.max(0, b - 15);
 
           // Draw vertical texture stroke
-          canv += `<line x1="${x.toFixed(2)}" y1="${startY.toFixed(2)}" ` +
+          canv +=
+            `<line x1="${x.toFixed(2)}" y1="${startY.toFixed(2)}" ` +
             `x2="${x.toFixed(2)}" y2="${endY.toFixed(2)}" ` +
             `stroke="rgba(${strokeR}, ${strokeG}, ${strokeB}, ${strokeOpacity.toFixed(3)})" ` +
             `stroke-width="${strokeWidth.toFixed(2)}" ` +
@@ -1028,7 +1086,7 @@ export class Mount {
 
     seed = seed ?? 0;
 
-    let canv = '';
+    let canv = "";
 
     const reso = [10, 50];
     const ptlist: Polygon[] = [];
@@ -1044,7 +1102,8 @@ export class Mount {
 
       for (let j = 0; j < reso[1]; j++) {
         const a = (j / reso[1]) * Math.PI * 2 - Math.PI / 2;
-        let l = (wid * hei) / Math.sqrt(Math.pow(hei * Math.cos(a), 2) + Math.pow(wid * Math.sin(a), 2));
+        let l =
+          (wid * hei) / Math.sqrt(Math.pow(hei * Math.cos(a), 2) + Math.pow(wid * Math.sin(a), 2));
 
         l *= 0.7 + 0.3 * nslist[j];
 
@@ -1067,14 +1126,14 @@ export class Mount {
     canv += poly(ptlist[0].concat([[0, 0]]), {
       xof: xoff,
       yof: yoff,
-      fil: 'white',
-      str: 'none',
+      fil: "white",
+      str: "none",
     });
 
     // OUTLINE
     canv += stroke(
       ptlist[0].map((x) => [x[0] + xoff, x[1] + yoff]),
-      { col: 'rgba(100,100,100,0.3)', noi: 1, wid: 3 }
+      { col: "rgba(100,100,100,0.3)", noi: 1, wid: 3 },
     );
 
     canv += texture(ptlist, {
@@ -1083,7 +1142,8 @@ export class Mount {
       tex: tex,
       wid: 3,
       sha: sha,
-      col: (progress: number, layerDepth: number) => 'rgba(180,180,180,' + (0.3 + prng.random() * 0.3).toFixed(3) + ')',
+      col: (progress: number, layerDepth: number) =>
+        "rgba(180,180,180," + (0.3 + prng.random() * 0.3).toFixed(3) + ")",
       dis: () => {
         if (prng.random() > 0.5) {
           return 0.15 + 0.15 * prng.random();

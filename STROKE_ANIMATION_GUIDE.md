@@ -88,13 +88,13 @@ animator.play()
 ### 使用快捷工具类
 
 ```typescript
-import { Experimental } from '@shuimo/core'
+import { Experimental } from "@shuimo/core";
 
-const animation = new Experimental.StrokeAnimation(canvas)
-await animation.createAnimation(strokeShape, 50)
+const animation = new Experimental.StrokeAnimation(canvas);
+await animation.createAnimation(strokeShape, 50);
 
-const animator = animation.getAnimator()
-animator?.play()
+const animator = animation.getAnimator();
+animator?.play();
 ```
 
 ## 🎨 核心功能
@@ -129,42 +129,42 @@ animator?.play()
 ```typescript
 // 笔画形状
 interface StrokeShape {
-  imageData: ImageData
-  contour: StrokeContour
-  medialAxis?: Vector2[]
+  imageData: ImageData;
+  contour: StrokeContour;
+  medialAxis?: Vector2[];
 }
 
 // 笔画轮廓
 interface StrokeContour {
-  points: Vector2[]
-  startIndex: number
-  endIndex: number
+  points: Vector2[];
+  startIndex: number;
+  endIndex: number;
 }
 
 // 毛笔足迹
 interface BrushFootprint {
-  center: Vector2
-  majorAxis: number
-  minorAxis: number
-  angle: number
-  isSideTip?: boolean
-  pressure?: number
+  center: Vector2;
+  majorAxis: number;
+  minorAxis: number;
+  angle: number;
+  isSideTip?: boolean;
+  pressure?: number;
 }
 
 // 绘画轨迹
 interface DrawingTrajectory {
-  points: Vector2[]
-  footprints: BrushFootprint[]
-  startPoint: Vector2
-  endPoint: Vector2
+  points: Vector2[];
+  footprints: BrushFootprint[];
+  startPoint: Vector2;
+  endPoint: Vector2;
 }
 
 // 渲染配置
 interface RenderConfig {
-  showTrajectory?: boolean
-  showFootprintBounds?: boolean
-  diffusionStrength?: number
-  dryBrushStrength?: number
+  showTrajectory?: boolean;
+  showFootprintBounds?: boolean;
+  diffusionStrength?: number;
+  dryBrushStrength?: number;
 }
 ```
 
@@ -174,7 +174,7 @@ interface RenderConfig {
 
 ```typescript
 class StrokeTrajectoryEstimator {
-  estimateTrajectory(shape: StrokeShape): DrawingTrajectory
+  estimateTrajectory(shape: StrokeShape): DrawingTrajectory;
 }
 ```
 
@@ -185,10 +185,10 @@ class BrushFootprintGenerator {
   generateFootprints(
     trajectory: DrawingTrajectory,
     contour: StrokeContour,
-    numFootprints?: number
-  ): BrushFootprint[]
+    numFootprints?: number,
+  ): BrushFootprint[];
 
-  setInitialMinorAxis(value: number): void
+  setInitialMinorAxis(value: number): void;
 }
 ```
 
@@ -196,19 +196,19 @@ class BrushFootprintGenerator {
 
 ```typescript
 class StrokeAnimator {
-  constructor(canvas: HTMLCanvasElement)
+  constructor(canvas: HTMLCanvasElement);
 
-  setTrajectory(trajectory: DrawingTrajectory): void
-  setRenderConfig(config: Partial<RenderConfig>): void
-  setSpeed(speed: number): void
+  setTrajectory(trajectory: DrawingTrajectory): void;
+  setRenderConfig(config: Partial<RenderConfig>): void;
+  setSpeed(speed: number): void;
 
-  play(): void
-  pause(): void
-  reset(): void
-  clear(): void
+  play(): void;
+  pause(): void;
+  reset(): void;
+  clear(): void;
 
-  getAnimationState(): AnimationState
-  destroy(): void
+  getAnimationState(): AnimationState;
+  destroy(): void;
 }
 ```
 

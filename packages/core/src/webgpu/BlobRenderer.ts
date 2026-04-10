@@ -4,7 +4,7 @@
  * 使用 GPU 加速渲染水墨风格的有机墨点/墨斑
  */
 
-import { prng } from '../foundation/random';
+import { prng } from "../foundation/random";
 
 export interface BlobOptions {
   /** 长度 */
@@ -162,7 +162,7 @@ const blobShader = /* wgsl */ `
 export class BlobRenderer {
   private device: GPUDevice | null = null;
   private context: GPUCanvasContext | null = null;
-  private format: GPUTextureFormat = 'bgra8unorm';
+  private format: GPUTextureFormat = "bgra8unorm";
 
   private renderPipeline: GPURenderPipeline | null = null;
   private paramsBuffer: GPUBuffer | null = null;
@@ -175,21 +175,21 @@ export class BlobRenderer {
 
   async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
     if (!navigator.gpu) {
-      console.error('WebGPU 不支持');
+      console.error("WebGPU 不支持");
       return false;
     }
 
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) {
-      console.error('无法获取 GPU adapter');
+      console.error("无法获取 GPU adapter");
       return false;
     }
 
     this.device = await adapter.requestDevice();
-    this.context = canvas.getContext('webgpu');
+    this.context = canvas.getContext("webgpu");
 
     if (!this.context) {
-      console.error('无法获取 WebGPU context');
+      console.error("无法获取 WebGPU context");
       return false;
     }
 
@@ -200,7 +200,7 @@ export class BlobRenderer {
     this.context.configure({
       device: this.device,
       format: this.format,
-      alphaMode: 'premultiplied',
+      alphaMode: "premultiplied",
     });
 
     await this.createResources();
@@ -223,40 +223,40 @@ export class BlobRenderer {
     });
 
     this.renderPipeline = this.device.createRenderPipeline({
-      layout: 'auto',
+      layout: "auto",
       vertex: {
         module: shaderModule,
-        entryPoint: 'vertexMain',
+        entryPoint: "vertexMain",
       },
       fragment: {
         module: shaderModule,
-        entryPoint: 'fragmentMain',
-        targets: [{
-          format: this.format,
-          blend: {
-            color: {
-              srcFactor: 'src-alpha',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
-            alpha: {
-              srcFactor: 'one',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
+        entryPoint: "fragmentMain",
+        targets: [
+          {
+            format: this.format,
+            blend: {
+              color: {
+                srcFactor: "src-alpha",
+                dstFactor: "one-minus-src-alpha",
+                operation: "add",
+              },
+              alpha: {
+                srcFactor: "one",
+                dstFactor: "one-minus-src-alpha",
+                operation: "add",
+              },
             },
           },
-        }],
+        ],
       },
       primitive: {
-        topology: 'triangle-list',
+        topology: "triangle-list",
       },
     });
 
     this.bindGroup = this.device.createBindGroup({
       layout: this.renderPipeline.getBindGroupLayout(0),
-      entries: [
-        { binding: 0, resource: { buffer: this.paramsBuffer } },
-      ],
+      entries: [{ binding: 0, resource: { buffer: this.paramsBuffer } }],
     });
   }
 
@@ -278,10 +278,14 @@ export class BlobRenderer {
 
     // 更新参数
     const paramsData = new Float32Array([
-      x, y,
-      length, width,
-      angle, noiseAmount,
-      softness, seed,
+      x,
+      y,
+      length,
+      width,
+      angle,
+      noiseAmount,
+      softness,
+      seed,
       0, // resolution (unused)
       this.canvasWidth,
       this.canvasHeight,
@@ -296,11 +300,13 @@ export class BlobRenderer {
     const textureView = this.context.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        loadOp: 'load',
-        storeOp: 'store',
-      }],
+      colorAttachments: [
+        {
+          view: textureView,
+          loadOp: "load",
+          storeOp: "store",
+        },
+      ],
     });
 
     renderPass.setPipeline(this.renderPipeline!);
@@ -327,12 +333,14 @@ export class BlobRenderer {
     const textureView = this.context.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        clearValue: { r: color[0], g: color[1], b: color[2], a: color[3] },
-        loadOp: 'clear',
-        storeOp: 'store',
-      }],
+      colorAttachments: [
+        {
+          view: textureView,
+          clearValue: { r: color[0], g: color[1], b: color[2], a: color[3] },
+          loadOp: "clear",
+          storeOp: "store",
+        },
+      ],
     });
     renderPass.end();
 

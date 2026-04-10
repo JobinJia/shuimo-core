@@ -1,15 +1,15 @@
 <script lang="ts" setup>
-import { onMounted, onUnmounted, ref, reactive } from 'vue'
-import { InkDiffusionEngine } from '@shuimo/core'
+import { onMounted, onUnmounted, ref, reactive } from "vue";
+import { InkDiffusionEngine } from "@shuimo/core";
 
-const canvasRef = ref<HTMLCanvasElement | null>(null)
-const isSupported = ref(true)
-const isRunning = ref(false)
-const errorMessage = ref('')
+const canvasRef = ref<HTMLCanvasElement | null>(null);
+const isSupported = ref(true);
+const isRunning = ref(false);
+const errorMessage = ref("");
 
-let engine: InkDiffusionEngine | null = null
-let animationId: number | null = null
-let isDrawing = false
+let engine: InkDiffusionEngine | null = null;
+let animationId: number | null = null;
+let isDrawing = false;
 
 // 参数控制
 const params = reactive({
@@ -19,11 +19,11 @@ const params = reactive({
   paperAbsorption: 0.1,
   brushSize: 15,
   brushIntensity: 0.8,
-})
+});
 
 // 初始化引擎
 async function initEngine() {
-  if (!canvasRef.value) return
+  if (!canvasRef.value) return;
 
   engine = new InkDiffusionEngine({
     width: canvasRef.value.width,
@@ -32,153 +32,153 @@ async function initEngine() {
     evaporationRate: params.evaporationRate,
     viscosity: params.viscosity,
     paperAbsorption: params.paperAbsorption,
-  })
+  });
 
-  const success = await engine.initialize(canvasRef.value)
+  const success = await engine.initialize(canvasRef.value);
 
   if (!success) {
-    isSupported.value = false
-    errorMessage.value = 'WebGPU 不支持，请使用 Chrome 113+ 或 Safari 17+'
-    return
+    isSupported.value = false;
+    errorMessage.value = "WebGPU 不支持，请使用 Chrome 113+ 或 Safari 17+";
+    return;
   }
 
   // 初始渲染
-  engine.render()
+  engine.render();
 }
 
 // 开始/停止模拟
 function toggleSimulation() {
   if (isRunning.value) {
-    stopSimulation()
+    stopSimulation();
   } else {
-    startSimulation()
+    startSimulation();
   }
 }
 
 function startSimulation() {
-  if (!engine) return
-  isRunning.value = true
+  if (!engine) return;
+  isRunning.value = true;
 
   function loop() {
-    if (!engine || !isRunning.value) return
+    if (!engine || !isRunning.value) return;
 
     // 执行多步扩散以加速效果
     for (let i = 0; i < 3; i++) {
-      engine.step()
+      engine.step();
     }
-    engine.render()
+    engine.render();
 
-    animationId = requestAnimationFrame(loop)
+    animationId = requestAnimationFrame(loop);
   }
 
-  loop()
+  loop();
 }
 
 function stopSimulation() {
-  isRunning.value = false
+  isRunning.value = false;
   if (animationId !== null) {
-    cancelAnimationFrame(animationId)
-    animationId = null
+    cancelAnimationFrame(animationId);
+    animationId = null;
   }
 }
 
 // 清空画布
 function clearCanvas() {
-  if (!engine) return
-  engine.clear()
-  engine.render()
+  if (!engine) return;
+  engine.clear();
+  engine.render();
 }
 
 // 更新参数
 function updateParams() {
-  if (!engine) return
+  if (!engine) return;
   engine.setParams({
     diffusionRate: params.diffusionRate,
     evaporationRate: params.evaporationRate,
     viscosity: params.viscosity,
     paperAbsorption: params.paperAbsorption,
-  })
+  });
 }
 
 // 鼠标/触摸绘制
 function getCanvasPosition(e: MouseEvent | TouchEvent): { x: number; y: number } | null {
-  if (!canvasRef.value) return null
+  if (!canvasRef.value) return null;
 
-  const rect = canvasRef.value.getBoundingClientRect()
-  const scaleX = canvasRef.value.width / rect.width
-  const scaleY = canvasRef.value.height / rect.height
+  const rect = canvasRef.value.getBoundingClientRect();
+  const scaleX = canvasRef.value.width / rect.width;
+  const scaleY = canvasRef.value.height / rect.height;
 
-  let clientX: number, clientY: number
+  let clientX: number, clientY: number;
 
-  if ('touches' in e) {
-    if (e.touches.length === 0) return null
-    clientX = e.touches[0].clientX
-    clientY = e.touches[0].clientY
+  if ("touches" in e) {
+    if (e.touches.length === 0) return null;
+    clientX = e.touches[0].clientX;
+    clientY = e.touches[0].clientY;
   } else {
-    clientX = e.clientX
-    clientY = e.clientY
+    clientX = e.clientX;
+    clientY = e.clientY;
   }
 
   return {
     x: (clientX - rect.left) * scaleX,
     y: (clientY - rect.top) * scaleY,
-  }
+  };
 }
 
 function handlePointerDown(e: MouseEvent | TouchEvent) {
-  isDrawing = true
-  addInkAtPosition(e)
+  isDrawing = true;
+  addInkAtPosition(e);
 }
 
 function handlePointerMove(e: MouseEvent | TouchEvent) {
-  if (!isDrawing) return
-  addInkAtPosition(e)
+  if (!isDrawing) return;
+  addInkAtPosition(e);
 }
 
 function handlePointerUp() {
-  isDrawing = false
+  isDrawing = false;
 }
 
 function addInkAtPosition(e: MouseEvent | TouchEvent) {
-  if (!engine) return
+  if (!engine) return;
 
-  const pos = getCanvasPosition(e)
-  if (!pos) return
+  const pos = getCanvasPosition(e);
+  if (!pos) return;
 
-  engine.addInk(pos.x, pos.y, params.brushSize, params.brushIntensity)
+  engine.addInk(pos.x, pos.y, params.brushSize, params.brushIntensity);
 
   // 如果模拟没有运行，手动渲染
   if (!isRunning.value) {
-    engine.render()
+    engine.render();
   }
 }
 
 // 添加预设墨点（演示用）
 function addDemoInk() {
-  if (!engine || !canvasRef.value) return
+  if (!engine || !canvasRef.value) return;
 
-  const cx = canvasRef.value.width / 2
-  const cy = canvasRef.value.height / 2
+  const cx = canvasRef.value.width / 2;
+  const cy = canvasRef.value.height / 2;
 
   // 添加几个墨点
-  engine.addInk(cx, cy, 30, 1.0)
-  engine.addInk(cx - 80, cy - 50, 20, 0.7)
-  engine.addInk(cx + 100, cy + 30, 25, 0.9)
-  engine.addInk(cx - 50, cy + 80, 15, 0.6)
+  engine.addInk(cx, cy, 30, 1.0);
+  engine.addInk(cx - 80, cy - 50, 20, 0.7);
+  engine.addInk(cx + 100, cy + 30, 25, 0.9);
+  engine.addInk(cx - 50, cy + 80, 15, 0.6);
 
   if (!isRunning.value) {
-    engine.render()
+    engine.render();
   }
 }
 
 onMounted(async () => {
-  await initEngine()
-})
+  await initEngine();
+});
 
 onUnmounted(() => {
-  stopSimulation()
-  engine?.destroy()
-})
+  stopSimulation();
+  engine?.destroy();
+});
 </script>
 
 <template>
@@ -210,7 +210,7 @@ onUnmounted(() => {
     <div class="controls">
       <div class="button-group">
         <button @click="toggleSimulation" :class="{ active: isRunning }">
-          {{ isRunning ? '暂停扩散' : '开始扩散' }}
+          {{ isRunning ? "暂停扩散" : "开始扩散" }}
         </button>
         <button @click="addDemoInk">添加墨点</button>
         <button @click="clearCanvas">清空画布</button>
@@ -267,13 +267,7 @@ onUnmounted(() => {
 
         <div class="param">
           <label>笔刷大小: {{ params.brushSize }}</label>
-          <input
-            type="range"
-            v-model.number="params.brushSize"
-            min="5"
-            max="50"
-            step="1"
-          />
+          <input type="range" v-model.number="params.brushSize" min="5" max="50" step="1" />
         </div>
 
         <div class="param">
@@ -309,7 +303,7 @@ onUnmounted(() => {
 }
 
 h2 {
-  font-family: '楷体', serif;
+  font-family: "楷体", serif;
   color: #333;
   margin-bottom: 0.5em;
 }

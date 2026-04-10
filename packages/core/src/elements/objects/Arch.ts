@@ -1,12 +1,12 @@
-import { Polygon, Point } from '../../foundation/geometry';
-import { noise } from '../../foundation/noise';
-import { prng } from '../../foundation/random';
-import { randChoice, normRand, wtrand } from '../../utils/random';
-import { stroke } from '../../drawing/Stroke';
-import { texture } from '../../drawing/Texture';
-import { div } from '../../drawing/div';
-import { poly } from '../../utils/svg';
-import { Man } from './Man';
+import { Polygon, Point } from "../../foundation/geometry";
+import { noise } from "../../foundation/noise";
+import { prng } from "../../foundation/random";
+import { randChoice, normRand, wtrand } from "../../utils/random";
+import { stroke } from "../../drawing/Stroke";
+import { texture } from "../../drawing/Texture";
+import { div } from "../../drawing/div";
+import { poly } from "../../utils/svg";
+import { Man } from "./Man";
 
 export interface HutOptions {
   /** Height of hut */
@@ -33,12 +33,7 @@ export interface BoxOptions {
   /** Line weight */
   wei?: number;
   /** Decoration function */
-  dec?: (params: {
-    pul: Point;
-    pur: Point;
-    pdl: Point;
-    pdr: Point;
-  }) => Polygon[];
+  dec?: (params: { pul: Point; pur: Point; pdl: Point; pdr: Point }) => Polygon[];
 }
 
 export interface RailOptions {
@@ -155,7 +150,7 @@ export class Arch {
   private static flip(ptlist: Polygon[], axis: number = 0): Polygon[] {
     for (let i = 0; i < ptlist.length; i++) {
       if (ptlist[i].length > 0) {
-        if (typeof ptlist[i][0] === 'object') {
+        if (typeof ptlist[i][0] === "object") {
           for (let j = 0; j < ptlist[i].length; j++) {
             ptlist[i][j][0] = axis - (ptlist[i][j][0] - axis);
           }
@@ -188,28 +183,25 @@ export class Arch {
       }
     }
 
-    let canv = '';
-    canv += poly(
-      ptlist[0].slice(0, -1).concat(ptlist[ptlist.length - 1].slice(0, -1).reverse()),
-      {
-        xof: xoff,
-        yof: yoff,
-        fil: 'white',
-        str: 'none',
-      }
-    );
+    let canv = "";
+    canv += poly(ptlist[0].slice(0, -1).concat(ptlist[ptlist.length - 1].slice(0, -1).reverse()), {
+      xof: xoff,
+      yof: yoff,
+      fil: "white",
+      str: "none",
+    });
     canv += poly(ptlist[0], {
       xof: xoff,
       yof: yoff,
-      fil: 'none',
-      str: 'rgba(100,100,100,0.3)',
+      fil: "none",
+      str: "rgba(100,100,100,0.3)",
       wid: 2,
     });
     canv += poly(ptlist[ptlist.length - 1], {
       xof: xoff,
       yof: yoff,
-      fil: 'none',
-      str: 'rgba(100,100,100,0.3)',
+      fil: "none",
+      str: "rgba(100,100,100,0.3)",
       wid: 2,
     });
 
@@ -219,7 +211,7 @@ export class Arch {
       tex: tex,
       wid: 1,
       len: 0.25,
-      col: (x: number) => 'rgba(120,120,120,' + (0.3 + prng.random() * 0.3).toFixed(3) + ')',
+      col: (x: number) => "rgba(120,120,120," + (0.3 + prng.random() * 0.3).toFixed(3) + ")",
       dis: () => wtrand((a) => a * a),
       noi: (x: number) => 5,
     });
@@ -250,8 +242,8 @@ export class Arch {
           [-wid * 0.5, -hei],
           [-wid * 0.5, 0],
         ],
-        5
-      )
+        5,
+      ),
     );
     ptlist.push(
       div(
@@ -259,8 +251,8 @@ export class Arch {
           [wid * 0.5, -hei],
           [wid * 0.5, 0],
         ],
-        5
-      )
+        5,
+      ),
     );
     if (bot) {
       ptlist.push(
@@ -269,8 +261,8 @@ export class Arch {
             [-wid * 0.5, 0],
             [mid, per],
           ],
-          5
-        )
+          5,
+        ),
       );
       ptlist.push(
         div(
@@ -278,8 +270,8 @@ export class Arch {
             [wid * 0.5, 0],
             [mid, per],
           ],
-          5
-        )
+          5,
+        ),
       );
     }
     ptlist.push(
@@ -288,8 +280,8 @@ export class Arch {
           [mid, -hei],
           [mid, per],
         ],
-        5
-      )
+        5,
+      ),
     );
     if (tra) {
       if (bot) {
@@ -299,8 +291,8 @@ export class Arch {
               [-wid * 0.5, 0],
               [bmid, -per],
             ],
-            5
-          )
+            5,
+          ),
         );
         ptlist.push(
           div(
@@ -308,8 +300,8 @@ export class Arch {
               [wid * 0.5, 0],
               [bmid, -per],
             ],
-            5
-          )
+            5,
+          ),
         );
       }
       ptlist.push(
@@ -318,8 +310,8 @@ export class Arch {
             [bmid, -hei],
             [bmid, -per],
           ],
-          5
-        )
+          5,
+        ),
       );
     }
 
@@ -342,13 +334,13 @@ export class Arch {
       [-wid * 0.5, 0],
     ];
 
-    let canv = '';
+    let canv = "";
     if (!tra) {
       canv += poly(polist, {
         xof: xoff,
         yof: yoff,
-        str: 'none',
-        fil: 'white',
+        str: "none",
+        fil: "white",
       });
     }
 
@@ -356,11 +348,11 @@ export class Arch {
       canv += stroke(
         ptlist[i].map((x) => [x[0] + xoff, x[1] + yoff]),
         {
-          col: 'rgba(100,100,100,0.4)',
+          col: "rgba(100,100,100,0.4)",
           noi: 1,
           wid: wei,
           fun: (x: number) => 1,
-        }
+        },
       );
     }
     return canv;
@@ -378,7 +370,7 @@ export class Arch {
       pdr?: Point;
       hsp?: [number, number];
       vsp?: [number, number];
-    } = {}
+    } = {},
   ): Polygon[] {
     const pul = params.pul ?? [0, 0];
     const pur = params.pur ?? [0, 100];
@@ -465,8 +457,8 @@ export class Arch {
             [-wid * 0.5, 0],
             [mid, per],
           ],
-          seg
-        )
+          seg,
+        ),
       );
       ptlist.push(
         div(
@@ -474,8 +466,8 @@ export class Arch {
             [mid, per],
             [wid * 0.5, 0],
           ],
-          seg
-        )
+          seg,
+        ),
       );
     }
     if (tra) {
@@ -485,8 +477,8 @@ export class Arch {
             [-wid * 0.5, 0],
             [bmid, -per],
           ],
-          seg
-        )
+          seg,
+        ),
       );
       ptlist.push(
         div(
@@ -494,8 +486,8 @@ export class Arch {
             [bmid, -per],
             [wid * 0.5, 0],
           ],
-          seg
-        )
+          seg,
+        ),
       );
     }
     if (fro) {
@@ -505,8 +497,8 @@ export class Arch {
             [-wid * 0.5, -hei],
             [mid, -hei + per],
           ],
-          seg
-        )
+          seg,
+        ),
       );
       ptlist.push(
         div(
@@ -514,8 +506,8 @@ export class Arch {
             [mid, -hei + per],
             [wid * 0.5, -hei],
           ],
-          seg
-        )
+          seg,
+        ),
       );
     }
     if (tra) {
@@ -525,8 +517,8 @@ export class Arch {
             [-wid * 0.5, -hei],
             [bmid, -hei - per],
           ],
-          seg
-        )
+          seg,
+        ),
       );
       ptlist.push(
         div(
@@ -534,8 +526,8 @@ export class Arch {
             [bmid, -hei - per],
             [wid * 0.5, -hei],
           ],
-          seg
-        )
+          seg,
+        ),
       );
     }
 
@@ -547,7 +539,7 @@ export class Arch {
       ].slice(0, -1);
     }
 
-    let canv = '';
+    let canv = "";
 
     for (let i = 0; i < ptlist.length / 2; i++) {
       for (let j = 0; j < ptlist[i].length; j++) {
@@ -562,14 +554,14 @@ export class Arch {
               j % ptlist[(ptlist.length / 2 + i) % ptlist.length].length
             ],
           ],
-          2
+          2,
         );
         ln[0][0] += (prng.random() - 0.5) * hei * 0.5;
         canv += poly(ln, {
           xof: xoff,
           yof: yoff,
-          fil: 'none',
-          str: 'rgba(100,100,100,0.5)',
+          fil: "none",
+          str: "rgba(100,100,100,0.5)",
           wid: 2,
         });
       }
@@ -579,11 +571,11 @@ export class Arch {
       canv += stroke(
         ptlist[i].map((x) => [x[0] + xoff, x[1] + yoff]),
         {
-          col: 'rgba(100,100,100,0.5)',
+          col: "rgba(100,100,100,0.5)",
           noi: 0.5,
           wid: wei,
           fun: (x: number) => 1,
-        }
+        },
       );
     }
     return canv;
@@ -599,7 +591,7 @@ export class Arch {
     const per = options.per ?? 4;
     const cor = options.cor ?? 5;
     const wei = options.wei ?? 3;
-    const pla = options.pla ?? [0, ''];
+    const pla = options.pla ?? [0, ""];
 
     const opf = (ptlist: Polygon): Polygon => {
       if (rot < 0.5) {
@@ -622,8 +614,8 @@ export class Arch {
           [-wid * 0.5 + quat * 0.5, -hei / 2 - per / 4],
           [-wid * 0.5 - cor, 0],
         ]),
-        5
-      )
+        5,
+      ),
     );
     ptlist.push(
       div(
@@ -632,8 +624,8 @@ export class Arch {
           [(mid + quat + wid * 0.5) / 2, -hei / 2],
           [wid * 0.5 + cor, 0],
         ]),
-        5
-      )
+        5,
+      ),
     );
     ptlist.push(
       div(
@@ -642,8 +634,8 @@ export class Arch {
           [mid + quat / 2, -hei / 2 + per / 2],
           [mid + cor, per],
         ]),
-        5
-      )
+        5,
+      ),
     );
     ptlist.push(
       div(
@@ -651,8 +643,8 @@ export class Arch {
           [-wid * 0.5 - cor, 0],
           [mid + cor, per],
         ]),
-        5
-      )
+        5,
+      ),
     );
     ptlist.push(
       div(
@@ -660,8 +652,8 @@ export class Arch {
           [wid * 0.5 + cor, 0],
           [mid + cor, per],
         ]),
-        5
-      )
+        5,
+      ),
     );
     ptlist.push(
       div(
@@ -669,11 +661,11 @@ export class Arch {
           [-wid * 0.5 + quat, -hei - per / 2],
           [mid + quat, -hei],
         ]),
-        5
-      )
+        5,
+      ),
     );
 
-    let canv = '';
+    let canv = "";
 
     const polist = opf([
       [-wid * 0.5, 0],
@@ -682,17 +674,17 @@ export class Arch {
       [wid * 0.5, 0],
       [mid, per],
     ]);
-    canv += poly(polist, { xof: xoff, yof: yoff, str: 'none', fil: 'white' });
+    canv += poly(polist, { xof: xoff, yof: yoff, str: "none", fil: "white" });
 
     for (let i = 0; i < ptlist.length; i++) {
       canv += stroke(
         ptlist[i].map((x) => [x[0] + xoff, x[1] + yoff]),
         {
-          col: 'rgba(100,100,100,0.4)',
+          col: "rgba(100,100,100,0.4)",
           noi: 1,
           wid: wei,
           fun: (x: number) => 1,
-        }
+        },
       );
     }
 
@@ -715,13 +707,13 @@ export class Arch {
         " style='fill:rgba(100,100,100,0.9)'" +
         " text-anchor='middle' transform='translate(" +
         (mp[0] + xoff) +
-        ',' +
+        "," +
         (mp[1] + yoff) +
-        ') rotate(' +
+        ") rotate(" +
         adeg +
         ")'>" +
         pla[1] +
-        '</text>';
+        "</text>";
     }
     return canv;
   }
@@ -740,7 +732,7 @@ export class Arch {
 
     const ptlist: Point[][] = [];
     const polist: Polygon = [[0, -hei]];
-    let canv = '';
+    let canv = "";
 
     for (let i = 0; i < sid; i++) {
       const fx = wid * ((i * 1.0) / (sid - 1) - 0.5);
@@ -757,16 +749,16 @@ export class Arch {
       polist.push([fxx, fy]);
     }
 
-    canv += poly(polist, { xof: xoff, yof: yoff, str: 'none', fil: 'white' });
+    canv += poly(polist, { xof: xoff, yof: yoff, str: "none", fil: "white" });
     for (let i = 0; i < ptlist.length; i++) {
       canv += stroke(
         div(ptlist[i], 5).map((x) => [x[0] + xoff, x[1] + yoff]),
         {
-          col: 'rgba(100,100,100,0.4)',
+          col: "rgba(100,100,100,0.4)",
           noi: 1,
           wid: wei,
           fun: (x: number) => 1,
-        }
+        },
       );
     }
 
@@ -786,7 +778,7 @@ export class Arch {
     const h0 = hei * p;
     const h1 = hei * (1 - p);
 
-    let canv = '';
+    let canv = "";
     canv += this.hut(xoff, yoff - hei, { hei: h0, wid: wid });
     canv += this.box(xoff, yoff, {
       hei: h1,
@@ -847,7 +839,7 @@ export class Arch {
     const rot = options.rot ?? 0.3;
     const sty = options.sty ?? 1;
 
-    let canv = '';
+    let canv = "";
     let hoff = 0;
 
     for (let i = 0; i < sto; i++) {
@@ -875,11 +867,11 @@ export class Arch {
             wei: 0.5,
             tra: false,
           })
-        : '';
+        : "";
 
       let pla: [number, string] | undefined = undefined;
       if (sto === 1 && prng.random() < 1 / 3) {
-        pla = [1, 'Pizza Hut'];
+        pla = [1, "Pizza Hut"];
       }
 
       canv += this.roof(xoff, yoff - hoff - hei, {
@@ -908,7 +900,7 @@ export class Arch {
     const wid = options.wid ?? 50;
     const sto = options.sto ?? 7;
 
-    let canv = '';
+    let canv = "";
     let hoff = 0;
 
     for (let i = 0; i < sto; i++) {
@@ -957,7 +949,7 @@ export class Arch {
     // Only sto can be customized
     const sto = options.sto ?? 2;
 
-    let canv = '';
+    let canv = "";
     let hoff = 0;
 
     for (let i = 0; i < sto; i++) {
@@ -1002,7 +994,7 @@ export class Arch {
     const sca = options.sca ?? 1;
     const fli = options.fli ?? false;
 
-    let canv = '';
+    let canv = "";
     const dir = fli ? -1 : 1;
 
     canv += Man.man(xoff + 20 * sca * dir, yoff, {
@@ -1024,14 +1016,14 @@ export class Arch {
     }
 
     const plist = plist1.concat(plist2.reverse());
-    canv += poly(plist, { xof: xoff, yof: yoff, fil: 'white' });
+    canv += poly(plist, { xof: xoff, yof: yoff, fil: "white" });
     canv += stroke(
       plist.map((v) => [xoff + v[0], yoff + v[1]]),
       {
         wid: 1,
         fun: (x: number) => Math.sin(x * Math.PI * 2),
-        col: 'rgba(100,100,100,0.4)',
-      }
+        col: "rgba(100,100,100,0.4)",
+      },
     );
 
     return canv;
@@ -1044,19 +1036,19 @@ export class Arch {
     xoff: number,
     yoff: number,
     seed: number,
-    options: TransmissionTower01Options = {}
+    options: TransmissionTower01Options = {},
   ): string {
     const hei = options.hei ?? 100;
     const wid = options.wid ?? 20;
 
-    let canv = '';
+    let canv = "";
     const toGlobal = (v: Point): Point => [v[0] + xoff, v[1] + yoff];
 
     const quickstroke = (pl: Polygon): string =>
       stroke(div(pl, 5).map(toGlobal), {
         wid: 1,
         fun: (x: number) => 0.5,
-        col: 'rgba(100,100,100,0.4)',
+        col: "rgba(100,100,100,0.4)",
       });
 
     const p00: Point = [-wid * 0.05, -hei];

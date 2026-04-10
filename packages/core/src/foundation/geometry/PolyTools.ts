@@ -24,15 +24,16 @@ export class PolyTools {
    * @returns The midpoint
    */
   static midPt(...points: Point[] | [Point[]]): Point {
-    const plist = points.length === 1 && Array.isArray(points[0][0])
-      ? (points[0] as Point[])
-      : (points as Point[]);
+    const plist =
+      points.length === 1 && Array.isArray(points[0][0])
+        ? (points[0] as Point[])
+        : (points as Point[]);
 
     return plist.reduce(
       (acc, v) => {
         return [v[0] / plist.length + acc[0], v[1] / plist.length + acc[1]];
       },
-      [0, 0] as Point
+      [0, 0] as Point,
     );
   }
 
@@ -106,7 +107,10 @@ export class PolyTools {
      * Check if a line segment is inside a polygon
      */
     function lnInPoly(ln: Line, plist: Polygon): boolean {
-      const lnc: Line = [[0, 0], [0, 0]];
+      const lnc: Line = [
+        [0, 0],
+        [0, 0],
+      ];
       const ep = 0.01;
 
       lnc[0][0] = ln[0][0] * (1 - ep) + ln[1][0] * ep;
@@ -214,7 +218,7 @@ export class PolyTools {
         try {
           const mid = PolyTools.midPt([plist[ind], plist[nind]]);
           return shatter([plist[ind], mid, plist[lind]], a).concat(
-            shatter([plist[lind], plist[nind], mid], a)
+            shatter([plist[lind], plist[nind], mid], a),
           );
         } catch (err) {
           console.log(plist);

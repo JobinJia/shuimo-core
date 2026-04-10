@@ -1,25 +1,24 @@
 <script setup lang="ts">
-import { cloud } from '@shuimo/core'
-import { onMounted, ref } from 'vue'
+import { cloud } from "@shuimo/core";
+import { onMounted, ref } from "vue";
 
-const canvasContainer = ref<HTMLDivElement>()
-const seedInput = ref(String(Date.now()))
-const width = ref(800)
-const height = ref(600)
-const size = ref(400)
-const color = ref('100,100,100')
+const canvasContainer = ref<HTMLDivElement>();
+const seedInput = ref(String(Date.now()));
+const width = ref(800);
+const height = ref(600);
+const size = ref(400);
+const color = ref("100,100,100");
 
 // Fractal noise parameters
-const octaves = ref(4)
-const frequency = ref(0.005)
-const threshold = ref(0.3)
-const mode = ref<'particles' | 'continuous'>('continuous')
+const octaves = ref(4);
+const frequency = ref(0.005);
+const threshold = ref(0.3);
+const mode = ref<"particles" | "continuous">("continuous");
 
 function generate() {
-  if (!canvasContainer.value)
-    return
+  if (!canvasContainer.value) return;
 
-  const seed = Number.parseInt(seedInput.value) || Date.now()
+  const seed = Number.parseInt(seedInput.value) || Date.now();
 
   const cloudCanvas = cloud(0, 0, seed, {
     width: width.value,
@@ -30,30 +29,28 @@ function generate() {
     frequency: frequency.value,
     threshold: threshold.value,
     mode: mode.value,
-  })
+  });
 
   // Clear container and append canvas
-  canvasContainer.value.innerHTML = ''
-  canvasContainer.value.appendChild(cloudCanvas)
+  canvasContainer.value.innerHTML = "";
+  canvasContainer.value.appendChild(cloudCanvas);
 }
 
 function generateNew() {
-  seedInput.value = String(Date.now())
-  generate()
+  seedInput.value = String(Date.now());
+  generate();
 }
 
 onMounted(() => {
-  generate()
-})
+  generate();
+});
 </script>
 
 <template>
   <div class="cloud-demo">
     <div class="header">
       <h1>Fractal Cloud Generator</h1>
-      <p class="subtitle">
-        Chinese ink wash style clouds using fractal noise (fBm)
-      </p>
+      <p class="subtitle">Chinese ink wash style clouds using fractal noise (fBm)</p>
     </div>
 
     <div class="controls">
@@ -62,57 +59,29 @@ onMounted(() => {
 
         <div class="control-group">
           <label for="seed-input">Seed:</label>
-          <input
-            id="seed-input"
-            v-model="seedInput"
-            type="text"
-            @keyup.enter="generate"
-          >
+          <input id="seed-input" v-model="seedInput" type="text" @keyup.enter="generate" />
         </div>
 
         <div class="control-row">
           <div class="control-group">
             <label for="width-input">Canvas Width:</label>
-            <input
-              id="width-input"
-              v-model.number="width"
-              type="number"
-              min="400"
-              max="1200"
-            >
+            <input id="width-input" v-model.number="width" type="number" min="400" max="1200" />
           </div>
 
           <div class="control-group">
             <label for="height-input">Canvas Height:</label>
-            <input
-              id="height-input"
-              v-model.number="height"
-              type="number"
-              min="300"
-              max="800"
-            >
+            <input id="height-input" v-model.number="height" type="number" min="300" max="800" />
           </div>
         </div>
 
         <div class="control-group">
           <label for="size-input">Cloud Size:</label>
-          <input
-            id="size-input"
-            v-model.number="size"
-            type="number"
-            min="100"
-            max="800"
-          >
+          <input id="size-input" v-model.number="size" type="number" min="100" max="800" />
         </div>
 
         <div class="control-group">
           <label for="color-input">Color (RGB):</label>
-          <input
-            id="color-input"
-            v-model="color"
-            type="text"
-            placeholder="100,100,100"
-          >
+          <input id="color-input" v-model="color" type="text" placeholder="100,100,100" />
         </div>
       </div>
 
@@ -123,21 +92,11 @@ onMounted(() => {
           <label>Mode:</label>
           <div class="radio-group">
             <label class="radio-label">
-              <input
-                v-model="mode"
-                type="radio"
-                value="continuous"
-                @change="generate"
-              >
+              <input v-model="mode" type="radio" value="continuous" @change="generate" />
               Continuous (像素纹理)
             </label>
             <label class="radio-label">
-              <input
-                v-model="mode"
-                type="radio"
-                value="particles"
-                @change="generate"
-              >
+              <input v-model="mode" type="radio" value="particles" @change="generate" />
               Particles (粒子效果)
             </label>
           </div>
@@ -156,7 +115,7 @@ onMounted(() => {
             min="1"
             max="8"
             step="1"
-          >
+          />
           <span class="value">{{ octaves }}</span>
         </div>
 
@@ -169,7 +128,7 @@ onMounted(() => {
             min="0.001"
             max="0.02"
             step="0.001"
-          >
+          />
           <span class="value">{{ frequency.toFixed(3) }}</span>
         </div>
 
@@ -182,18 +141,14 @@ onMounted(() => {
             min="0.1"
             max="0.6"
             step="0.05"
-          >
+          />
           <span class="value">{{ threshold.toFixed(2) }}</span>
         </div>
       </div>
 
       <div class="button-group">
-        <button class="btn-primary" @click="generateNew">
-          Generate New Cloud
-        </button>
-        <button class="btn-secondary" @click="generate">
-          Regenerate
-        </button>
+        <button class="btn-primary" @click="generateNew">Generate New Cloud</button>
+        <button class="btn-secondary" @click="generate">Regenerate</button>
       </div>
     </div>
 
@@ -204,20 +159,25 @@ onMounted(() => {
     <div class="info">
       <h2>Fractal Noise Based Cloud (fBm)</h2>
       <p>
-        This implementation creates realistic cloud formations using <strong>Fractional Brownian Motion (fBm)</strong>,
-        a technique that combines multiple octaves of Perlin noise at different frequencies and amplitudes.
-        This approach creates natural, billowy clouds similar to traditional Chinese ink wash (水墨) paintings.
+        This implementation creates realistic cloud formations using
+        <strong>Fractional Brownian Motion (fBm)</strong>, a technique that combines multiple
+        octaves of Perlin noise at different frequencies and amplitudes. This approach creates
+        natural, billowy clouds similar to traditional Chinese ink wash (水墨) paintings.
       </p>
 
       <h3>Algorithm: Fractal Noise (fBm)</h3>
       <p>
-        The core technique is to layer multiple noise functions with increasing frequency and decreasing amplitude:
+        The core technique is to layer multiple noise functions with increasing frequency and
+        decreasing amplitude:
       </p>
       <ul>
         <li><strong>Octave 1:</strong> frequency × 1, amplitude × 1.0 (large features)</li>
         <li><strong>Octave 2:</strong> frequency × 2, amplitude × 0.5 (medium details)</li>
         <li><strong>Octave 3:</strong> frequency × 4, amplitude × 0.25 (fine details)</li>
-        <li><strong>Octave 4+:</strong> frequency × 8, 16, 32..., amplitude × 0.125, 0.0625... (micro details)</li>
+        <li>
+          <strong>Octave 4+:</strong> frequency × 8, 16, 32..., amplitude × 0.125, 0.0625... (micro
+          details)
+        </li>
       </ul>
       <p>
         Each octave adds progressively finer detail while contributing less to the overall shape.
@@ -225,42 +185,63 @@ onMounted(() => {
       </p>
 
       <h3>Render Modes</h3>
-      <p>
-        Two rendering approaches are available:
-      </p>
+      <p>Two rendering approaches are available:</p>
       <ul>
         <li>
-          <strong>Continuous (像素纹理):</strong> Every pixel is sampled from fractal noise.
-          Creates smooth, continuous cloud textures similar to the reference image.
-          Best for realistic cloud formations.
+          <strong>Continuous (像素纹理):</strong> Every pixel is sampled from fractal noise. Creates
+          smooth, continuous cloud textures similar to the reference image. Best for realistic cloud
+          formations.
         </li>
         <li>
-          <strong>Particles (粒子效果):</strong> Samples noise every few pixels and renders as overlapping particles.
-          Creates soft, ink-wash style clouds with organic edges.
-          Best for traditional Chinese painting effects.
+          <strong>Particles (粒子效果):</strong> Samples noise every few pixels and renders as
+          overlapping particles. Creates soft, ink-wash style clouds with organic edges. Best for
+          traditional Chinese painting effects.
         </li>
       </ul>
 
       <h3>Implementation Steps (Continuous Mode)</h3>
       <ol>
-        <li><strong>Pixel Sampling:</strong> For each pixel, calculate fractal noise value at that coordinate</li>
-        <li><strong>Apply Threshold:</strong> Values below threshold become transparent, creating cloud shape</li>
-        <li><strong>Map to Alpha:</strong> Noise density directly maps to pixel transparency (0-255)</li>
-        <li><strong>Render ImageData:</strong> Write RGBA values directly to canvas via putImageData</li>
+        <li>
+          <strong>Pixel Sampling:</strong> For each pixel, calculate fractal noise value at that
+          coordinate
+        </li>
+        <li>
+          <strong>Apply Threshold:</strong> Values below threshold become transparent, creating
+          cloud shape
+        </li>
+        <li>
+          <strong>Map to Alpha:</strong> Noise density directly maps to pixel transparency (0-255)
+        </li>
+        <li>
+          <strong>Render ImageData:</strong> Write RGBA values directly to canvas via putImageData
+        </li>
       </ol>
 
       <h3>Parameters Explained</h3>
       <ul>
-        <li><strong>Octaves:</strong> Number of noise layers (1-8). More octaves = more detail but slower rendering</li>
-        <li><strong>Frequency:</strong> Base noise scale (0.001-0.02). Lower = larger cloud features</li>
-        <li><strong>Threshold:</strong> Density cutoff (0.1-0.6). Lower = denser/larger clouds, higher = wispy clouds</li>
+        <li>
+          <strong>Octaves:</strong> Number of noise layers (1-8). More octaves = more detail but
+          slower rendering
+        </li>
+        <li>
+          <strong>Frequency:</strong> Base noise scale (0.001-0.02). Lower = larger cloud features
+        </li>
+        <li>
+          <strong>Threshold:</strong> Density cutoff (0.1-0.6). Lower = denser/larger clouds, higher
+          = wispy clouds
+        </li>
         <li><strong>Cloud Size:</strong> Bounding box size for the cloud region</li>
       </ul>
 
       <h3>Why Fractal Noise?</h3>
       <ul>
-        <li>✨ <strong>Natural Appearance:</strong> Mimics natural cloud formation through turbulence</li>
-        <li>✨ <strong>Multi-scale Detail:</strong> Large billows with fine wisps, just like real clouds</li>
+        <li>
+          ✨ <strong>Natural Appearance:</strong> Mimics natural cloud formation through turbulence
+        </li>
+        <li>
+          ✨ <strong>Multi-scale Detail:</strong> Large billows with fine wisps, just like real
+          clouds
+        </li>
         <li>✨ <strong>Organic Shapes:</strong> No artificial boundaries or geometric artifacts</li>
         <li>✨ <strong>Controllable:</strong> Intuitive parameters for different cloud types</li>
         <li>✨ <strong>Reproducible:</strong> Same seed always generates the same cloud</li>

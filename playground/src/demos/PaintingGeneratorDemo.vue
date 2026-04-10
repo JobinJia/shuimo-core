@@ -1,96 +1,118 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { PaintingGenerator, type BlankPosition, type PaintingType, XuanPaperColors, GoldFleckColors } from '@shuimo/core'
+import { onMounted, ref } from "vue";
+import {
+  PaintingGenerator,
+  type BlankPosition,
+  type PaintingType,
+  XuanPaperColors,
+  GoldFleckColors,
+} from "@shuimo/core";
 
 // Form state
-const paintingType = ref<PaintingType>('landscape')
-const width = ref(1400)
-const height = ref(800)
-const onXuanPaper = ref(true)
-const blankPosition = ref<BlankPosition>('none')
-const seed = ref(String(Date.now()))
+const paintingType = ref<PaintingType>("landscape");
+const width = ref(1400);
+const height = ref(800);
+const onXuanPaper = ref(true);
+const blankPosition = ref<BlankPosition>("none");
+const seed = ref(String(Date.now()));
 
 // Flower options
-const flowerType = ref<'woody' | 'herbal' | 'random'>('random')
+const flowerType = ref<"woody" | "herbal" | "random">("random");
 
 // Xuan paper options
-const paperColorPreset = ref<'processed' | 'raw' | 'antique' | 'teaStained' | 'moonWhite' | 'custom'>('processed')
-const customPaperColor = ref({ r: 252, g: 250, b: 240 })
-const textureIntensity = ref(0.3)
-const age = ref(0)
-const fiberDensity = ref(1.0)
-const grainDensity = ref(0.5)
+const paperColorPreset = ref<
+  "processed" | "raw" | "antique" | "teaStained" | "moonWhite" | "custom"
+>("processed");
+const customPaperColor = ref({ r: 252, g: 250, b: 240 });
+const textureIntensity = ref(0.3);
+const age = ref(0);
+const fiberDensity = ref(1.0);
+const grainDensity = ref(0.5);
 
 // Gold fleck options
-const goldFlecks = ref(false)
-const goldDensity = ref(0.5)
-const goldColorPreset = ref<'gold' | 'paleGold' | 'roseGold' | 'copper' | 'silver' | 'bronze'>('gold')
+const goldFlecks = ref(false);
+const goldDensity = ref(0.5);
+const goldColorPreset = ref<"gold" | "paleGold" | "roseGold" | "copper" | "silver" | "bronze">(
+  "gold",
+);
 
 // Canvas container
-const canvasContainer = ref<HTMLDivElement | null>(null)
+const canvasContainer = ref<HTMLDivElement | null>(null);
 
 // Paper color presets
 const paperColorOptions = [
-  { value: 'processed', label: '熟宣 (暖白)' },
-  { value: 'raw', label: '生宣 (纯白)' },
-  { value: 'antique', label: '古宣 (米黄)' },
-  { value: 'teaStained', label: '茶染 (浅褐)' },
-  { value: 'moonWhite', label: '月白 (冷白)' },
-  { value: 'custom', label: '自定义' },
-]
+  { value: "processed", label: "熟宣 (暖白)" },
+  { value: "raw", label: "生宣 (纯白)" },
+  { value: "antique", label: "古宣 (米黄)" },
+  { value: "teaStained", label: "茶染 (浅褐)" },
+  { value: "moonWhite", label: "月白 (冷白)" },
+  { value: "custom", label: "自定义" },
+];
 
 // Gold color presets
 const goldColorOptions = [
-  { value: 'gold', label: '经典金' },
-  { value: 'paleGold', label: '淡金' },
-  { value: 'roseGold', label: '玫瑰金' },
-  { value: 'copper', label: '古铜' },
-  { value: 'silver', label: '银' },
-  { value: 'bronze', label: '青铜' },
-]
+  { value: "gold", label: "经典金" },
+  { value: "paleGold", label: "淡金" },
+  { value: "roseGold", label: "玫瑰金" },
+  { value: "copper", label: "古铜" },
+  { value: "silver", label: "银" },
+  { value: "bronze", label: "青铜" },
+];
 
 // Blank position options
 const blankPositionOptions: { value: BlankPosition; label: string }[] = [
-  { value: 'none', label: '无留白' },
-  { value: 'topLeft', label: '左上' },
-  { value: 'top', label: '上方' },
-  { value: 'topRight', label: '右上' },
-  { value: 'left', label: '左侧' },
-  { value: 'center', label: '中心' },
-  { value: 'right', label: '右侧' },
-  { value: 'bottomLeft', label: '左下' },
-  { value: 'bottom', label: '下方' },
-  { value: 'bottomRight', label: '右下' },
-]
+  { value: "none", label: "无留白" },
+  { value: "topLeft", label: "左上" },
+  { value: "top", label: "上方" },
+  { value: "topRight", label: "右上" },
+  { value: "left", label: "左侧" },
+  { value: "center", label: "中心" },
+  { value: "right", label: "右侧" },
+  { value: "bottomLeft", label: "左下" },
+  { value: "bottom", label: "下方" },
+  { value: "bottomRight", label: "右下" },
+];
 
 function getPaperColor(): [number, number, number] {
   switch (paperColorPreset.value) {
-    case 'raw': return XuanPaperColors.raw
-    case 'antique': return XuanPaperColors.antique
-    case 'teaStained': return XuanPaperColors.teaStained
-    case 'moonWhite': return XuanPaperColors.moonWhite
-    case 'custom': return [customPaperColor.value.r, customPaperColor.value.g, customPaperColor.value.b]
-    case 'processed':
-    default: return XuanPaperColors.processed
+    case "raw":
+      return XuanPaperColors.raw;
+    case "antique":
+      return XuanPaperColors.antique;
+    case "teaStained":
+      return XuanPaperColors.teaStained;
+    case "moonWhite":
+      return XuanPaperColors.moonWhite;
+    case "custom":
+      return [customPaperColor.value.r, customPaperColor.value.g, customPaperColor.value.b];
+    case "processed":
+    default:
+      return XuanPaperColors.processed;
   }
 }
 
 function getGoldColor(): [number, number, number] {
   switch (goldColorPreset.value) {
-    case 'paleGold': return GoldFleckColors.paleGold
-    case 'roseGold': return GoldFleckColors.roseGold
-    case 'copper': return GoldFleckColors.copper
-    case 'silver': return GoldFleckColors.silver
-    case 'bronze': return GoldFleckColors.bronze
-    case 'gold':
-    default: return GoldFleckColors.gold
+    case "paleGold":
+      return GoldFleckColors.paleGold;
+    case "roseGold":
+      return GoldFleckColors.roseGold;
+    case "copper":
+      return GoldFleckColors.copper;
+    case "silver":
+      return GoldFleckColors.silver;
+    case "bronze":
+      return GoldFleckColors.bronze;
+    case "gold":
+    default:
+      return GoldFleckColors.gold;
   }
 }
 
 function render() {
-  if (!canvasContainer.value) return
+  if (!canvasContainer.value) return;
 
-  const seedNum = Number.parseInt(seed.value) || Date.now()
+  const seedNum = Number.parseInt(seed.value) || Date.now();
 
   const result = PaintingGenerator.generate({
     type: paintingType.value,
@@ -110,34 +132,34 @@ function render() {
       goldDensity: goldDensity.value,
       goldColor: getGoldColor(),
     },
-  })
+  });
 
-  canvasContainer.value.innerHTML = result.svg
+  canvasContainer.value.innerHTML = result.svg;
 }
 
 function randomSeed() {
-  seed.value = String(Date.now())
-  render()
+  seed.value = String(Date.now());
+  render();
 }
 
 function downloadSVG() {
-  if (!canvasContainer.value) return
+  if (!canvasContainer.value) return;
 
-  const svgContent = canvasContainer.value.innerHTML
-  const blob = new Blob([svgContent], { type: 'image/svg+xml' })
-  const url = URL.createObjectURL(blob)
+  const svgContent = canvasContainer.value.innerHTML;
+  const blob = new Blob([svgContent], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
 
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `shuimo-${paintingType.value}-${seed.value}.svg`
-  link.click()
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `shuimo-${paintingType.value}-${seed.value}.svg`;
+  link.click();
 
-  URL.revokeObjectURL(url)
+  URL.revokeObjectURL(url);
 }
 
 onMounted(() => {
-  render()
-})
+  render();
+});
 </script>
 
 <template>
@@ -159,17 +181,17 @@ onMounted(() => {
 
         <div class="control-row">
           <label>宽度</label>
-          <input v-model.number="width" type="number" min="400" max="2000" step="100">
+          <input v-model.number="width" type="number" min="400" max="2000" step="100" />
         </div>
 
         <div class="control-row">
           <label>高度</label>
-          <input v-model.number="height" type="number" min="300" max="1500" step="100">
+          <input v-model.number="height" type="number" min="300" max="1500" step="100" />
         </div>
 
         <div class="control-row">
           <label>随机种子</label>
-          <input v-model="seed" type="text">
+          <input v-model="seed" type="text" />
         </div>
       </div>
 
@@ -179,7 +201,7 @@ onMounted(() => {
 
         <div class="control-row checkbox">
           <label>
-            <input v-model="onXuanPaper" type="checkbox">
+            <input v-model="onXuanPaper" type="checkbox" />
             使用宣纸背景
           </label>
         </div>
@@ -188,11 +210,7 @@ onMounted(() => {
           <div class="control-row">
             <label>纸张颜色</label>
             <select v-model="paperColorPreset">
-              <option
-                v-for="opt in paperColorOptions"
-                :key="opt.value"
-                :value="opt.value"
-              >
+              <option v-for="opt in paperColorOptions" :key="opt.value" :value="opt.value">
                 {{ opt.label }}
               </option>
             </select>
@@ -201,42 +219,42 @@ onMounted(() => {
           <template v-if="paperColorPreset === 'custom'">
             <div class="control-row color-picker">
               <label>R</label>
-              <input v-model.number="customPaperColor.r" type="range" min="200" max="255">
+              <input v-model.number="customPaperColor.r" type="range" min="200" max="255" />
               <span class="value">{{ customPaperColor.r }}</span>
             </div>
             <div class="control-row color-picker">
               <label>G</label>
-              <input v-model.number="customPaperColor.g" type="range" min="200" max="255">
+              <input v-model.number="customPaperColor.g" type="range" min="200" max="255" />
               <span class="value">{{ customPaperColor.g }}</span>
             </div>
             <div class="control-row color-picker">
               <label>B</label>
-              <input v-model.number="customPaperColor.b" type="range" min="180" max="255">
+              <input v-model.number="customPaperColor.b" type="range" min="180" max="255" />
               <span class="value">{{ customPaperColor.b }}</span>
             </div>
           </template>
 
           <div class="control-row">
             <label>纹理强度</label>
-            <input v-model.number="textureIntensity" type="range" min="0" max="1" step="0.1">
+            <input v-model.number="textureIntensity" type="range" min="0" max="1" step="0.1" />
             <span class="value">{{ textureIntensity.toFixed(1) }}</span>
           </div>
 
           <div class="control-row">
             <label>陈旧程度</label>
-            <input v-model.number="age" type="range" min="0" max="1" step="0.1">
+            <input v-model.number="age" type="range" min="0" max="1" step="0.1" />
             <span class="value">{{ age.toFixed(1) }}</span>
           </div>
 
           <div class="control-row">
             <label>纤维密度</label>
-            <input v-model.number="fiberDensity" type="range" min="0" max="2" step="0.2">
+            <input v-model.number="fiberDensity" type="range" min="0" max="2" step="0.2" />
             <span class="value">{{ fiberDensity.toFixed(1) }}</span>
           </div>
 
           <div class="control-row">
             <label>颗粒密度</label>
-            <input v-model.number="grainDensity" type="range" min="0" max="1" step="0.1">
+            <input v-model.number="grainDensity" type="range" min="0" max="1" step="0.1" />
             <span class="value">{{ grainDensity.toFixed(1) }}</span>
           </div>
 
@@ -244,7 +262,7 @@ onMounted(() => {
           <div class="sub-section">
             <div class="control-row checkbox">
               <label>
-                <input v-model="goldFlecks" type="checkbox">
+                <input v-model="goldFlecks" type="checkbox" />
                 洒金效果 (撒金宣)
               </label>
             </div>
@@ -253,11 +271,7 @@ onMounted(() => {
               <div class="control-row">
                 <label>金色</label>
                 <select v-model="goldColorPreset">
-                  <option
-                    v-for="opt in goldColorOptions"
-                    :key="opt.value"
-                    :value="opt.value"
-                  >
+                  <option v-for="opt in goldColorOptions" :key="opt.value" :value="opt.value">
                     {{ opt.label }}
                   </option>
                 </select>
@@ -265,7 +279,7 @@ onMounted(() => {
 
               <div class="control-row">
                 <label>金量</label>
-                <input v-model.number="goldDensity" type="range" min="0.1" max="1" step="0.1">
+                <input v-model.number="goldDensity" type="range" min="0.1" max="1" step="0.1" />
                 <span class="value">{{ goldDensity.toFixed(1) }}</span>
               </div>
             </template>
@@ -280,11 +294,7 @@ onMounted(() => {
         <div class="control-row">
           <label>留白位置</label>
           <select v-model="blankPosition">
-            <option
-              v-for="opt in blankPositionOptions"
-              :key="opt.value"
-              :value="opt.value"
-            >
+            <option v-for="opt in blankPositionOptions" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </option>
           </select>
@@ -292,10 +302,7 @@ onMounted(() => {
 
         <!-- Blank position visual hint -->
         <div class="blank-hint">
-          <div
-            class="blank-grid"
-            :class="`blank-${blankPosition}`"
-          >
+          <div class="blank-grid" :class="`blank-${blankPosition}`">
             <div v-for="i in 9" :key="i" class="blank-cell" />
           </div>
           <p class="hint-text">浅色区域不生成元素</p>
@@ -318,15 +325,9 @@ onMounted(() => {
 
       <!-- Actions -->
       <div class="control-section actions">
-        <button class="btn-primary" @click="render">
-          生成画作
-        </button>
-        <button @click="randomSeed">
-          随机种子
-        </button>
-        <button @click="downloadSVG">
-          下载 SVG
-        </button>
+        <button class="btn-primary" @click="render">生成画作</button>
+        <button @click="randomSeed">随机种子</button>
+        <button @click="downloadSVG">下载 SVG</button>
       </div>
     </div>
 

@@ -4,8 +4,8 @@ packages:
   - examples/*
 
 overrides:
-  vite: 'catalog:'
-  vitest: 'catalog:'
+  vite: "catalog:"
+  vitest: "catalog:"
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@latest
   vite-plus: latest
@@ -17,5 +17,5 @@ peerDependencyRules:
     - vite
     - vitest
   allowedVersions:
-    vite: '*'
-    vitest: '*'
+    vite: "*"
+    vitest: "*"

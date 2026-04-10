@@ -17,13 +17,14 @@
 从笔画轮廓估算绘画轨迹：
 
 ```typescript
-import { StrokeTrajectoryEstimator } from '@shuimo/core/experimental/stroke-animation'
+import { StrokeTrajectoryEstimator } from "@shuimo/core/experimental/stroke-animation";
 
-const estimator = new StrokeTrajectoryEstimator()
-const trajectory = estimator.estimateTrajectory(strokeShape)
+const estimator = new StrokeTrajectoryEstimator();
+const trajectory = estimator.estimateTrajectory(strokeShape);
 ```
 
 **算法流程：**
+
 - 轮廓分割：将笔画轮廓分为两侧
 - 曲线拟合：使用Bézier曲线拟合轮廓
 - 中轴提取：计算两侧轮廓的中轴线
@@ -35,13 +36,14 @@ const trajectory = estimator.estimateTrajectory(strokeShape)
 根据轨迹生成足迹序列：
 
 ```typescript
-import { BrushFootprintGenerator } from '@shuimo/core/experimental/stroke-animation'
+import { BrushFootprintGenerator } from "@shuimo/core/experimental/stroke-animation";
 
-const generator = new BrushFootprintGenerator()
-const footprints = generator.generateFootprints(trajectory, contour, 50)
+const generator = new BrushFootprintGenerator();
+const footprints = generator.generateFootprints(trajectory, contour, 50);
 ```
 
 **足迹参数：**
+
 - `center` - 足迹中心位置
 - `majorAxis` - 长轴（笔画宽度）
 - `minorAxis` - 短轴（停留时间相关）
@@ -54,15 +56,16 @@ const footprints = generator.generateFootprints(trajectory, contour, 50)
 实时渲染笔画绘制动画：
 
 ```typescript
-import { StrokeAnimator } from '@shuimo/core/experimental/stroke-animation'
+import { StrokeAnimator } from "@shuimo/core/experimental/stroke-animation";
 
-const animator = new StrokeAnimator(canvas)
-animator.setTrajectory(trajectory)
-animator.setSpeed(30) // 足迹/秒
-animator.play()
+const animator = new StrokeAnimator(canvas);
+animator.setTrajectory(trajectory);
+animator.setSpeed(30); // 足迹/秒
+animator.play();
 ```
 
 **渲染特性：**
+
 - 中锋/侧锋效果
 - 干笔效果
 - 墨色扩散
@@ -134,16 +137,16 @@ console.log(`Progress: ${state.progress * 100}%`)
 使用 `StrokeAnimation` 类可以简化流程：
 
 ```typescript
-import { StrokeAnimation } from '@shuimo/core/experimental/stroke-animation'
+import { StrokeAnimation } from "@shuimo/core/experimental/stroke-animation";
 
-const animation = new StrokeAnimation(canvas)
+const animation = new StrokeAnimation(canvas);
 
 // 一键创建动画
-await animation.createAnimation(strokeShape, 50)
+await animation.createAnimation(strokeShape, 50);
 
 // 获取动画器控制
-const animator = animation.getAnimator()
-animator?.play()
+const animator = animation.getAnimator();
+animator?.play();
 ```
 
 ## Playground 演示
@@ -166,11 +169,13 @@ pnpm playground
 ### 笔法识别
 
 **中锋 (Center-tip)**
+
 - 笔尖位于笔画中间
 - 产生规则椭圆足迹
 - 墨色均匀分布
 
 **侧锋 (Side-tip)**
+
 - 笔尖倾斜使用
 - 产生不规则椭圆足迹
 - 墨色不均匀，靠近一侧轮廓

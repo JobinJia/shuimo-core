@@ -1,99 +1,96 @@
 <script setup lang="ts">
-import { generateFlowerCanvas } from '@shuimo/core'
-import { onMounted, ref } from 'vue'
+import { generateFlowerCanvas } from "@shuimo/core";
+import { onMounted, ref } from "vue";
 
-const canvasContainer = ref<HTMLDivElement>()
-const currentSeed = ref('')
-const isGenerating = ref(false)
+const canvasContainer = ref<HTMLDivElement>();
+const currentSeed = ref("");
+const isGenerating = ref(false);
 
 function generate(seed?: string) {
-  if (!canvasContainer.value || isGenerating.value)
-    return
+  if (!canvasContainer.value || isGenerating.value) return;
 
-  isGenerating.value = true
+  isGenerating.value = true;
 
   // Clear previous canvas
-  canvasContainer.value.innerHTML = ''
+  canvasContainer.value.innerHTML = "";
 
   // Use provided seed or generate random
-  const finalSeed = seed || Date.now().toString()
-  currentSeed.value = finalSeed
+  const finalSeed = seed || Date.now().toString();
+  currentSeed.value = finalSeed;
 
   try {
     const canvas = generateFlowerCanvas({
       seed: finalSeed,
-      type: 'random',
+      type: "random",
       width: 600,
       height: 600,
-    })
+    });
 
-    canvasContainer.value.appendChild(canvas)
+    canvasContainer.value.appendChild(canvas);
   } catch (error) {
-    console.error('Failed to generate flower:', error)
+    console.error("Failed to generate flower:", error);
   } finally {
-    isGenerating.value = false
+    isGenerating.value = false;
   }
 }
 
 function generateWoody() {
-  if (!canvasContainer.value || isGenerating.value)
-    return
+  if (!canvasContainer.value || isGenerating.value) return;
 
-  isGenerating.value = true
-  canvasContainer.value.innerHTML = ''
+  isGenerating.value = true;
+  canvasContainer.value.innerHTML = "";
 
-  const seed = Date.now().toString()
-  currentSeed.value = seed
+  const seed = Date.now().toString();
+  currentSeed.value = seed;
 
   try {
     const canvas = generateFlowerCanvas({
       seed,
-      type: 'woody',
+      type: "woody",
       width: 600,
       height: 600,
-    })
+    });
 
-    canvasContainer.value.appendChild(canvas)
+    canvasContainer.value.appendChild(canvas);
   } catch (error) {
-    console.error('Failed to generate woody flower:', error)
+    console.error("Failed to generate woody flower:", error);
   } finally {
-    isGenerating.value = false
+    isGenerating.value = false;
   }
 }
 
 function generateHerbal() {
-  if (!canvasContainer.value || isGenerating.value)
-    return
+  if (!canvasContainer.value || isGenerating.value) return;
 
-  isGenerating.value = true
-  canvasContainer.value.innerHTML = ''
+  isGenerating.value = true;
+  canvasContainer.value.innerHTML = "";
 
-  const seed = Date.now().toString()
-  currentSeed.value = seed
+  const seed = Date.now().toString();
+  currentSeed.value = seed;
 
   try {
     const canvas = generateFlowerCanvas({
       seed,
-      type: 'herbal',
+      type: "herbal",
       width: 600,
       height: 600,
-    })
+    });
 
-    canvasContainer.value.appendChild(canvas)
+    canvasContainer.value.appendChild(canvas);
   } catch (error) {
-    console.error('Failed to generate herbal flower:', error)
+    console.error("Failed to generate herbal flower:", error);
   } finally {
-    isGenerating.value = false
+    isGenerating.value = false;
   }
 }
 
 function regenerateWithSeed() {
-  generate(currentSeed.value)
+  generate(currentSeed.value);
 }
 
 onMounted(() => {
-  generate()
-})
+  generate();
+});
 </script>
 
 <template>
@@ -101,24 +98,12 @@ onMounted(() => {
     <h1>Flower Canvas Test</h1>
 
     <div class="controls">
-      <button :disabled="isGenerating" @click="generate()">
-        🔄 Random
-      </button>
-      <button :disabled="isGenerating" @click="generateWoody()">
-        🌳 Woody
-      </button>
-      <button :disabled="isGenerating" @click="generateHerbal()">
-        🌿 Herbal
-      </button>
+      <button :disabled="isGenerating" @click="generate()">🔄 Random</button>
+      <button :disabled="isGenerating" @click="generateWoody()">🌳 Woody</button>
+      <button :disabled="isGenerating" @click="generateHerbal()">🌿 Herbal</button>
       <div class="seed-control">
-        <input
-          v-model="currentSeed"
-          placeholder="Enter seed"
-          :disabled="isGenerating"
-        >
-        <button :disabled="isGenerating" @click="regenerateWithSeed()">
-          ♻️ Regenerate
-        </button>
+        <input v-model="currentSeed" placeholder="Enter seed" :disabled="isGenerating" />
+        <button :disabled="isGenerating" @click="regenerateWithSeed()">♻️ Regenerate</button>
       </div>
     </div>
 
@@ -159,7 +144,7 @@ h1 {
 button {
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
-  background: #4CAF50;
+  background: #4caf50;
   color: white;
   border: none;
   border-radius: 4px;

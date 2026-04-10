@@ -1,183 +1,183 @@
 <script lang="ts" setup>
-import { onMounted, onUnmounted, ref, computed } from 'vue'
-import { GPUSceneManager } from '@shuimo/core'
+import { onMounted, onUnmounted, ref, computed } from "vue";
+import { GPUSceneManager } from "@shuimo/core";
 
-const canvasRef = ref<HTMLCanvasElement | null>(null)
-const canvasWrapperRef = ref<HTMLDivElement | null>(null)
-const isSupported = ref(true)
-const errorMessage = ref('')
-const showSettings = ref(false)
-const seedInput = ref(String(Date.now()))
-const scrollStep = ref(200)
-const autoScroll = ref(true)
-const hoveredBtn = ref<'left' | 'right' | null>(null)
+const canvasRef = ref<HTMLCanvasElement | null>(null);
+const canvasWrapperRef = ref<HTMLDivElement | null>(null);
+const isSupported = ref(true);
+const errorMessage = ref("");
+const showSettings = ref(false);
+const seedInput = ref(String(Date.now()));
+const scrollStep = ref(200);
+const autoScroll = ref(true);
+const hoveredBtn = ref<"left" | "right" | null>(null);
 
-let sceneManager: GPUSceneManager | null = null
-let animationFrameId: number | null = null
-let targetX = 0
-let smoothX = 0  // 平滑位置（用于实际渲染）
+let sceneManager: GPUSceneManager | null = null;
+let animationFrameId: number | null = null;
+let targetX = 0;
+let smoothX = 0; // 平滑位置（用于实际渲染）
 
 // Initialize
 async function init() {
-  if (!canvasRef.value) return
+  if (!canvasRef.value) return;
 
-  sceneManager = new GPUSceneManager(3000, 800, 512)
-  const success = await sceneManager.initialize(canvasRef.value)
+  sceneManager = new GPUSceneManager(3000, 800, 512);
+  const success = await sceneManager.initialize(canvasRef.value);
 
   if (!success) {
-    isSupported.value = false
-    errorMessage.value = 'WebGPU not supported. Please use Chrome 113+ or Safari 17+'
-    return
+    isSupported.value = false;
+    errorMessage.value = "WebGPU not supported. Please use Chrome 113+ or Safari 17+";
+    return;
   }
 
   // Set initial seed
-  sceneManager.setSeed(Number.parseInt(seedInput.value) || Date.now())
+  sceneManager.setSeed(Number.parseInt(seedInput.value) || Date.now());
 
   // Initial update and render
-  sceneManager.update()
-  sceneManager.render()
+  sceneManager.update();
+  sceneManager.render();
 
   // Start auto-scroll if enabled
   if (autoScroll.value) {
-    startAutoScroll()
+    startAutoScroll();
   }
 }
 
 function regenerateWithSeed() {
-  const seed = seedInput.value || String(Date.now())
-  seedInput.value = seed
-  targetX = 0
-  smoothX = 0
+  const seed = seedInput.value || String(Date.now());
+  seedInput.value = seed;
+  targetX = 0;
+  smoothX = 0;
 
   if (sceneManager) {
-    sceneManager.setSeed(Number.parseInt(seed))
-    sceneManager.setViewportX(0)
-    sceneManager.update()
-    sceneManager.render()
+    sceneManager.setSeed(Number.parseInt(seed));
+    sceneManager.setViewportX(0);
+    sceneManager.update();
+    sceneManager.render();
   }
 }
 
 function scrollLeft() {
-  xcroll(-scrollStep.value)
+  xcroll(-scrollStep.value);
 }
 
 function scrollRight() {
-  xcroll(scrollStep.value)
+  xcroll(scrollStep.value);
 }
 
 function toggleAutoScroll() {
   if (autoScroll.value) {
-    startAutoScroll()
+    startAutoScroll();
   } else {
-    stopAutoScroll()
+    stopAutoScroll();
   }
 }
 
 function startAutoScroll() {
-  if (animationFrameId !== null) return
+  if (animationFrameId !== null) return;
 
   const animate = () => {
     if (!autoScroll.value) {
-      animationFrameId = null
-      return
+      animationFrameId = null;
+      return;
     }
 
     // 每帧增加目标位置
-    targetX += 1.2
+    targetX += 1.2;
 
     // 平滑插值（缓动效果）
-    smoothX += (targetX - smoothX) * 0.1
+    smoothX += (targetX - smoothX) * 0.1;
 
     // 更新视口位置
     if (sceneManager) {
-      sceneManager.setViewportX(smoothX)
+      sceneManager.setViewportX(smoothX);
 
       // 检查是否需要加载新 chunks
       if (sceneManager.needUpdate()) {
-        sceneManager.update()
+        sceneManager.update();
       }
 
       // 每帧都渲染（使用缓冲区，性能开销小）
-      sceneManager.render()
+      sceneManager.render();
     }
 
-    animationFrameId = requestAnimationFrame(animate)
-  }
+    animationFrameId = requestAnimationFrame(animate);
+  };
 
-  animationFrameId = requestAnimationFrame(animate)
+  animationFrameId = requestAnimationFrame(animate);
 }
 
 function stopAutoScroll() {
   if (animationFrameId !== null) {
-    cancelAnimationFrame(animationFrameId)
-    animationFrameId = null
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
   }
 }
 
 function xcroll(v: number) {
-  targetX += v
-  smoothX = targetX  // 手动滚动时直接跳转
+  targetX += v;
+  smoothX = targetX; // 手动滚动时直接跳转
 
   if (sceneManager) {
-    sceneManager.setViewportX(smoothX)
+    sceneManager.setViewportX(smoothX);
     if (sceneManager.needUpdate()) {
-      sceneManager.update()
+      sceneManager.update();
     }
-    sceneManager.render()
+    sceneManager.render();
   }
 }
 
 function toggleSettings() {
-  showSettings.value = !showSettings.value
+  showSettings.value = !showSettings.value;
 }
 
 function downloadImage() {
-  if (!canvasRef.value) return
+  if (!canvasRef.value) return;
 
-  const link = document.createElement('a')
-  link.download = `webgpu-shanshui-${Date.now()}.png`
-  link.href = canvasRef.value.toDataURL('image/png')
-  link.click()
+  const link = document.createElement("a");
+  link.download = `webgpu-shanshui-${Date.now()}.png`;
+  link.href = canvasRef.value.toDataURL("image/png");
+  link.click();
 }
 
 // Generate paper texture for background
 function generateBackgroundTexture(): string {
-  const canvas = document.createElement('canvas')
-  canvas.width = 512
-  canvas.height = 512
-  const ctx = canvas.getContext('2d')!
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext("2d")!;
 
   for (let i = 0; i < 256; i++) {
     for (let j = 0; j < 256; j++) {
-      const c = 245 + Math.random() * 10 - Math.random() * 20
-      const r = Math.floor(c)
-      const g = Math.floor(c * 0.95)
-      const b = Math.floor(c * 0.85)
-      ctx.fillStyle = `rgb(${r},${g},${b})`
+      const c = 245 + Math.random() * 10 - Math.random() * 20;
+      const r = Math.floor(c);
+      const g = Math.floor(c * 0.95);
+      const b = Math.floor(c * 0.85);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
 
-      ctx.fillRect(i * 2, j * 2, 2, 2)
-      ctx.fillRect(512 - i * 2, j * 2, 2, 2)
-      ctx.fillRect(i * 2, 512 - j * 2, 2, 2)
-      ctx.fillRect(512 - i * 2, 512 - j * 2, 2, 2)
+      ctx.fillRect(i * 2, j * 2, 2, 2);
+      ctx.fillRect(512 - i * 2, j * 2, 2, 2);
+      ctx.fillRect(i * 2, 512 - j * 2, 2, 2);
+      ctx.fillRect(512 - i * 2, 512 - j * 2, 2, 2);
     }
   }
 
-  return canvas.toDataURL('image/png')
+  return canvas.toDataURL("image/png");
 }
 
 const canvasStyle = computed(() => ({
   backgroundImage: `url(${generateBackgroundTexture()})`,
-}))
+}));
 
 onMounted(async () => {
-  seedInput.value = String(Date.now())
-  await init()
-})
+  seedInput.value = String(Date.now());
+  await init();
+});
 
 onUnmounted(() => {
-  stopAutoScroll()
-  sceneManager?.destroy()
-})
+  stopAutoScroll();
+  sceneManager?.destroy();
+});
 </script>
 
 <template>
@@ -185,7 +185,7 @@ onUnmounted(() => {
     <!-- Settings Panel -->
     <div class="settings-panel">
       <button class="settings-btn" title="Settings" @click="toggleSettings">
-        {{ showSettings ? 'X' : '=' }}
+        {{ showSettings ? "X" : "=" }}
       </button>
 
       <div v-if="showSettings" class="settings-menu">
@@ -198,10 +198,8 @@ onUnmounted(() => {
               type="text"
               placeholder="Random seed"
               @keyup.enter="regenerateWithSeed"
-            >
-            <button @click="regenerateWithSeed">
-              Generate
-            </button>
+            />
+            <button @click="regenerateWithSeed">Generate</button>
           </div>
         </div>
 
@@ -209,9 +207,7 @@ onUnmounted(() => {
         <div class="setting-group">
           <label>VIEW</label>
           <div class="input-group">
-            <button title="Scroll left" @click="scrollLeft">
-              &lt;
-            </button>
+            <button title="Scroll left" @click="scrollLeft">&lt;</button>
             <input
               v-model.number="scrollStep"
               type="number"
@@ -219,18 +215,12 @@ onUnmounted(() => {
               max="1000"
               step="50"
               title="Scroll step"
-            >
-            <button title="Scroll right" @click="scrollRight">
-              &gt;
-            </button>
+            />
+            <button title="Scroll right" @click="scrollRight">&gt;</button>
           </div>
           <div class="checkbox-group">
             <label>
-              <input
-                v-model="autoScroll"
-                type="checkbox"
-                @change="toggleAutoScroll"
-              >
+              <input v-model="autoScroll" type="checkbox" @change="toggleAutoScroll" />
               Auto-scroll
             </label>
           </div>
@@ -239,9 +229,7 @@ onUnmounted(() => {
         <!-- Save Control -->
         <div class="setting-group">
           <label>SAVE</label>
-          <button class="download-btn" @click="downloadImage">
-            Download as PNG
-          </button>
+          <button class="download-btn" @click="downloadImage">Download as PNG</button>
         </div>
       </div>
     </div>
@@ -275,11 +263,7 @@ onUnmounted(() => {
             <td>
               <div class="canvas-viewport">
                 <div ref="canvasWrapperRef" class="canvas-wrapper" :style="canvasStyle">
-                  <canvas
-                    ref="canvasRef"
-                    width="3000"
-                    height="800"
-                  />
+                  <canvas ref="canvasRef" width="3000" height="800" />
                 </div>
               </div>
             </td>

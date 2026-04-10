@@ -1,27 +1,24 @@
 {
   "name": "shuimo-core",
-  "type": "module",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@10.33.0",
   "description": "A procedural Chinese landscape painting generation library",
-  "engines": {
-    "node": ">=18.0.0",
-    "pnpm": ">=10.0.0"
-  },
+  "type": "module",
   "scripts": {
     "dev": "pnpm --filter @shuimo/playground dev",
     "build": "pnpm --filter @shuimo/core build",
     "build:all": "pnpm -r --filter \"./packages/**\" build",
     "build:playground": "pnpm run build && pnpm --filter @shuimo/playground build",
     "test": "pnpm --filter @shuimo/core test",
-    "lint": "eslint .",
+    "lint": "vp check",
     "upgrade": "pnpm dlx taze -r -w major --install"
   },
   "devDependencies": {
-    "@jobinjia/eslint-config": "1.0.1",
-    "eslint": "^9.39.4",
-    "jiti": "^2.6.1",
     "vite-plus": "catalog:"
-  }
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "packageManager": "pnpm@10.33.0"
 }

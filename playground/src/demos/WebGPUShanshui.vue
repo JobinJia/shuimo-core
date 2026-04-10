@@ -1,21 +1,21 @@
 <script lang="ts" setup>
-import { onMounted, onUnmounted, ref, reactive } from 'vue'
-import { ShuimoEngine, TreeType } from '@shuimo/core'
-import type { PathPoint } from '@shuimo/core'
+import { onMounted, onUnmounted, ref, reactive } from "vue";
+import { ShuimoEngine, TreeType } from "@shuimo/core";
+import type { PathPoint } from "@shuimo/core";
 
-const canvasRef = ref<HTMLCanvasElement | null>(null)
-const isSupported = ref(true)
-const errorMessage = ref('')
+const canvasRef = ref<HTMLCanvasElement | null>(null);
+const isSupported = ref(true);
+const errorMessage = ref("");
 
-let engine: ShuimoEngine | null = null
+let engine: ShuimoEngine | null = null;
 
 // 当前模式
-const currentMode = ref<'stroke' | 'mount' | 'water' | 'tree' | 'blob' | 'texture'>('stroke')
+const currentMode = ref<"stroke" | "mount" | "water" | "tree" | "blob" | "texture">("stroke");
 
 // 绘制状态
-let isDrawing = false
-let currentPath: PathPoint[] = []
-let lastPoint: { x: number; y: number; time: number } | null = null
+let isDrawing = false;
+let currentPath: PathPoint[] = [];
+let lastPoint: { x: number; y: number; time: number } | null = null;
 
 // 笔触参数
 const strokeParams = reactive({
@@ -24,7 +24,7 @@ const strokeParams = reactive({
   softness: 0.3,
   inkDensity: 0.9,
   color: [0.1, 0.1, 0.12, 1.0] as [number, number, number, number],
-})
+});
 
 // 山峰参数
 const mountParams = reactive({
@@ -32,7 +32,7 @@ const mountParams = reactive({
   width: 400,
   layers: 3,
   inkDensity: 0.8,
-})
+});
 
 // 水面参数
 const waterParams = reactive({
@@ -40,7 +40,7 @@ const waterParams = reactive({
   clusters: 15,
   density: 5,
   inkDensity: 0.5,
-})
+});
 
 // 树木参数
 const treeParams = reactive({
@@ -49,7 +49,7 @@ const treeParams = reactive({
   type: TreeType.Simple,
   leafDensity: 0.6,
   inkDensity: 0.85,
-})
+});
 
 // 墨点参数
 const blobParams = reactive({
@@ -57,7 +57,7 @@ const blobParams = reactive({
   width: 20,
   noiseAmount: 0.5,
   softness: 0.3,
-})
+});
 
 // 纹理参数
 const textureParams = reactive({
@@ -65,133 +65,139 @@ const textureParams = reactive({
   strokeWidth: 1.5,
   inkDensity: 0.6,
   noiseAmount: 0.5,
-})
+});
 
 // 初始化
 async function init() {
-  if (!canvasRef.value) return
+  if (!canvasRef.value) return;
 
-  engine = new ShuimoEngine()
-  const success = await engine.initialize(canvasRef.value)
+  engine = new ShuimoEngine();
+  const success = await engine.initialize(canvasRef.value);
 
   if (!success) {
-    isSupported.value = false
-    errorMessage.value = 'WebGPU 不支持，请使用 Chrome 113+ 或 Safari 17+'
-    return
+    isSupported.value = false;
+    errorMessage.value = "WebGPU 不支持，请使用 Chrome 113+ 或 Safari 17+";
+    return;
   }
 }
 
 // 清空画布
 function clearCanvas() {
-  engine?.clear()
+  engine?.clear();
 }
 
 // 获取画布坐标
 function getCanvasPosition(e: MouseEvent | TouchEvent): { x: number; y: number } | null {
-  if (!canvasRef.value) return null
+  if (!canvasRef.value) return null;
 
-  const rect = canvasRef.value.getBoundingClientRect()
-  const scaleX = canvasRef.value.width / rect.width
-  const scaleY = canvasRef.value.height / rect.height
+  const rect = canvasRef.value.getBoundingClientRect();
+  const scaleX = canvasRef.value.width / rect.width;
+  const scaleY = canvasRef.value.height / rect.height;
 
-  let clientX: number, clientY: number
+  let clientX: number, clientY: number;
 
-  if ('touches' in e) {
-    if (e.touches.length === 0) return null
-    clientX = e.touches[0].clientX
-    clientY = e.touches[0].clientY
+  if ("touches" in e) {
+    if (e.touches.length === 0) return null;
+    clientX = e.touches[0].clientX;
+    clientY = e.touches[0].clientY;
   } else {
-    clientX = e.clientX
-    clientY = e.clientY
+    clientX = e.clientX;
+    clientY = e.clientY;
   }
 
   return {
     x: (clientX - rect.left) * scaleX,
     y: (clientY - rect.top) * scaleY,
-  }
+  };
 }
 
 // 计算速度
-function calculateVelocity(current: { x: number; y: number }, last: { x: number; y: number; time: number }): number {
-  const dx = current.x - last.x
-  const dy = current.y - last.y
-  const dt = (Date.now() - last.time) / 1000
-  if (dt === 0) return 0
-  const speed = Math.sqrt(dx * dx + dy * dy) / dt
-  return Math.min(speed / 1000, 1)
+function calculateVelocity(
+  current: { x: number; y: number },
+  last: { x: number; y: number; time: number },
+): number {
+  const dx = current.x - last.x;
+  const dy = current.y - last.y;
+  const dt = (Date.now() - last.time) / 1000;
+  if (dt === 0) return 0;
+  const speed = Math.sqrt(dx * dx + dy * dy) / dt;
+  return Math.min(speed / 1000, 1);
 }
 
 // 鼠标/触摸事件
 function handlePointerDown(e: MouseEvent | TouchEvent) {
-  const pos = getCanvasPosition(e)
-  if (!pos) return
+  const pos = getCanvasPosition(e);
+  if (!pos) return;
 
-  if (currentMode.value === 'stroke') {
-    isDrawing = true
-    currentPath = []
-    lastPoint = null
-    currentPath.push({ x: pos.x, y: pos.y, pressure: 1, velocity: 0 })
-    lastPoint = { x: pos.x, y: pos.y, time: Date.now() }
-  } else if (currentMode.value === 'mount') {
+  if (currentMode.value === "stroke") {
+    isDrawing = true;
+    currentPath = [];
+    lastPoint = null;
+    currentPath.push({ x: pos.x, y: pos.y, pressure: 1, velocity: 0 });
+    lastPoint = { x: pos.x, y: pos.y, time: Date.now() };
+  } else if (currentMode.value === "mount") {
     engine?.drawMount(pos.x, pos.y, {
       height: mountParams.height,
       width: mountParams.width,
       layers: mountParams.layers,
       inkDensity: mountParams.inkDensity,
-    })
-  } else if (currentMode.value === 'water') {
+    });
+  } else if (currentMode.value === "water") {
     engine?.drawWater(pos.x, pos.y, {
       length: waterParams.length,
       clusters: waterParams.clusters,
       density: waterParams.density,
       inkDensity: waterParams.inkDensity,
-    })
-  } else if (currentMode.value === 'tree') {
+    });
+  } else if (currentMode.value === "tree") {
     engine?.drawTree(pos.x, pos.y, {
       height: treeParams.height,
       width: treeParams.width,
       type: treeParams.type,
       leafDensity: treeParams.leafDensity,
       inkDensity: treeParams.inkDensity,
-    })
-  } else if (currentMode.value === 'blob') {
+    });
+  } else if (currentMode.value === "blob") {
     engine?.drawBlob(pos.x, pos.y, {
       length: blobParams.length,
       width: blobParams.width,
       angle: Math.random() * Math.PI,
       noiseAmount: blobParams.noiseAmount,
       softness: blobParams.softness,
-    })
-  } else if (currentMode.value === 'texture') {
-    engine?.drawTexture({
-      x: pos.x - 50,
-      y: pos.y - 50,
-      width: 100,
-      height: 100,
-    }, {
-      lineCount: textureParams.lineCount,
-      strokeWidth: textureParams.strokeWidth,
-      inkDensity: textureParams.inkDensity,
-      noiseAmount: textureParams.noiseAmount,
-    })
+    });
+  } else if (currentMode.value === "texture") {
+    engine?.drawTexture(
+      {
+        x: pos.x - 50,
+        y: pos.y - 50,
+        width: 100,
+        height: 100,
+      },
+      {
+        lineCount: textureParams.lineCount,
+        strokeWidth: textureParams.strokeWidth,
+        inkDensity: textureParams.inkDensity,
+        noiseAmount: textureParams.noiseAmount,
+      },
+    );
   }
 }
 
 function handlePointerMove(e: MouseEvent | TouchEvent) {
-  if (!isDrawing || currentMode.value !== 'stroke') return
+  if (!isDrawing || currentMode.value !== "stroke") return;
 
-  const pos = getCanvasPosition(e)
-  if (!pos) return
+  const pos = getCanvasPosition(e);
+  if (!pos) return;
 
-  let velocity = 0
+  let velocity = 0;
   if (lastPoint) {
-    velocity = calculateVelocity(pos, lastPoint)
+    velocity = calculateVelocity(pos, lastPoint);
   }
 
-  const pressure = 1 - velocity * 0.5
+  const pressure = 1 - velocity * 0.5;
 
-  currentPath.push({ x: pos.x, y: pos.y, pressure, velocity })
-  lastPoint = { x: pos.x, y: pos.y, time: Date.now() }
+  currentPath.push({ x: pos.x, y: pos.y, pressure, velocity });
+  lastPoint = { x: pos.x, y: pos.y, time: Date.now() };
 
   if (currentPath.length >= 2) {
     engine?.drawStroke(currentPath, {
@@ -200,13 +206,13 @@ function handlePointerMove(e: MouseEvent | TouchEvent) {
       noiseAmount: strokeParams.noiseAmount,
       softness: strokeParams.softness,
       inkDensity: strokeParams.inkDensity,
-    })
+    });
   }
 }
 
 function handlePointerUp() {
-  if (!isDrawing || currentMode.value !== 'stroke') return
-  isDrawing = false
+  if (!isDrawing || currentMode.value !== "stroke") return;
+  isDrawing = false;
 
   if (currentPath.length >= 2) {
     engine?.drawStroke(currentPath, {
@@ -215,19 +221,19 @@ function handlePointerUp() {
       noiseAmount: strokeParams.noiseAmount,
       softness: strokeParams.softness,
       inkDensity: strokeParams.inkDensity,
-    })
+    });
   }
 
-  currentPath = []
+  currentPath = [];
 }
 
 // 绘制示例场景
 function drawDemoScene() {
-  clearCanvas()
+  clearCanvas();
 
-  if (!engine) return
-  const w = engine.width
-  const h = engine.height
+  if (!engine) return;
+  const w = engine.width;
+  const h = engine.height;
 
   // 远山
   setTimeout(() => {
@@ -236,8 +242,8 @@ function drawDemoScene() {
       width: 400,
       layers: 3,
       inkDensity: 0.4,
-    })
-  }, 50)
+    });
+  }, 50);
 
   // 近山
   setTimeout(() => {
@@ -246,8 +252,8 @@ function drawDemoScene() {
       width: 350,
       layers: 2,
       inkDensity: 0.7,
-    })
-  }, 100)
+    });
+  }, 100);
 
   // 水面
   setTimeout(() => {
@@ -256,8 +262,8 @@ function drawDemoScene() {
       clusters: 20,
       density: 6,
       inkDensity: 0.4,
-    })
-  }, 150)
+    });
+  }, 150);
 
   // 树
   setTimeout(() => {
@@ -266,8 +272,8 @@ function drawDemoScene() {
       width: 60,
       leafDensity: 0.7,
       inkDensity: 0.8,
-    })
-  }, 200)
+    });
+  }, 200);
 
   setTimeout(() => {
     engine?.drawTree(w * 0.85, h * 0.65, {
@@ -275,25 +281,23 @@ function drawDemoScene() {
       width: 50,
       leafDensity: 0.5,
       inkDensity: 0.6,
-    })
-  }, 250)
+    });
+  }, 250);
 }
 
 onMounted(async () => {
-  await init()
-})
+  await init();
+});
 
 onUnmounted(() => {
-  engine?.destroy()
-})
+  engine?.destroy();
+});
 </script>
 
 <template>
   <div class="webgpu-shanshui-container">
     <h2>WebGPU 水墨山水</h2>
-    <p class="description">
-      使用 GPU 加速渲染的水墨山水画。选择模式后在画布上绘制。
-    </p>
+    <p class="description">使用 GPU 加速渲染的水墨山水画。选择模式后在画布上绘制。</p>
 
     <div v-if="!isSupported" class="error-message">
       {{ errorMessage }}
@@ -301,12 +305,24 @@ onUnmounted(() => {
 
     <template v-else>
       <div class="mode-selector">
-        <button :class="{ active: currentMode === 'stroke' }" @click="currentMode = 'stroke'">笔触</button>
-        <button :class="{ active: currentMode === 'mount' }" @click="currentMode = 'mount'">山峰</button>
-        <button :class="{ active: currentMode === 'water' }" @click="currentMode = 'water'">水面</button>
-        <button :class="{ active: currentMode === 'tree' }" @click="currentMode = 'tree'">树木</button>
-        <button :class="{ active: currentMode === 'blob' }" @click="currentMode = 'blob'">墨点</button>
-        <button :class="{ active: currentMode === 'texture' }" @click="currentMode = 'texture'">纹理</button>
+        <button :class="{ active: currentMode === 'stroke' }" @click="currentMode = 'stroke'">
+          笔触
+        </button>
+        <button :class="{ active: currentMode === 'mount' }" @click="currentMode = 'mount'">
+          山峰
+        </button>
+        <button :class="{ active: currentMode === 'water' }" @click="currentMode = 'water'">
+          水面
+        </button>
+        <button :class="{ active: currentMode === 'tree' }" @click="currentMode = 'tree'">
+          树木
+        </button>
+        <button :class="{ active: currentMode === 'blob' }" @click="currentMode = 'blob'">
+          墨点
+        </button>
+        <button :class="{ active: currentMode === 'texture' }" @click="currentMode = 'texture'">
+          纹理
+        </button>
       </div>
 
       <div class="canvas-wrapper">
@@ -339,15 +355,33 @@ onUnmounted(() => {
           </div>
           <div class="param">
             <label>噪声: {{ strokeParams.noiseAmount.toFixed(2) }}</label>
-            <input type="range" v-model.number="strokeParams.noiseAmount" min="0" max="1" step="0.05" />
+            <input
+              type="range"
+              v-model.number="strokeParams.noiseAmount"
+              min="0"
+              max="1"
+              step="0.05"
+            />
           </div>
           <div class="param">
             <label>柔和度: {{ strokeParams.softness.toFixed(2) }}</label>
-            <input type="range" v-model.number="strokeParams.softness" min="0" max="1" step="0.05" />
+            <input
+              type="range"
+              v-model.number="strokeParams.softness"
+              min="0"
+              max="1"
+              step="0.05"
+            />
           </div>
           <div class="param">
             <label>浓度: {{ strokeParams.inkDensity.toFixed(2) }}</label>
-            <input type="range" v-model.number="strokeParams.inkDensity" min="0.1" max="1" step="0.05" />
+            <input
+              type="range"
+              v-model.number="strokeParams.inkDensity"
+              min="0.1"
+              max="1"
+              step="0.05"
+            />
           </div>
         </div>
 
@@ -368,7 +402,13 @@ onUnmounted(() => {
           </div>
           <div class="param">
             <label>浓度: {{ mountParams.inkDensity.toFixed(2) }}</label>
-            <input type="range" v-model.number="mountParams.inkDensity" min="0.1" max="1" step="0.05" />
+            <input
+              type="range"
+              v-model.number="mountParams.inkDensity"
+              min="0.1"
+              max="1"
+              step="0.05"
+            />
           </div>
         </div>
 
@@ -377,7 +417,13 @@ onUnmounted(() => {
           <h3>水面参数（点击画布添加）</h3>
           <div class="param">
             <label>长度: {{ waterParams.length }}</label>
-            <input type="range" v-model.number="waterParams.length" min="100" max="1000" step="50" />
+            <input
+              type="range"
+              v-model.number="waterParams.length"
+              min="100"
+              max="1000"
+              step="50"
+            />
           </div>
           <div class="param">
             <label>波簇: {{ waterParams.clusters }}</label>
@@ -385,7 +431,13 @@ onUnmounted(() => {
           </div>
           <div class="param">
             <label>浓度: {{ waterParams.inkDensity.toFixed(2) }}</label>
-            <input type="range" v-model.number="waterParams.inkDensity" min="0.1" max="1" step="0.05" />
+            <input
+              type="range"
+              v-model.number="waterParams.inkDensity"
+              min="0.1"
+              max="1"
+              step="0.05"
+            />
           </div>
         </div>
 
@@ -402,7 +454,13 @@ onUnmounted(() => {
           </div>
           <div class="param">
             <label>叶密度: {{ treeParams.leafDensity.toFixed(2) }}</label>
-            <input type="range" v-model.number="treeParams.leafDensity" min="0.1" max="1" step="0.05" />
+            <input
+              type="range"
+              v-model.number="treeParams.leafDensity"
+              min="0.1"
+              max="1"
+              step="0.05"
+            />
           </div>
         </div>
 
@@ -419,7 +477,13 @@ onUnmounted(() => {
           </div>
           <div class="param">
             <label>噪声: {{ blobParams.noiseAmount.toFixed(2) }}</label>
-            <input type="range" v-model.number="blobParams.noiseAmount" min="0" max="1" step="0.05" />
+            <input
+              type="range"
+              v-model.number="blobParams.noiseAmount"
+              min="0"
+              max="1"
+              step="0.05"
+            />
           </div>
         </div>
 
@@ -428,15 +492,33 @@ onUnmounted(() => {
           <h3>纹理参数（点击画布添加）</h3>
           <div class="param">
             <label>线数: {{ textureParams.lineCount }}</label>
-            <input type="range" v-model.number="textureParams.lineCount" min="20" max="300" step="10" />
+            <input
+              type="range"
+              v-model.number="textureParams.lineCount"
+              min="20"
+              max="300"
+              step="10"
+            />
           </div>
           <div class="param">
             <label>笔宽: {{ textureParams.strokeWidth.toFixed(1) }}</label>
-            <input type="range" v-model.number="textureParams.strokeWidth" min="0.5" max="4" step="0.1" />
+            <input
+              type="range"
+              v-model.number="textureParams.strokeWidth"
+              min="0.5"
+              max="4"
+              step="0.1"
+            />
           </div>
           <div class="param">
             <label>浓度: {{ textureParams.inkDensity.toFixed(2) }}</label>
-            <input type="range" v-model.number="textureParams.inkDensity" min="0.1" max="1" step="0.05" />
+            <input
+              type="range"
+              v-model.number="textureParams.inkDensity"
+              min="0.1"
+              max="1"
+              step="0.05"
+            />
           </div>
         </div>
       </div>
@@ -462,7 +544,7 @@ onUnmounted(() => {
 }
 
 h2 {
-  font-family: '楷体', serif;
+  font-family: "楷体", serif;
   color: #333;
   margin-bottom: 0.5em;
 }

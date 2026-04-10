@@ -1,7 +1,7 @@
-import { Polygon } from '../foundation/geometry';
-import { noise } from '../foundation/noise';
-import { prng } from '../foundation/random';
-import { stroke } from './Stroke';
+import { Polygon } from "../foundation/geometry";
+import { noise } from "../foundation/noise";
+import { prng } from "../foundation/random";
+import { stroke } from "./Stroke";
 
 export interface TextureOptions {
   /** X offset */
@@ -48,7 +48,8 @@ export class Texture {
     const noi = options.noi ?? ((x: number) => 30 / x);
     const col =
       options.col ??
-      ((progress: number, layerDepth: number) => 'rgba(100,100,100,' + (prng.random() * 0.3).toFixed(3) + ')');
+      ((progress: number, layerDepth: number) =>
+        "rgba(100,100,100," + (prng.random() * 0.3).toFixed(3) + ")");
     const dis =
       options.dis ??
       (() => {
@@ -82,13 +83,9 @@ export class Texture {
       for (let j = start; j < end; j++) {
         const p = layer - Math.floor(layer);
 
-        const x =
-          ptlist[Math.floor(layer)][j][0] * p +
-          ptlist[Math.ceil(layer)][j][0] * (1 - p);
+        const x = ptlist[Math.floor(layer)][j][0] * p + ptlist[Math.ceil(layer)][j][0] * (1 - p);
 
-        const y =
-          ptlist[Math.floor(layer)][j][1] * p +
-          ptlist[Math.ceil(layer)][j][1] * (1 - p);
+        const y = ptlist[Math.floor(layer)][j][1] * p + ptlist[Math.ceil(layer)][j][1] * (1 - p);
 
         const ns = [
           noi(layer + 1) * (noise.noise(x, j * 0.5) - 0.5),
@@ -99,14 +96,14 @@ export class Texture {
       }
     }
 
-    let canv = '';
+    let canv = "";
 
     // SHADE
     if (sha) {
       for (let j = 0; j < texlist.length; j += 1 + (sha !== 0 ? 1 : 0)) {
         canv += stroke(
           texlist[j].map((x) => [x[0] + xof, x[1] + yof]),
-          { col: 'rgba(100,100,100,0.1)', wid: sha }
+          { col: "rgba(100,100,100,0.1)", wid: sha },
         );
       }
     }
@@ -115,7 +112,7 @@ export class Texture {
     for (let j = 0 + sha; j < texlist.length; j += 1 + sha) {
       canv += stroke(
         texlist[j].map((x) => [x[0] + xof, x[1] + yof]),
-        { col: col(j / texlist.length, layerDepths[j]), wid: wid }
+        { col: col(j / texlist.length, layerDepths[j]), wid: wid },
       );
     }
 

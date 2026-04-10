@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: write
@@ -29,11 +29,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Lint
+      - name: Check (fmt + lint + type-check)
         run: pnpm lint
-
-      - name: Type Check
-        run: pnpm --filter @shuimo/core exec tsc --noEmit
 
       - name: Test
         run: pnpm test -- --run

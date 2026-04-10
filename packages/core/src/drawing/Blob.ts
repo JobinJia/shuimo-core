@@ -1,8 +1,8 @@
-import { Point, Polygon } from '../foundation/geometry';
-import { noise } from '../foundation/noise';
-import { prng } from '../foundation/random';
-import { poly } from '../utils/svg';
-import { loopNoise } from '../utils/math';
+import { Point, Polygon } from "../foundation/geometry";
+import { noise } from "../foundation/noise";
+import { prng } from "../foundation/random";
+import { poly } from "../utils/svg";
+import { loopNoise } from "../utils/math";
 
 export interface BlobOptions {
   /** Length of the blob */
@@ -37,7 +37,7 @@ export class Blob {
     const len = options.len ?? 20;
     const wid = options.wid ?? 5;
     const ang = options.ang ?? 0;
-    const col = options.col ?? 'rgba(200,200,200,0.9)';
+    const col = options.col ?? "rgba(200,200,200,0.9)";
     const noi = options.noi ?? 0.5;
     const ret = options.ret ?? 0;
     const fun =

@@ -1,7 +1,7 @@
-import { Point, Polygon } from '../foundation/geometry';
-import { noise } from '../foundation/noise';
-import { prng } from '../foundation/random';
-import { poly } from '../utils/svg';
+import { Point, Polygon } from "../foundation/geometry";
+import { noise } from "../foundation/noise";
+import { prng } from "../foundation/random";
+import { poly } from "../utils/svg";
 
 export interface BrushStrokeOptions {
   /** Stroke width at the start */
@@ -42,17 +42,19 @@ export class Brush {
    */
   static stroke(points: Polygon, options: BrushStrokeOptions = {}): string {
     if (points.length < 2) {
-      return '';
+      return "";
     }
 
     const width = options.width ?? 8;
-    const color = options.color ?? 'rgba(50,50,50,0.9)';
-    const pressure = options.pressure ?? ((t: number) => {
-      // Default: pressure increase at start, stable middle, decrease at end
-      if (t < 0.2) return 0.5 + t * 2.5; // Quick build-up
-      if (t > 0.8) return 1.0 - (t - 0.8) * 2.5; // Quick release
-      return 1.0; // Stable middle
-    });
+    const color = options.color ?? "rgba(50,50,50,0.9)";
+    const pressure =
+      options.pressure ??
+      ((t: number) => {
+        // Default: pressure increase at start, stable middle, decrease at end
+        if (t < 0.2) return 0.5 + t * 2.5; // Quick build-up
+        if (t > 0.8) return 1.0 - (t - 0.8) * 2.5; // Quick release
+        return 1.0; // Stable middle
+      });
     const inkStart = options.inkStart ?? 0.9;
     const inkEnd = options.inkEnd ?? 0.3;
     const noiseAmount = options.noise ?? 0.6;
@@ -60,7 +62,7 @@ export class Brush {
     const angle = options.angle ?? 0;
     const textureCount = options.texture ?? 5;
 
-    let svg = '';
+    let svg = "";
     const n0 = prng.random() * 10;
 
     // Parse color components
@@ -96,7 +98,7 @@ export class Brush {
 
       // Add noise to width
       const widthNoise = noise.noise(i * 0.3, n0) * noiseAmount;
-      currentWidth *= (1 - noiseAmount * 0.5 + widthNoise * 0.5);
+      currentWidth *= 1 - noiseAmount * 0.5 + widthNoise * 0.5;
 
       // Add flying white effect at the end
       if (t > 0.7) {
@@ -116,12 +118,12 @@ export class Brush {
 
       leftEdge.push([
         point[0] + Math.cos(perpDir) * (currentWidth / 2 + leftNoise),
-        point[1] + Math.sin(perpDir) * (currentWidth / 2 + leftNoise)
+        point[1] + Math.sin(perpDir) * (currentWidth / 2 + leftNoise),
       ]);
 
       rightEdge.push([
         point[0] - Math.cos(perpDir) * (currentWidth / 2 + rightNoise),
-        point[1] - Math.sin(perpDir) * (currentWidth / 2 + rightNoise)
+        point[1] - Math.sin(perpDir) * (currentWidth / 2 + rightNoise),
       ]);
     }
 
@@ -129,11 +131,11 @@ export class Brush {
     const strokePolygon: Polygon = [...leftEdge, ...rightEdge.reverse()];
 
     // Draw main stroke with ink gradient
-    const avgAlpha = (inkStart + inkEnd) / 2 * baseAlpha;
+    const avgAlpha = ((inkStart + inkEnd) / 2) * baseAlpha;
     svg += poly(strokePolygon, {
       fil: `rgba(${r},${g},${b},${avgAlpha.toFixed(3)})`,
-      str: 'none',
-      wid: 0
+      str: "none",
+      wid: 0,
     });
 
     // Add darker stroke edges for depth
@@ -169,7 +171,7 @@ export class Brush {
         point[0] + offsetX,
         point[1] + offsetY,
         width * (0.2 + prng.random() * 0.3),
-        `rgba(${r},${g},${b},${texAlpha.toFixed(3)})`
+        `rgba(${r},${g},${b},${texAlpha.toFixed(3)})`,
       );
     }
 
@@ -183,28 +185,25 @@ export class Brush {
     points: Point[],
     color: string,
     width: number,
-    noiseAmount: number
+    noiseAmount: number,
   ): string {
-    if (points.length < 2) return '';
+    if (points.length < 2) return "";
 
     const segments: string[] = [];
     for (let i = 0; i < points.length - 1; i++) {
-      segments.push(`${i === 0 ? 'M' : 'L'}${points[i][0].toFixed(2)},${points[i][1].toFixed(2)}`);
+      segments.push(`${i === 0 ? "M" : "L"}${points[i][0].toFixed(2)},${points[i][1].toFixed(2)}`);
     }
-    segments.push(`L${points[points.length - 1][0].toFixed(2)},${points[points.length - 1][1].toFixed(2)}`);
+    segments.push(
+      `L${points[points.length - 1][0].toFixed(2)},${points[points.length - 1][1].toFixed(2)}`,
+    );
 
-    return `<path d="${segments.join(' ')}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" opacity="${0.6 + prng.random() * 0.2}"/>`;
+    return `<path d="${segments.join(" ")}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" opacity="${0.6 + prng.random() * 0.2}"/>`;
   }
 
   /**
    * Generate small texture blob for ink absorption
    */
-  private static generateTextureBlob(
-    x: number,
-    y: number,
-    size: number,
-    color: string
-  ): string {
+  private static generateTextureBlob(x: number, y: number, size: number, color: string): string {
     const points: Point[] = [];
     const sides = 8;
     const n0 = prng.random() * 10;
@@ -213,13 +212,10 @@ export class Brush {
       const angle = (i / sides) * Math.PI * 2;
       const noiseFactor = 0.7 + noise.noise(i * 0.5, n0) * 0.6;
       const r = size * noiseFactor;
-      points.push([
-        x + Math.cos(angle) * r,
-        y + Math.sin(angle) * r
-      ]);
+      points.push([x + Math.cos(angle) * r, y + Math.sin(angle) * r]);
     }
 
-    return poly(points, { fil: color, str: 'none', wid: 0 });
+    return poly(points, { fil: color, str: "none", wid: 0 });
   }
 
   /**
@@ -231,11 +227,11 @@ export class Brush {
    */
   static dot(x: number, y: number, options: Partial<BrushStrokeOptions> = {}): string {
     const width = options.width ?? 10;
-    const color = options.color ?? 'rgba(50,50,50,0.9)';
+    const color = options.color ?? "rgba(50,50,50,0.9)";
     const noiseAmount = options.noise ?? 0.7;
     const textureCount = options.texture ?? 3;
 
-    let svg = '';
+    let svg = "";
     const n0 = prng.random() * 10;
 
     // Parse color
@@ -252,17 +248,14 @@ export class Brush {
     for (let i = 0; i < sides; i++) {
       const angle = (i / sides) * Math.PI * 2;
       const noiseFactor = 0.8 + noise.noise(i * 0.3, n0) * noiseAmount * 0.4;
-      const r = width / 2 * noiseFactor;
-      points.push([
-        x + Math.cos(angle) * r,
-        y + Math.sin(angle) * r
-      ]);
+      const r = (width / 2) * noiseFactor;
+      points.push([x + Math.cos(angle) * r, y + Math.sin(angle) * r]);
     }
 
     svg += poly(points, {
       fil: `rgba(${r},${g},${b},${baseAlpha.toFixed(3)})`,
       str: `rgba(${Math.max(0, r - 30)},${Math.max(0, g - 30)},${Math.max(0, b - 30)},${Math.min(1, baseAlpha * 1.2).toFixed(3)})`,
-      wid: 0.5
+      wid: 0.5,
     });
 
     // Add texture blobs
@@ -278,7 +271,7 @@ export class Brush {
         texX,
         texY,
         texSize,
-        `rgba(${r},${g},${b},${texAlpha.toFixed(3)})`
+        `rgba(${r},${g},${b},${texAlpha.toFixed(3)})`,
       );
     }
 
@@ -292,7 +285,7 @@ export class Brush {
   static naturalStroke(points: Polygon, options: Partial<BrushStrokeOptions> = {}): string {
     return this.stroke(points, {
       width: options.width ?? 8,
-      color: options.color ?? 'rgba(50,50,50,0.85)',
+      color: options.color ?? "rgba(50,50,50,0.85)",
       pressure: (t: number) => {
         // Natural pressure curve: soft start, firm middle, soft end
         if (t < 0.15) {
@@ -310,7 +303,7 @@ export class Brush {
       flyingWhite: options.flyingWhite ?? 0.35,
       angle: options.angle ?? 0,
       texture: options.texture ?? 6,
-      ...options
+      ...options,
     });
   }
 }
@@ -324,6 +317,9 @@ export function brushDot(x: number, y: number, options: Partial<BrushStrokeOptio
   return Brush.dot(x, y, options);
 }
 
-export function naturalBrushStroke(points: Polygon, options: Partial<BrushStrokeOptions> = {}): string {
+export function naturalBrushStroke(
+  points: Polygon,
+  options: Partial<BrushStrokeOptions> = {},
+): string {
   return Brush.naturalStroke(points, options);
 }

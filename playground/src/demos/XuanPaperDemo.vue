@@ -1,44 +1,44 @@
 <script setup lang="ts">
-import { XuanPaper, XuanPaperColors, GoldFleckColors, type XuanPaperOptions } from '@shuimo/core'
-import { onMounted, ref, watch } from 'vue'
+import { XuanPaper, XuanPaperColors, GoldFleckColors, type XuanPaperOptions } from "@shuimo/core";
+import { onMounted, ref, watch } from "vue";
 
-const canvasContainer = ref<HTMLDivElement>()
-const svgContainer = ref<HTMLDivElement>()
+const canvasContainer = ref<HTMLDivElement>();
+const svgContainer = ref<HTMLDivElement>();
 
 // Basic settings
-const width = ref(600)
-const height = ref(400)
-const seed = ref(Date.now())
+const width = ref(600);
+const height = ref(400);
+const seed = ref(Date.now());
 
 // Paper settings
-const fiberDensity = ref(1.0)
-const fiberScale = ref(1.0)
-const textureIntensity = ref(0.3)
-const grainDensity = ref(0.5)
-const age = ref(0)
-const deckleEdge = ref(false)
-const deckleRoughness = ref(0.5)
+const fiberDensity = ref(1.0);
+const fiberScale = ref(1.0);
+const textureIntensity = ref(0.3);
+const grainDensity = ref(0.5);
+const age = ref(0);
+const deckleEdge = ref(false);
+const deckleRoughness = ref(0.5);
 
 // Color presets
-const colorPreset = ref<keyof typeof XuanPaperColors>('processed')
+const colorPreset = ref<keyof typeof XuanPaperColors>("processed");
 
 // Render mode
-const renderMode = ref<'canvas' | 'svg'>('canvas')
+const renderMode = ref<"canvas" | "svg">("canvas");
 
 // Gold fleck settings (洒金宣)
-const goldFlecks = ref(false)
-const goldDensity = ref(0.5)
-const goldSizeMin = ref(2)
-const goldSizeMax = ref(12)
-const goldColorPreset = ref<keyof typeof GoldFleckColors>('gold')
-const goldClustering = ref(0.3)
+const goldFlecks = ref(false);
+const goldDensity = ref(0.5);
+const goldSizeMin = ref(2);
+const goldSizeMax = ref(12);
+const goldColorPreset = ref<keyof typeof GoldFleckColors>("gold");
+const goldClustering = ref(0.3);
 
 function getColor(): [number, number, number] {
-  return XuanPaperColors[colorPreset.value]
+  return XuanPaperColors[colorPreset.value];
 }
 
 function getGoldColor(): [number, number, number] {
-  return GoldFleckColors[goldColorPreset.value]
+  return GoldFleckColors[goldColorPreset.value];
 }
 
 function generate() {
@@ -60,23 +60,22 @@ function generate() {
     goldSize: [goldSizeMin.value, goldSizeMax.value],
     goldColor: getGoldColor(),
     goldClustering: goldClustering.value,
-  }
+  };
 
-  if (renderMode.value === 'canvas' && canvasContainer.value) {
-    canvasContainer.value.innerHTML = ''
-    const canvas = XuanPaper.generate(options)
-    canvasContainer.value.appendChild(canvas)
-  }
-  else if (renderMode.value === 'svg' && svgContainer.value) {
-    svgContainer.value.innerHTML = ''
-    const svg = XuanPaper.generateSVG(options)
-    svgContainer.value.appendChild(svg)
+  if (renderMode.value === "canvas" && canvasContainer.value) {
+    canvasContainer.value.innerHTML = "";
+    const canvas = XuanPaper.generate(options);
+    canvasContainer.value.appendChild(canvas);
+  } else if (renderMode.value === "svg" && svgContainer.value) {
+    svgContainer.value.innerHTML = "";
+    const svg = XuanPaper.generateSVG(options);
+    svgContainer.value.appendChild(svg);
   }
 }
 
 function generateNew() {
-  seed.value = Date.now()
-  generate()
+  seed.value = Date.now();
+  generate();
 }
 
 function downloadPaper() {
@@ -97,50 +96,51 @@ function downloadPaper() {
     goldSize: [goldSizeMin.value, goldSizeMax.value],
     goldColor: getGoldColor(),
     goldClustering: goldClustering.value,
-  }
+  };
 
-  const canvas = XuanPaper.generate(options)
-  const link = document.createElement('a')
-  link.download = `xuan-paper-${seed.value}.png`
-  link.href = canvas.toDataURL('image/png')
-  link.click()
+  const canvas = XuanPaper.generate(options);
+  const link = document.createElement("a");
+  link.download = `xuan-paper-${seed.value}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
 }
 
 // Watch for changes and regenerate
-watch([
-  width,
-  height,
-  fiberDensity,
-  fiberScale,
-  textureIntensity,
-  grainDensity,
-  age,
-  deckleEdge,
-  deckleRoughness,
-  colorPreset,
-  renderMode,
-  goldFlecks,
-  goldDensity,
-  goldSizeMin,
-  goldSizeMax,
-  goldColorPreset,
-  goldClustering,
-], () => {
-  generate()
-})
+watch(
+  [
+    width,
+    height,
+    fiberDensity,
+    fiberScale,
+    textureIntensity,
+    grainDensity,
+    age,
+    deckleEdge,
+    deckleRoughness,
+    colorPreset,
+    renderMode,
+    goldFlecks,
+    goldDensity,
+    goldSizeMin,
+    goldSizeMax,
+    goldColorPreset,
+    goldClustering,
+  ],
+  () => {
+    generate();
+  },
+);
 
 onMounted(() => {
-  generate()
-})
+  generate();
+});
 </script>
 
 <template>
   <div class="xuan-paper-demo">
     <div class="header">
       <h1>宣纸生成器</h1>
-      <p class="subtitle">
-        Xuan Paper Generator - Traditional Chinese Rice Paper
-      </p>
+      <p class="subtitle">Xuan Paper Generator - Traditional Chinese Rice Paper</p>
     </div>
 
     <div class="main-content">
@@ -152,19 +152,11 @@ onMounted(() => {
             <label>渲染模式:</label>
             <div class="radio-group">
               <label class="radio-label">
-                <input
-                  v-model="renderMode"
-                  type="radio"
-                  value="canvas"
-                >
+                <input v-model="renderMode" type="radio" value="canvas" />
                 Canvas
               </label>
               <label class="radio-label">
-                <input
-                  v-model="renderMode"
-                  type="radio"
-                  value="svg"
-                >
+                <input v-model="renderMode" type="radio" value="svg" />
                 SVG
               </label>
             </div>
@@ -173,32 +165,17 @@ onMounted(() => {
           <div class="control-row">
             <div class="control-group">
               <label>宽度:</label>
-              <input
-                v-model.number="width"
-                type="number"
-                min="200"
-                max="1200"
-                step="50"
-              >
+              <input v-model.number="width" type="number" min="200" max="1200" step="50" />
             </div>
             <div class="control-group">
               <label>高度:</label>
-              <input
-                v-model.number="height"
-                type="number"
-                min="200"
-                max="800"
-                step="50"
-              >
+              <input v-model.number="height" type="number" min="200" max="800" step="50" />
             </div>
           </div>
 
           <div class="control-group">
             <label>随机种子:</label>
-            <input
-              v-model.number="seed"
-              type="number"
-            >
+            <input v-model.number="seed" type="number" />
           </div>
         </div>
 
@@ -208,21 +185,11 @@ onMounted(() => {
           <div class="control-group color-preset">
             <label>预设颜色:</label>
             <select v-model="colorPreset">
-              <option value="raw">
-                生宣 Raw (纯白)
-              </option>
-              <option value="processed">
-                熟宣 Processed (暖白)
-              </option>
-              <option value="antique">
-                古宣 Antique (米黄)
-              </option>
-              <option value="teaStained">
-                茶染 Tea-stained
-              </option>
-              <option value="moonWhite">
-                月白 Moon White
-              </option>
+              <option value="raw">生宣 Raw (纯白)</option>
+              <option value="processed">熟宣 Processed (暖白)</option>
+              <option value="antique">古宣 Antique (米黄)</option>
+              <option value="teaStained">茶染 Tea-stained</option>
+              <option value="moonWhite">月白 Moon White</option>
             </select>
           </div>
 
@@ -233,7 +200,7 @@ onMounted(() => {
                 backgroundColor: `rgb(${getColor().join(',')})`,
               }"
             />
-            <span class="color-value">RGB({{ getColor().join(', ') }})</span>
+            <span class="color-value">RGB({{ getColor().join(", ") }})</span>
           </div>
         </div>
 
@@ -242,49 +209,25 @@ onMounted(() => {
 
           <div class="control-group">
             <label>纤维密度:</label>
-            <input
-              v-model.number="fiberDensity"
-              type="range"
-              min="0"
-              max="3"
-              step="0.1"
-            >
+            <input v-model.number="fiberDensity" type="range" min="0" max="3" step="0.1" />
             <span class="value">{{ fiberDensity.toFixed(1) }}</span>
           </div>
 
           <div class="control-group">
             <label>纤维长度:</label>
-            <input
-              v-model.number="fiberScale"
-              type="range"
-              min="0.3"
-              max="2"
-              step="0.1"
-            >
+            <input v-model.number="fiberScale" type="range" min="0.3" max="2" step="0.1" />
             <span class="value">{{ fiberScale.toFixed(1) }}</span>
           </div>
 
           <div class="control-group">
             <label>纹理强度:</label>
-            <input
-              v-model.number="textureIntensity"
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-            >
+            <input v-model.number="textureIntensity" type="range" min="0" max="1" step="0.05" />
             <span class="value">{{ textureIntensity.toFixed(2) }}</span>
           </div>
 
           <div class="control-group">
             <label>颗粒密度:</label>
-            <input
-              v-model.number="grainDensity"
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-            >
+            <input v-model.number="grainDensity" type="range" min="0" max="1" step="0.1" />
             <span class="value">{{ grainDensity.toFixed(1) }}</span>
           </div>
         </div>
@@ -294,10 +237,7 @@ onMounted(() => {
 
           <div class="control-group checkbox">
             <label>
-              <input
-                v-model="goldFlecks"
-                type="checkbox"
-              >
+              <input v-model="goldFlecks" type="checkbox" />
               启用撒金 (Enable Gold)
             </label>
           </div>
@@ -306,24 +246,12 @@ onMounted(() => {
             <div class="control-group color-preset">
               <label>金色:</label>
               <select v-model="goldColorPreset">
-                <option value="gold">
-                  经典金 Gold
-                </option>
-                <option value="paleGold">
-                  淡金 Pale Gold
-                </option>
-                <option value="roseGold">
-                  玫瑰金 Rose Gold
-                </option>
-                <option value="copper">
-                  古铜 Copper
-                </option>
-                <option value="silver">
-                  银 Silver
-                </option>
-                <option value="bronze">
-                  青铜 Bronze
-                </option>
+                <option value="gold">经典金 Gold</option>
+                <option value="paleGold">淡金 Pale Gold</option>
+                <option value="roseGold">玫瑰金 Rose Gold</option>
+                <option value="copper">古铜 Copper</option>
+                <option value="silver">银 Silver</option>
+                <option value="bronze">青铜 Bronze</option>
               </select>
             </div>
 
@@ -338,49 +266,25 @@ onMounted(() => {
 
             <div class="control-group">
               <label>密度:</label>
-              <input
-                v-model.number="goldDensity"
-                type="range"
-                min="0.1"
-                max="1"
-                step="0.1"
-              >
+              <input v-model.number="goldDensity" type="range" min="0.1" max="1" step="0.1" />
               <span class="value">{{ goldDensity.toFixed(1) }}</span>
             </div>
 
             <div class="control-group">
               <label>最小尺寸:</label>
-              <input
-                v-model.number="goldSizeMin"
-                type="range"
-                min="1"
-                max="8"
-                step="1"
-              >
+              <input v-model.number="goldSizeMin" type="range" min="1" max="8" step="1" />
               <span class="value">{{ goldSizeMin }}px</span>
             </div>
 
             <div class="control-group">
               <label>最大尺寸:</label>
-              <input
-                v-model.number="goldSizeMax"
-                type="range"
-                min="5"
-                max="25"
-                step="1"
-              >
+              <input v-model.number="goldSizeMax" type="range" min="5" max="25" step="1" />
               <span class="value">{{ goldSizeMax }}px</span>
             </div>
 
             <div class="control-group">
               <label>聚集度:</label>
-              <input
-                v-model.number="goldClustering"
-                type="range"
-                min="0"
-                max="0.8"
-                step="0.1"
-              >
+              <input v-model.number="goldClustering" type="range" min="0" max="0.8" step="0.1" />
               <span class="value">{{ goldClustering.toFixed(1) }}</span>
             </div>
           </template>
@@ -391,49 +295,28 @@ onMounted(() => {
 
           <div class="control-group">
             <label>老化程度:</label>
-            <input
-              v-model.number="age"
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-            >
+            <input v-model.number="age" type="range" min="0" max="1" step="0.05" />
             <span class="value">{{ (age * 100).toFixed(0) }}%</span>
           </div>
 
           <div class="control-group checkbox">
             <label>
-              <input
-                v-model="deckleEdge"
-                type="checkbox"
-              >
+              <input v-model="deckleEdge" type="checkbox" />
               毛边效果 (Deckle Edge)
             </label>
           </div>
 
           <div v-if="deckleEdge" class="control-group">
             <label>毛边粗糙度:</label>
-            <input
-              v-model.number="deckleRoughness"
-              type="range"
-              min="0.1"
-              max="1"
-              step="0.1"
-            >
+            <input v-model.number="deckleRoughness" type="range" min="0.1" max="1" step="0.1" />
             <span class="value">{{ deckleRoughness.toFixed(1) }}</span>
           </div>
         </div>
 
         <div class="button-group">
-          <button class="btn-primary" @click="generateNew">
-            生成新纸张
-          </button>
-          <button class="btn-secondary" @click="generate">
-            重新生成
-          </button>
-          <button class="btn-download" @click="downloadPaper">
-            下载 PNG
-          </button>
+          <button class="btn-primary" @click="generateNew">生成新纸张</button>
+          <button class="btn-secondary" @click="generate">重新生成</button>
+          <button class="btn-download" @click="downloadPaper">下载 PNG</button>
         </div>
       </div>
 
@@ -459,7 +342,9 @@ onMounted(() => {
 
       <h3>Perlin 噪声算法 / Perlin Noise Algorithm</h3>
       <ul>
-        <li><strong>位置分布:</strong> 使用 Perlin 噪声创建聚集效果，金点会自然聚集在噪声值高的区域</li>
+        <li>
+          <strong>位置分布:</strong> 使用 Perlin 噪声创建聚集效果，金点会自然聚集在噪声值高的区域
+        </li>
         <li><strong>大小变化:</strong> 金点大小由第二个 Perlin 噪声控制，产生自然的大小变化</li>
         <li><strong>颜色变化:</strong> 金色亮度随噪声变化，模拟金属的光泽效果</li>
         <li><strong>形状多样:</strong> 随机选择圆形、不规则圆形或椭圆形，增加真实感</li>
@@ -780,7 +665,7 @@ const canvas = XuanPaper.generate({
 }
 
 .info code {
-  font-family: 'SF Mono', Consolas, monospace;
+  font-family: "SF Mono", Consolas, monospace;
   font-size: 0.85rem;
   color: #333;
 }

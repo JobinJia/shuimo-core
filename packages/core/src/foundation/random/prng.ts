@@ -49,7 +49,7 @@ export class PRNG {
     }
 
     this.s = y;
-    console.log(['int seed', this.s]);
+    console.log(["int seed", this.s]);
 
     // Warm up the generator
     for (let i = 0; i < 10; i++) {
@@ -88,10 +88,9 @@ export class PRNG {
     }
 
     console.log(chart);
-    console.log('finished in ' + (new Date().getTime() - t0));
+    console.log("finished in " + (new Date().getTime() - t0));
     return chart;
   }
-
 }
 
 // Global instance

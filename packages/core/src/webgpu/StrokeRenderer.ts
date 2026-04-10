@@ -4,33 +4,33 @@
  * 使用 GPU 加速的毛笔笔触渲染
  */
 
-import { prng } from '../foundation/random';
+import { prng } from "../foundation/random";
 
 // 宽度函数类型
 export enum WidthFuncType {
-  Sin = 0,      // 正弦波（默认毛笔效果）
-  Linear = 1,   // 线性递减
-  Taper = 2,    // 头粗尾细
-  Flat = 3,     // 均匀宽度
-  Bulge = 4,    // 中间粗两头细
+  Sin = 0, // 正弦波（默认毛笔效果）
+  Linear = 1, // 线性递减
+  Taper = 2, // 头粗尾细
+  Flat = 3, // 均匀宽度
+  Bulge = 4, // 中间粗两头细
 }
 
 // 路径点
 export interface PathPoint {
   x: number;
   y: number;
-  pressure?: number;  // 压力 0-1
-  velocity?: number;  // 速度 0-1
+  pressure?: number; // 压力 0-1
+  velocity?: number; // 速度 0-1
 }
 
 // 笔触选项
 export interface StrokeOptions {
-  width?: number;           // 笔宽
-  color?: [number, number, number, number];  // RGBA 0-1
-  noiseAmount?: number;     // 噪声强度 0-1
+  width?: number; // 笔宽
+  color?: [number, number, number, number]; // RGBA 0-1
+  noiseAmount?: number; // 噪声强度 0-1
   widthFunc?: WidthFuncType;
-  softness?: number;        // 边缘柔和度 0-1
-  inkDensity?: number;      // 墨色浓度 0-1
+  softness?: number; // 边缘柔和度 0-1
+  inkDensity?: number; // 墨色浓度 0-1
 }
 
 // Compute Shader
@@ -226,7 +226,7 @@ const strokeRenderShader = /* wgsl */ `
 export class StrokeRenderer {
   private device: GPUDevice | null = null;
   private context: GPUCanvasContext | null = null;
-  private format: GPUTextureFormat = 'bgra8unorm';
+  private format: GPUTextureFormat = "bgra8unorm";
 
   private computePipeline: GPUComputePipeline | null = null;
   private renderPipeline: GPURenderPipeline | null = null;
@@ -242,7 +242,7 @@ export class StrokeRenderer {
 
   private canvasWidth = 0;
   private canvasHeight = 0;
-  private maxPoints = 1000;  // 最大路径点数
+  private maxPoints = 1000; // 最大路径点数
 
   private isInitialized = false;
   private seed = prng.random() * 1000;
@@ -252,21 +252,21 @@ export class StrokeRenderer {
    */
   async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
     if (!navigator.gpu) {
-      console.error('WebGPU 不支持');
+      console.error("WebGPU 不支持");
       return false;
     }
 
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) {
-      console.error('无法获取 GPU adapter');
+      console.error("无法获取 GPU adapter");
       return false;
     }
 
     this.device = await adapter.requestDevice();
-    this.context = canvas.getContext('webgpu');
+    this.context = canvas.getContext("webgpu");
 
     if (!this.context) {
-      console.error('无法获取 WebGPU context');
+      console.error("无法获取 WebGPU context");
       return false;
     }
 
@@ -277,7 +277,7 @@ export class StrokeRenderer {
     this.context.configure({
       device: this.device,
       format: this.format,
-      alphaMode: 'premultiplied',
+      alphaMode: "premultiplied",
     });
 
     await this.createBuffers();
@@ -336,10 +336,10 @@ export class StrokeRenderer {
     });
 
     this.computePipeline = this.device.createComputePipeline({
-      layout: 'auto',
+      layout: "auto",
       compute: {
         module: computeModule,
-        entryPoint: 'main',
+        entryPoint: "main",
       },
     });
 
@@ -349,41 +349,45 @@ export class StrokeRenderer {
     });
 
     this.renderPipeline = this.device.createRenderPipeline({
-      layout: 'auto',
+      layout: "auto",
       vertex: {
         module: renderModule,
-        entryPoint: 'vertexMain',
-        buffers: [{
-          arrayStride: 32,
-          attributes: [
-            { shaderLocation: 0, offset: 0, format: 'float32x2' },  // position
-            { shaderLocation: 1, offset: 8, format: 'float32x2' },  // uv
-            { shaderLocation: 2, offset: 16, format: 'float32' },   // opacity
-            { shaderLocation: 3, offset: 20, format: 'float32' },   // side
-          ],
-        }],
+        entryPoint: "vertexMain",
+        buffers: [
+          {
+            arrayStride: 32,
+            attributes: [
+              { shaderLocation: 0, offset: 0, format: "float32x2" }, // position
+              { shaderLocation: 1, offset: 8, format: "float32x2" }, // uv
+              { shaderLocation: 2, offset: 16, format: "float32" }, // opacity
+              { shaderLocation: 3, offset: 20, format: "float32" }, // side
+            ],
+          },
+        ],
       },
       fragment: {
         module: renderModule,
-        entryPoint: 'fragmentMain',
-        targets: [{
-          format: this.format,
-          blend: {
-            color: {
-              srcFactor: 'src-alpha',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
-            alpha: {
-              srcFactor: 'one',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
+        entryPoint: "fragmentMain",
+        targets: [
+          {
+            format: this.format,
+            blend: {
+              color: {
+                srcFactor: "src-alpha",
+                dstFactor: "one-minus-src-alpha",
+                operation: "add",
+              },
+              alpha: {
+                srcFactor: "one",
+                dstFactor: "one-minus-src-alpha",
+                operation: "add",
+              },
             },
           },
-        }],
+        ],
       },
       primitive: {
-        topology: 'triangle-list',
+        topology: "triangle-list",
       },
     });
   }
@@ -419,14 +423,15 @@ export class StrokeRenderer {
 
     // 更新 compute 参数
     const computeParams = new Float32Array([
-      pointCount,        // pointCount (as float, will be cast to u32)
-      width,             // baseWidth
-      noiseAmount,       // noiseAmount
-      this.seed++,       // seed
-      ...color,          // color RGBA
-      widthFunc,         // widthFuncType
-      0,                 // time
-      0, 0,              // padding
+      pointCount, // pointCount (as float, will be cast to u32)
+      width, // baseWidth
+      noiseAmount, // noiseAmount
+      this.seed++, // seed
+      ...color, // color RGBA
+      widthFunc, // widthFuncType
+      0, // time
+      0,
+      0, // padding
     ]);
     // 需要单独处理 u32
     const paramsView = new DataView(new ArrayBuffer(48));
@@ -448,10 +453,22 @@ export class StrokeRenderer {
     // 更新渲染参数
     const renderParams = new Float32Array([
       // viewProj (identity)
-      1, 0, 0, 0,
-      0, 1, 0, 0,
-      0, 0, 1, 0,
-      0, 0, 0, 1,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
       // color
       ...color,
       // softness, inkDensity, canvasWidth, canvasHeight
@@ -475,9 +492,7 @@ export class StrokeRenderer {
 
     this.renderBindGroup = this.device.createBindGroup({
       layout: this.renderPipeline!.getBindGroupLayout(0),
-      entries: [
-        { binding: 0, resource: { buffer: this.renderParamsBuffer! } },
-      ],
+      entries: [{ binding: 0, resource: { buffer: this.renderParamsBuffer! } }],
     });
 
     // 执行 compute
@@ -492,17 +507,19 @@ export class StrokeRenderer {
     // 执行 render
     const textureView = this.context.getCurrentTexture().createView();
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        loadOp: 'load',
-        storeOp: 'store',
-      }],
+      colorAttachments: [
+        {
+          view: textureView,
+          loadOp: "load",
+          storeOp: "store",
+        },
+      ],
     });
 
     renderPass.setPipeline(this.renderPipeline!);
     renderPass.setBindGroup(0, this.renderBindGroup);
     renderPass.setVertexBuffer(0, this.vertexBuffer!);
-    renderPass.setIndexBuffer(this.indexBuffer!, 'uint32');
+    renderPass.setIndexBuffer(this.indexBuffer!, "uint32");
     renderPass.drawIndexed((pointCount - 1) * 6);
     renderPass.end();
 
@@ -519,12 +536,14 @@ export class StrokeRenderer {
     const textureView = this.context.getCurrentTexture().createView();
 
     const renderPass = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        clearValue: { r: color[0], g: color[1], b: color[2], a: color[3] },
-        loadOp: 'clear',
-        storeOp: 'store',
-      }],
+      colorAttachments: [
+        {
+          view: textureView,
+          clearValue: { r: color[0], g: color[1], b: color[2], a: color[3] },
+          loadOp: "clear",
+          storeOp: "store",
+        },
+      ],
     });
     renderPass.end();
 

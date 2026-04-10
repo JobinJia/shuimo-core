@@ -4,7 +4,7 @@
  * 管理无限滚动山水场景，使用 ShuimoRenderer 进行渲染
  */
 
-import { ShuimoRenderer } from './ShuimoRenderer';
+import { ShuimoRenderer } from "./ShuimoRenderer";
 
 export interface GPUChunk {
   tag: string;
@@ -61,7 +61,7 @@ class GPUMountPlanner {
     x: number,
     y: number,
     f: (x: number, y: number) => number,
-    r: number
+    r: number,
   ): boolean {
     const z0 = f(x, y);
     if (z0 <= 0.3) return false;
@@ -91,7 +91,7 @@ class GPUMountPlanner {
     };
 
     const yr = (x: number): number => {
-      return (fbmNoise(x * 0.01, Math.PI, seed) * 0.5 + 0.5);
+      return fbmNoise(x * 0.01, Math.PI, seed) * 0.5 + 0.5;
     };
 
     const xstep = 5;
@@ -110,7 +110,7 @@ class GPUMountPlanner {
           const xof = i + 2 * (noise(i, j, seed) - 0.5) * 400;
           const yof = j + 350;
           const r: PlanItem = {
-            tag: 'mount',
+            tag: "mount",
             x: xof,
             y: yof,
             h: ns(i, j),
@@ -118,7 +118,7 @@ class GPUMountPlanner {
               height: 150 + ns(i, j) * 150,
               width: 300 + noise(i, j, seed + 1) * 200,
               texture: 100 + noise(i, j, seed + 2) * 100,
-            }
+            },
           };
           const res = this.chadd(reg, r, 300);
           if (res) {
@@ -132,14 +132,14 @@ class GPUMountPlanner {
       // 放置远山
       if (Math.abs(i) % 600 < Math.max(1, xstep - 1)) {
         const r: PlanItem = {
-          tag: 'distmount',
+          tag: "distmount",
           x: i,
           y: 220 - noise(i, 0, seed) * 40,
           h: ns(i, 0),
           params: {
             height: 80 + noise(i, 0, seed + 3) * 50,
             length: 400 + noise(i, 0, seed + 4) * 400,
-          }
+          },
         };
         this.chadd(reg, r, 350);
       }
@@ -147,7 +147,7 @@ class GPUMountPlanner {
       // 放置平顶山
       if (Math.abs(i) % 800 < Math.max(1, xstep - 1) && noise(i, 700, seed) < 0.1) {
         const r: PlanItem = {
-          tag: 'flatmount',
+          tag: "flatmount",
           x: i,
           y: 450 + noise(i, 0, seed) * 50,
           h: ns(i, 0),
@@ -155,7 +155,7 @@ class GPUMountPlanner {
             height: 60 + noise(i, 0, seed + 80) * 100,
             width: 300 + noise(i, 0, seed + 81) * 200,
             texture: 60 + noise(i, 0, seed + 82) * 40,
-          }
+          },
         };
         this.chadd(reg, r, 400);
       }
@@ -163,7 +163,7 @@ class GPUMountPlanner {
       // 放置雾气山
       if (Math.abs(i) % 1000 < Math.max(1, xstep - 1) && noise(i, 800, seed) < 0.08) {
         const r: PlanItem = {
-          tag: 'mistymount',
+          tag: "mistymount",
           x: i,
           y: 400,
           h: ns(i, 0),
@@ -171,7 +171,7 @@ class GPUMountPlanner {
             height: 150 + noise(i, 0, seed + 90) * 100,
             length: 800 + noise(i, 0, seed + 91) * 600,
             layers: 2 + Math.floor(noise(i, 0, seed + 92) * 2),
-          }
+          },
         };
         this.chadd(reg, r, 500);
       }
@@ -183,7 +183,7 @@ class GPUMountPlanner {
         if (noise(i, 0, seed + 10) < 0.015) {
           for (let j = 0; j < 3 * noise(i, 1, seed); j++) {
             const r: PlanItem = {
-              tag: 'mount',
+              tag: "mount",
               x: i + 2 * (noise(i, j, seed + 5) - 0.5) * 500,
               y: 600 - j * 60,
               h: ns(i, j),
@@ -191,7 +191,7 @@ class GPUMountPlanner {
                 height: 80 + noise(i, j, seed + 6) * 100,
                 width: 200 + noise(i, j, seed + 7) * 150,
                 texture: 80,
-              }
+              },
             };
             this.chadd(reg, r, 180);
           }
@@ -203,14 +203,14 @@ class GPUMountPlanner {
     for (let i = xmin; i < xmax; i += 120) {
       if (noise(i, 100, seed) < 0.35) {
         const r: PlanItem = {
-          tag: 'water',
+          tag: "water",
           x: i,
           y: 720,
           h: 0,
           params: {
             length: 300 + noise(i, 0, seed + 8) * 250,
             clusters: 10 + Math.floor(noise(i, 1, seed + 9) * 8),
-          }
+          },
         };
         this.chadd(reg, r, 150);
       }
@@ -222,14 +222,14 @@ class GPUMountPlanner {
         // 随机选择树木类型 1-8
         const treeType = 1 + Math.floor(noise(i, 100, seed + 25) * 8);
         const r: PlanItem = {
-          tag: 'tree',
+          tag: "tree",
           x: i,
           y: 600 + noise(i, 0, seed + 21) * 60,
           h: 0,
           params: {
             height: 50 + noise(i, 0, seed + 22) * 100,
             type: treeType,
-          }
+          },
         };
         this.chadd(reg, r, 40);
       }
@@ -239,7 +239,7 @@ class GPUMountPlanner {
     for (let i = xmin; i < xmax; i += 150) {
       if (noise(i, 200, seed + 30) < 0.15) {
         const r: PlanItem = {
-          tag: 'rock',
+          tag: "rock",
           x: i,
           y: 640 + noise(i, 0, seed + 31) * 50,
           h: 0,
@@ -247,7 +247,7 @@ class GPUMountPlanner {
             height: 30 + noise(i, 0, seed + 32) * 30,
             width: 50 + noise(i, 1, seed + 33) * 40,
             texture: 25 + noise(i, 2, seed + 34) * 15,
-          }
+          },
         };
         this.chadd(reg, r, 60);
       }
@@ -257,14 +257,14 @@ class GPUMountPlanner {
     for (let i = xmin; i < xmax; i += 300) {
       if (noise(i, 300, seed + 40) < 0.2) {
         const r: PlanItem = {
-          tag: 'cloud',
+          tag: "cloud",
           x: i,
           y: 80 + noise(i, 0, seed + 41) * 100,
           h: 0,
           params: {
             size: 100 + noise(i, 1, seed + 42) * 100,
             opacity: 0.2 + noise(i, 2, seed + 43) * 0.2,
-          }
+          },
         };
         this.chadd(reg, r, 200);
       }
@@ -274,7 +274,7 @@ class GPUMountPlanner {
     for (let i = xmin; i < xmax; i += 400) {
       if (noise(i, 400, seed + 50) < 0.15) {
         const r: PlanItem = {
-          tag: 'boat',
+          tag: "boat",
           x: i,
           y: 700 + noise(i, 0, seed + 51) * 40,
           h: 0,
@@ -282,7 +282,7 @@ class GPUMountPlanner {
             length: 80 + noise(i, 1, seed + 52) * 40,
             scale: 0.8 + noise(i, 2, seed + 53) * 0.4,
             flip: noise(i, 3, seed + 54) > 0.5,
-          }
+          },
         };
         this.chadd(reg, r, 120);
       }
@@ -292,14 +292,14 @@ class GPUMountPlanner {
     for (let i = xmin; i < xmax; i += 600) {
       if (noise(i, 500, seed + 60) < 0.1) {
         const r: PlanItem = {
-          tag: 'pavilion',
+          tag: "pavilion",
           x: i,
           y: 580 + noise(i, 0, seed + 61) * 40,
           h: 0,
           params: {
             height: 60 + noise(i, 1, seed + 62) * 30,
             width: 140 + noise(i, 2, seed + 63) * 60,
-          }
+          },
         };
         this.chadd(reg, r, 180);
       }
@@ -309,7 +309,7 @@ class GPUMountPlanner {
     for (let i = xmin; i < xmax; i += 800) {
       if (noise(i, 600, seed + 70) < 0.08) {
         const r: PlanItem = {
-          tag: 'pagoda',
+          tag: "pagoda",
           x: i,
           y: 520 + noise(i, 0, seed + 71) * 50,
           h: 0,
@@ -317,7 +317,7 @@ class GPUMountPlanner {
             height: 12 + noise(i, 1, seed + 72) * 6,
             width: 40 + noise(i, 2, seed + 73) * 20,
             stories: 3 + Math.floor(noise(i, 3, seed + 74) * 3),
-          }
+          },
         };
         this.chadd(reg, r, 150);
       }
@@ -341,7 +341,7 @@ export class GPUSceneManager {
 
   // 缓存系统
   private webgpuCanvas: HTMLCanvasElement | null = null; // 隐藏的 WebGPU 渲染 canvas
-  private bufferCanvas: HTMLCanvasElement | null = null;  // 大的离屏缓冲 canvas
+  private bufferCanvas: HTMLCanvasElement | null = null; // 大的离屏缓冲 canvas
   private bufferContext: CanvasRenderingContext2D | null = null;
   private displayContext: CanvasRenderingContext2D | null = null; // 显示 canvas 的 2D context
   private bufferWidth: number;
@@ -369,39 +369,39 @@ export class GPUSceneManager {
     this.renderer = new ShuimoRenderer();
 
     // 创建隐藏的 WebGPU 渲染 canvas（保持视口大小，避免超限）
-    this.webgpuCanvas = document.createElement('canvas');
-    this.webgpuCanvas.width = this.state.windx;  // 使用视口宽度，不是缓冲区宽度
+    this.webgpuCanvas = document.createElement("canvas");
+    this.webgpuCanvas.width = this.state.windx; // 使用视口宽度，不是缓冲区宽度
     this.webgpuCanvas.height = this.state.windy;
 
     // 在 WebGPU canvas 上初始化渲染器
     const success = await this.renderer.initialize(this.webgpuCanvas);
     if (!success) {
-      console.error('Failed to initialize WebGPU renderer');
+      console.error("Failed to initialize WebGPU renderer");
       return false;
     }
 
     // 创建离屏缓冲 Canvas（用于缓存已渲染的内容，2D Canvas 可以更大）
-    this.bufferCanvas = document.createElement('canvas');
+    this.bufferCanvas = document.createElement("canvas");
     this.bufferCanvas.width = this.bufferWidth;
     this.bufferCanvas.height = this.state.windy;
-    this.bufferContext = this.bufferCanvas.getContext('2d', {
+    this.bufferContext = this.bufferCanvas.getContext("2d", {
       willReadFrequently: false,
-      alpha: true
+      alpha: true,
     });
 
     if (!this.bufferContext) {
-      console.error('Failed to create buffer context');
+      console.error("Failed to create buffer context");
       return false;
     }
 
     // 获取显示 canvas 的 2D context
-    this.displayContext = this.canvas.getContext('2d', {
+    this.displayContext = this.canvas.getContext("2d", {
       willReadFrequently: false,
-      alpha: true
+      alpha: true,
     });
 
     if (!this.displayContext) {
-      console.error('Failed to create display context');
+      console.error("Failed to create display context");
       return false;
     }
 
@@ -450,7 +450,7 @@ export class GPUSceneManager {
           this.state.xmax,
           this.state.xmax + this.state.cwid,
           this.state.planmtx,
-          this.seed
+          this.seed,
         );
         this.state.xmax = this.state.xmax + this.state.cwid;
       } else {
@@ -458,7 +458,7 @@ export class GPUSceneManager {
           this.state.xmin - this.state.cwid,
           this.state.xmin,
           this.state.planmtx,
-          this.seed
+          this.seed,
         );
         this.state.xmin = this.state.xmin - this.state.cwid;
       }
@@ -479,14 +479,15 @@ export class GPUSceneManager {
 
   private cleanupDistantChunks(xmin: number, xmax: number): void {
     const maxDistance = this.state.cwid * 6;
-    this.state.chunks = this.state.chunks.filter(chunk =>
-      chunk.x > xmin - maxDistance && chunk.x < xmax + maxDistance
+    this.state.chunks = this.state.chunks.filter(
+      (chunk) => chunk.x > xmin - maxDistance && chunk.x < xmax + maxDistance,
     );
   }
 
   needUpdate(): boolean {
-    return this.state.xmin >= this.state.cursx ||
-           this.state.cursx >= this.state.xmax - this.state.windx;
+    return (
+      this.state.xmin >= this.state.cursx || this.state.cursx >= this.state.xmax - this.state.windx
+    );
   }
 
   update(): void {
@@ -518,11 +519,12 @@ export class GPUSceneManager {
     // 检查是否需要重新渲染整个缓冲区（视口真正移出缓冲区）
     const bufferLeft = this.bufferOffsetX;
     const bufferRight = this.bufferOffsetX + this.bufferWidth;
-    const safeMargin = 500;  // 安全边距，只有真正接近边界时才重新定位
+    const safeMargin = 500; // 安全边距，只有真正接近边界时才重新定位
 
-    const needFullRender = viewLeft < bufferLeft + safeMargin ||
-                          viewRight > bufferRight - safeMargin ||
-                          this.renderedChunks.size === 0;
+    const needFullRender =
+      viewLeft < bufferLeft + safeMargin ||
+      viewRight > bufferRight - safeMargin ||
+      this.renderedChunks.size === 0;
 
     if (needFullRender) {
       // 重新定位缓冲区：让当前视口居中（不是靠左）
@@ -535,7 +537,7 @@ export class GPUSceneManager {
 
       for (const [key, value] of this.renderedChunks) {
         // 解析 chunk key 获取位置
-        const parts = key.split('_');
+        const parts = key.split("_");
         const chunkX = parseFloat(parts[1]);
 
         // 保留仍在新缓冲区范围内的 chunks
@@ -552,7 +554,12 @@ export class GPUSceneManager {
 
         if (Math.abs(offsetDelta) < this.bufferWidth) {
           // 移动现有内容
-          const imageData = this.bufferContext.getImageData(0, 0, this.bufferWidth, this.state.windy);
+          const imageData = this.bufferContext.getImageData(
+            0,
+            0,
+            this.bufferWidth,
+            this.state.windy,
+          );
           this.bufferContext.clearRect(0, 0, this.bufferWidth, this.state.windy);
           this.bufferContext.putImageData(imageData, -offsetDelta, 0);
         } else {
@@ -592,8 +599,8 @@ export class GPUSceneManager {
       const segmentRight = Math.min(segmentLeft + segmentWidth, worldRight);
 
       // 筛选当前段内的 chunks
-      const chunks = this.state.chunks.filter(chunk =>
-        chunk.x > segmentLeft - margin && chunk.x < segmentRight + margin
+      const chunks = this.state.chunks.filter(
+        (chunk) => chunk.x > segmentLeft - margin && chunk.x < segmentRight + margin,
       );
 
       if (chunks.length === 0) continue;
@@ -631,7 +638,7 @@ export class GPUSceneManager {
     const bufferRight = this.bufferOffsetX + this.bufferWidth;
 
     // 找出缓冲区范围内未渲染的 chunks
-    const newChunks = this.state.chunks.filter(chunk => {
+    const newChunks = this.state.chunks.filter((chunk) => {
       const inBuffer = chunk.x > bufferLeft - margin && chunk.x < bufferRight + margin;
       const notRendered = !this.renderedChunks.has(this.getChunkKey(chunk));
       return inBuffer && notRendered;
@@ -692,7 +699,7 @@ export class GPUSceneManager {
     // 边界检查：确保不超出缓冲区范围
     if (sourceX < 0) {
       // 左边超出：只复制可见部分
-      sourceWidth += sourceX;  // 减少宽度
+      sourceWidth += sourceX; // 减少宽度
       sourceX = 0;
     }
 
@@ -703,10 +710,10 @@ export class GPUSceneManager {
 
     // 如果完全超出范围，不复制
     if (sourceWidth <= 0 || sourceX >= this.bufferWidth) {
-      console.warn('View completely outside buffer range', {
+      console.warn("View completely outside buffer range", {
         cursx: this.state.cursx,
         bufferOffsetX: this.bufferOffsetX,
-        bufferWidth: this.bufferWidth
+        bufferWidth: this.bufferWidth,
       });
       return;
     }
@@ -715,14 +722,23 @@ export class GPUSceneManager {
     this.displayContext.clearRect(0, 0, this.state.windx, this.state.windy);
 
     // 复制缓冲区的可见部分到显示 canvas
-    const destX = sourceX === 0 && sourceWidth < this.state.windx
-      ? (this.state.cursx - this.bufferOffsetX < 0 ? Math.abs(this.state.cursx - this.bufferOffsetX) : 0)
-      : 0;
+    const destX =
+      sourceX === 0 && sourceWidth < this.state.windx
+        ? this.state.cursx - this.bufferOffsetX < 0
+          ? Math.abs(this.state.cursx - this.bufferOffsetX)
+          : 0
+        : 0;
 
     this.displayContext.drawImage(
       this.bufferCanvas,
-      sourceX, sourceY, sourceWidth, sourceHeight,
-      destX, 0, sourceWidth, sourceHeight
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      destX,
+      0,
+      sourceWidth,
+      sourceHeight,
     );
   }
 
@@ -739,7 +755,7 @@ export class GPUSceneManager {
     const params = chunk.params;
 
     switch (chunk.tag) {
-      case 'mount':
+      case "mount":
         this.renderer.drawMountain(screenX, screenY, chunk.seed, {
           height: (params.height as number) || 200,
           width: (params.width as number) || 400,
@@ -747,28 +763,28 @@ export class GPUSceneManager {
         });
         break;
 
-      case 'distmount':
+      case "distmount":
         this.renderer.drawDistantMount(screenX, screenY, chunk.seed, {
           height: (params.height as number) || 100,
           length: (params.length as number) || 600,
         });
         break;
 
-      case 'water':
+      case "water":
         this.renderer.drawWater(screenX, screenY, chunk.seed, {
           length: (params.length as number) || 400,
           clusters: (params.clusters as number) || 10,
         });
         break;
 
-      case 'tree':
+      case "tree":
         this.renderer.drawTree(screenX, screenY, chunk.seed, {
           height: (params.height as number) || 80,
           type: (params.type as number) || 1,
         });
         break;
 
-      case 'rock':
+      case "rock":
         this.renderer.drawRock(screenX, screenY, chunk.seed, {
           height: (params.height as number) || 60,
           width: (params.width as number) || 80,
@@ -776,14 +792,14 @@ export class GPUSceneManager {
         });
         break;
 
-      case 'cloud':
+      case "cloud":
         this.renderer.drawCloud(screenX, screenY, chunk.seed, {
           size: (params.size as number) || 150,
           opacity: (params.opacity as number) || 0.3,
         });
         break;
 
-      case 'boat':
+      case "boat":
         this.renderer.drawBoat(screenX, screenY, chunk.seed, {
           length: (params.length as number) || 120,
           scale: (params.scale as number) || 1,
@@ -791,14 +807,14 @@ export class GPUSceneManager {
         });
         break;
 
-      case 'pavilion':
+      case "pavilion":
         this.renderer.drawPavilion(screenX, screenY, chunk.seed, {
           height: (params.height as number) || 70,
           width: (params.width as number) || 180,
         });
         break;
 
-      case 'pagoda':
+      case "pagoda":
         this.renderer.drawPagoda(screenX, screenY, chunk.seed, {
           height: (params.height as number) || 15,
           width: (params.width as number) || 50,
@@ -806,7 +822,7 @@ export class GPUSceneManager {
         });
         break;
 
-      case 'flatmount':
+      case "flatmount":
         this.renderer.drawFlatMount(screenX, screenY, chunk.seed, {
           height: (params.height as number) || 100,
           width: (params.width as number) || 400,
@@ -814,7 +830,7 @@ export class GPUSceneManager {
         });
         break;
 
-      case 'mistymount':
+      case "mistymount":
         this.renderer.drawMistyMount(screenX, screenY, chunk.seed, {
           height: (params.height as number) || 200,
           length: (params.length as number) || 1000,

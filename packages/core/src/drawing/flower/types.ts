@@ -3,25 +3,25 @@
  * Migrated from Canvas-based implementation to SVG
  */
 
-export const SVG_NS = 'http://www.w3.org/2000/svg'
+export const SVG_NS = "http://www.w3.org/2000/svg";
 
 // ============================================================================
 // Basic Types
 // ============================================================================
 
 /** 3D Vector [x, y, z] */
-export type Vec3 = [number, number, number]
+export type Vec3 = [number, number, number];
 
 /** 2D Vector [x, y] */
-export type Vec2 = [number, number]
+export type Vec2 = [number, number];
 
 /** Color in HSVA format [hue, saturation, value, alpha] */
-export type ColorHSVA = [number, number, number, number]
+export type ColorHSVA = [number, number, number, number];
 
 /** Color range with min and max HSVA values */
 export interface ColorRange {
-  min: ColorHSVA
-  max: ColorHSVA
+  min: ColorHSVA;
+  max: ColorHSVA;
 }
 
 // ============================================================================
@@ -30,37 +30,37 @@ export interface ColorRange {
 
 export interface PolygonArgs {
   /** List of 2D points */
-  pts: Vec2[]
+  pts: Vec2[];
   /** Color (CSS color string or rgba/hsv) */
-  col?: string
+  col?: string;
   /** Fill the polygon */
-  fil?: boolean
+  fil?: boolean;
   /** Stroke the polygon */
-  str?: boolean
+  str?: boolean;
   /** X offset */
-  xof?: number
+  xof?: number;
   /** Y offset */
-  yof?: number
+  yof?: number;
 }
 
 export interface TubifyArgs {
   /** List of 3D points */
-  pts: Vec3[]
+  pts: Vec3[];
   /** Width function: (progress: 0-1) => width */
-  wid?: (x: number) => number
+  wid?: (x: number) => number;
 }
 
 export interface StrokeArgs {
   /** List of 3D points */
-  pts: Vec3[]
+  pts: Vec3[];
   /** Color */
-  col?: string
+  col?: string;
   /** Width function */
-  wid?: (x: number) => number
+  wid?: (x: number) => number;
   /** X offset */
-  xof?: number
+  xof?: number;
   /** Y offset */
-  yof?: number
+  yof?: number;
 }
 
 // ============================================================================
@@ -69,75 +69,75 @@ export interface StrokeArgs {
 
 export interface LeafArgs {
   /** X offset */
-  xof?: number
+  xof?: number;
   /** Y offset */
-  yof?: number
+  yof?: number;
   /** Rotation in 3D [x, y, z] (radians) */
-  rot?: Vec3
+  rot?: Vec3;
   /** Length of the leaf */
-  len?: number
+  len?: number;
   /** Number of segments */
-  seg?: number
+  seg?: number;
   /** Width function */
-  wid?: (x: number) => number
+  wid?: (x: number) => number;
   /** Vein configuration [type, ...params] */
-  vei?: number[]
+  vei?: number[];
   /** Is this a flower petal */
-  flo?: boolean
+  flo?: boolean;
   /** Color range */
-  col?: ColorRange
+  col?: ColorRange;
   /** Color offset function */
-  cof?: (x: number) => number
+  cof?: (x: number) => number;
   /** Bend function: returns rotation delta */
-  ben?: (x: number) => Vec3
+  ben?: (x: number) => Vec3;
   /** Layer type for filter application */
-  layerType?: LayerType
+  layerType?: LayerType;
 }
 
 export interface StemArgs {
   /** X offset */
-  xof?: number
+  xof?: number;
   /** Y offset */
-  yof?: number
+  yof?: number;
   /** Rotation in 3D */
-  rot?: Vec3
+  rot?: Vec3;
   /** Length of the stem */
-  len?: number
+  len?: number;
   /** Number of segments */
-  seg?: number
+  seg?: number;
   /** Width function */
-  wid?: (x: number) => number
+  wid?: (x: number) => number;
   /** Color range */
-  col?: ColorRange
+  col?: ColorRange;
   /** Bend function */
-  ben?: (x: number) => Vec3
+  ben?: (x: number) => Vec3;
   /** Layer type for filter application */
-  layerType?: LayerType
+  layerType?: LayerType;
 }
 
 export interface BranchArgs {
   /** X offset */
-  xof?: number
+  xof?: number;
   /** Y offset */
-  yof?: number
+  yof?: number;
   /** Rotation in 3D */
-  rot?: Vec3
+  rot?: Vec3;
   /** Length of the branch */
-  len?: number
+  len?: number;
   /** Number of segments */
-  seg?: number
+  seg?: number;
   /** Width multiplier */
-  wid?: number
+  wid?: number;
   /** Twist/joint count */
-  twi?: number
+  twi?: number;
   /** Color range */
-  col?: ColorRange
+  col?: ColorRange;
   /** Recursion depth */
-  dep?: number
+  dep?: number;
   /** Fork count */
-  frk?: number
+  frk?: number;
   /** Layer type for filter application */
-  layerType?: LayerType
+  layerType?: LayerType;
 }
 
 // ============================================================================
@@ -146,39 +146,39 @@ export interface BranchArgs {
 
 export interface Layer {
   /** SVG group element */
-  group: SVGGElement
+  group: SVGGElement;
   /** Layer width */
-  width: number
+  width: number;
   /** Layer height */
-  height: number
+  height: number;
 }
 
 export interface BlitOptions {
   /** Blend mode */
-  ble?: 'normal' | 'multiply'
+  ble?: "normal" | "multiply";
   /** X offset */
-  xof?: number
+  xof?: number;
   /** Y offset */
-  yof?: number
+  yof?: number;
 }
 
 export interface Bounds {
-  xmin: number
-  xmax: number
-  ymin: number
-  ymax: number
+  xmin: number;
+  xmax: number;
+  ymin: number;
+  ymax: number;
 }
 
 // ============================================================================
 // Filter System
 // ============================================================================
 
-export type FilterType = 'wispy' | 'fade'
+export type FilterType = "wispy" | "fade";
 
 /** Layer type determines which filters to apply */
-export type LayerType = 'lay0' | 'lay1'
+export type LayerType = "lay0" | "lay1";
 
-export type NoiseFunction = (x: number, y?: number, z?: number) => number
+export type NoiseFunction = (x: number, y?: number, z?: number) => number;
 
 // ============================================================================
 // Parameter Generation
@@ -186,53 +186,53 @@ export type NoiseFunction = (x: number, y?: number, z?: number) => number
 
 export interface FlowerParams {
   // Flower parameters
-  flowerChance: number
-  flowerShape: (x: number) => number
-  flowerColor: ColorRange
-  flowerOpenCurve: (x: number, op: number) => number
-  flowerColorCurve: (x: number) => number
-  flowerLength: number
-  flowerWidth: number
-  flowerPetal: number
+  flowerChance: number;
+  flowerShape: (x: number) => number;
+  flowerColor: ColorRange;
+  flowerOpenCurve: (x: number, op: number) => number;
+  flowerColorCurve: (x: number) => number;
+  flowerLength: number;
+  flowerWidth: number;
+  flowerPetal: number;
 
   // Leaf parameters
-  leafChance: number
-  leafType: number[]
-  leafShape: (x: number) => number
-  leafColor: ColorRange
-  leafLength: number
-  leafWidth: number
-  leafPosition: number
+  leafChance: number;
+  leafType: number[];
+  leafShape: (x: number) => number;
+  leafColor: ColorRange;
+  leafLength: number;
+  leafWidth: number;
+  leafPosition: number;
 
   // Stem parameters
-  stemWidth: number
-  stemBend: number
-  stemLength: number
-  stemCount: number
+  stemWidth: number;
+  stemBend: number;
+  stemLength: number;
+  stemCount: number;
 
   // Pedicel (flower stem)
-  pedicelLength: number
+  pedicelLength: number;
 
   // Sheath
-  sheathLength: number
-  sheathWidth: number
+  sheathLength: number;
+  sheathWidth: number;
 
   // Shoot
-  shootCount: number
-  shootLength: number
+  shootCount: number;
+  shootLength: number;
 
   // Inner flower parts
-  innerLength: number
-  innerWidth: number
-  innerShape: (x: number) => number
-  innerColor: ColorRange
+  innerLength: number;
+  innerWidth: number;
+  innerShape: (x: number) => number;
+  innerColor: ColorRange;
 
   // Branch (for woody plants)
-  branchWidth: number
-  branchTwist: number
-  branchDepth: number
-  branchFork: number
-  branchColor: ColorRange
+  branchWidth: number;
+  branchTwist: number;
+  branchDepth: number;
+  branchFork: number;
+  branchColor: ColorRange;
 }
 
 // ============================================================================
@@ -241,20 +241,20 @@ export interface FlowerParams {
 
 export interface WoodyArgs {
   /** X offset */
-  xof?: number
+  xof?: number;
   /** Y offset */
-  yof?: number
+  yof?: number;
   /** Parameters */
-  PAR?: FlowerParams
+  PAR?: FlowerParams;
 }
 
 export interface HerbalArgs {
   /** X offset */
-  xof?: number
+  xof?: number;
   /** Y offset */
-  yof?: number
+  yof?: number;
   /** Parameters */
-  PAR?: FlowerParams
+  PAR?: FlowerParams;
 }
 
 // ============================================================================
@@ -263,13 +263,13 @@ export interface HerbalArgs {
 
 export interface FlowerOptions {
   /** Random seed for reproducibility */
-  seed?: number | string
+  seed?: number | string;
   /** Type of plant to generate */
-  type?: 'woody' | 'herbal' | 'random'
+  type?: "woody" | "herbal" | "random";
   /** SVG width */
-  width?: number
+  width?: number;
   /** SVG height */
-  height?: number
+  height?: number;
   /** Background option */
-  background?: 'none' | 'paper' | string
+  background?: "none" | "paper" | string;
 }

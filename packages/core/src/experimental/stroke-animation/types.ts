@@ -3,18 +3,18 @@
  * 基于论文: "Animating Strokes in Drawing Process of Chinese Ink Painting"
  */
 
-import { Vector2 } from '../../foundation/geometry/Vector2'
+import { Vector2 } from "../../foundation/geometry/Vector2";
 
 /**
  * 笔画轮廓数据
  */
 export interface StrokeContour {
   /** 轮廓点序列 */
-  points: Vector2[]
+  points: Vector2[];
   /** 起点索引 */
-  startIndex: number
+  startIndex: number;
   /** 终点索引 */
-  endIndex: number
+  endIndex: number;
 }
 
 /**
@@ -22,11 +22,11 @@ export interface StrokeContour {
  */
 export interface StrokeShape {
   /** 笔画图像数据 */
-  imageData: ImageData
+  imageData: ImageData;
   /** 笔画轮廓 */
-  contour: StrokeContour
+  contour: StrokeContour;
   /** 笔画中轴线 */
-  medialAxis?: Vector2[]
+  medialAxis?: Vector2[];
 }
 
 /**
@@ -34,17 +34,17 @@ export interface StrokeShape {
  */
 export interface BrushFootprint {
   /** 中心位置 */
-  center: Vector2
+  center: Vector2;
   /** 长轴长度 */
-  majorAxis: number
+  majorAxis: number;
   /** 短轴长度 */
-  minorAxis: number
+  minorAxis: number;
   /** 旋转角度(弧度) */
-  angle: number
+  angle: number;
   /** 是否为侧锋 */
-  isSideTip?: boolean
+  isSideTip?: boolean;
   /** 压力值 (0-1) */
-  pressure?: number
+  pressure?: number;
 }
 
 /**
@@ -52,13 +52,13 @@ export interface BrushFootprint {
  */
 export interface DrawingTrajectory {
   /** 轨迹点序列 */
-  points: Vector2[]
+  points: Vector2[];
   /** 每个点对应的足迹 */
-  footprints: BrushFootprint[]
+  footprints: BrushFootprint[];
   /** 轨迹起点 */
-  startPoint: Vector2
+  startPoint: Vector2;
   /** 轨迹终点 */
-  endPoint: Vector2
+  endPoint: Vector2;
 }
 
 /**
@@ -66,9 +66,9 @@ export interface DrawingTrajectory {
  */
 export enum StrokeEndType {
   /** 锋利的端点 */
-  SHARP = 'sharp',
+  SHARP = "sharp",
   /** 平滑的端点 */
-  SMOOTH = 'smooth'
+  SMOOTH = "smooth",
 }
 
 /**
@@ -76,13 +76,13 @@ export enum StrokeEndType {
  */
 export interface AnimationState {
   /** 当前进度 (0-1) */
-  progress: number
+  progress: number;
   /** 当前渲染的足迹索引 */
-  currentFootprintIndex: number
+  currentFootprintIndex: number;
   /** 是否正在播放 */
-  isPlaying: boolean
+  isPlaying: boolean;
   /** 动画速度 (足迹/秒) */
-  speed: number
+  speed: number;
 }
 
 /**
@@ -90,11 +90,11 @@ export interface AnimationState {
  */
 export interface RenderConfig {
   /** 是否显示轨迹辅助线 */
-  showTrajectory?: boolean
+  showTrajectory?: boolean;
   /** 是否显示足迹边界 */
-  showFootprintBounds?: boolean
+  showFootprintBounds?: boolean;
   /** 扩散效果强度 (0-1) */
-  diffusionStrength?: number
+  diffusionStrength?: number;
   /** 干笔效果强度 (0-1) */
-  dryBrushStrength?: number
+  dryBrushStrength?: number;
 }

@@ -1,5 +1,5 @@
-import { mapval } from './math';
-import { prng } from '../foundation/random';
+import { mapval } from "./math";
+import { prng } from "../foundation/random";
 
 /**
  * Randomly choose an element from an array

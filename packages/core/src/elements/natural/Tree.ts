@@ -1,12 +1,12 @@
-import { Point, Polygon, PolyTools } from '../../foundation/geometry';
-import { noise } from '../../foundation/noise';
-import { prng } from '../../foundation/random';
-import { blob } from '../../drawing/Blob';
-import { stroke } from '../../drawing/Stroke';
-import { poly } from '../../utils/svg';
-import { randChoice, randGaussian, normRand } from '../../utils/random';
-import { loopNoise, distance } from '../../utils/math';
-import { div } from '../../drawing/div';
+import { Point, Polygon, PolyTools } from "../../foundation/geometry";
+import { noise } from "../../foundation/noise";
+import { prng } from "../../foundation/random";
+import { blob } from "../../drawing/Blob";
+import { stroke } from "../../drawing/Stroke";
+import { poly } from "../../utils/svg";
+import { randChoice, randGaussian, normRand } from "../../utils/random";
+import { loopNoise, distance } from "../../utils/math";
+import { div } from "../../drawing/div";
 
 export interface Tree01Options {
   hei?: number;
@@ -87,10 +87,10 @@ interface TwigOptions {
  * Parse color string to extract RGBA components
  */
 function parseColor(col: string): string[] {
-  if (col.includes('rgba(')) {
-    return col.replace('rgba(', '').replace(')', '').split(',');
+  if (col.includes("rgba(")) {
+    return col.replace("rgba(", "").replace(")", "").split(",");
   }
-  return ['100', '100', '100', '0.5'];
+  return ["100", "100", "100", "0.5"];
 }
 
 /**
@@ -173,7 +173,7 @@ function twig(tx: number, ty: number, dep: number, options: TwigOptions = {}): s
   const ang = options.ang ?? 0;
   const lea = options.lea ?? [true, 12];
 
-  let canv = '';
+  let canv = "";
   const twlist: Polygon = [];
   const tl = 10;
   const hs = prng.random() * 0.5 + 0.5;
@@ -214,12 +214,12 @@ function twig(tx: number, ty: number, dep: number, options: TwigOptions = {}): s
             wid: (6 + 3 * prng.random()) * wid,
             len: (15 + 12 * prng.random()) * wid,
             ang: ang / 2 + Math.PI / 2 + Math.PI * 0.2 * (prng.random() - 0.5),
-            col: 'rgba(100,100,100,' + (0.5 + dep * 0.2).toFixed(3) + ')',
+            col: "rgba(100,100,100," + (0.5 + dep * 0.2).toFixed(3) + ")",
             fun: (x: number) =>
               x <= 1
                 ? Math.pow(Math.sin(x * Math.PI) * x, 0.5)
                 : -Math.pow(Math.sin((x - 2) * Math.PI * (x - 2)), 0.5),
-          }
+          },
         );
       }
     }
@@ -228,7 +228,7 @@ function twig(tx: number, ty: number, dep: number, options: TwigOptions = {}): s
   canv += stroke(twlist, {
     wid: 1,
     fun: (x: number) => Math.cos((x * Math.PI) / 2),
-    col: 'rgba(100,100,100,0.5)',
+    col: "rgba(100,100,100,0.5)",
   });
 
   return canv;
@@ -274,22 +274,22 @@ function barkify(x: number, y: number, trlist: [Polygon, Polygon]): string {
     return stroke(brklist, {
       wid: 0.8,
       noi: 0,
-      col: 'rgba(100,100,100,0.4)',
+      col: "rgba(100,100,100,0.4)",
       out: 0,
       fun: (x: number) => Math.sin((x + fr) * Math.PI * 3),
     });
   }
 
-  let canv = '';
+  let canv = "";
 
   for (let i = 2; i < trlist[0].length - 1; i++) {
     const a0 = Math.atan2(
       trlist[0][i][1] - trlist[0][i - 1][1],
-      trlist[0][i][0] - trlist[0][i - 1][0]
+      trlist[0][i][0] - trlist[0][i - 1][0],
     );
     const a1 = Math.atan2(
       trlist[1][i][1] - trlist[1][i - 1][1],
-      trlist[1][i][0] - trlist[1][i - 1][0]
+      trlist[1][i][0] - trlist[1][i - 1][0],
     );
     const p = prng.random();
     const nx = trlist[0][i][0] * (1 - p) + trlist[1][i][0] * p;
@@ -301,7 +301,7 @@ function barkify(x: number, y: number, trlist: [Polygon, Polygon]): string {
         len: 15,
         wid: 6 - Math.abs(p - 0.5) * 10,
         ang: (a0 + a1) / 2,
-        col: 'rgba(100,100,100,0.6)',
+        col: "rgba(100,100,100,0.6)",
       });
     } else {
       canv += bark(nx + x, ny + y, 5 - Math.abs(p - 0.5) * 10, (a0 + a1) / 2);
@@ -321,8 +321,8 @@ function barkify(x: number, y: number, trlist: [Polygon, Polygon]): string {
             wid: 4,
             len: 4 + 6 * prng.random(),
             ang: a0 + Math.PI / 2,
-            col: 'rgba(100,100,100,0.6)',
-          }
+            col: "rgba(100,100,100,0.6)",
+          },
         );
       }
     }
@@ -346,7 +346,7 @@ function barkify(x: number, y: number, trlist: [Polygon, Polygon]): string {
     }
     canv += stroke(
       rglist[i].map((v) => [v[0] + x, v[1] + y]),
-      { wid: 1.5, col: 'rgba(100,100,100,0.7)', out: 0 }
+      { wid: 1.5, col: "rgba(100,100,100,0.7)", out: 0 },
     );
   }
 
@@ -363,7 +363,7 @@ export class Tree {
   static tree01(x: number, y: number, options: Tree01Options = {}): string {
     const hei = options.hei ?? 50;
     const wid = options.wid ?? 3;
-    const col = options.col ?? 'rgba(100,100,100,0.5)';
+    const col = options.col ?? "rgba(100,100,100,0.5)";
     const noi = options.noi ?? 0.5;
 
     const reso = 10;
@@ -373,7 +373,7 @@ export class Tree {
     }
 
     const leafcol = parseColor(col);
-    let canv = '';
+    let canv = "";
     const line1: Polygon = [];
     const line2: Polygon = [];
 
@@ -391,16 +391,16 @@ export class Tree {
               wid: prng.random() * 6 + 3,
               ang: ((prng.random() - 0.5) * Math.PI) / 6,
               col:
-                'rgba(' +
+                "rgba(" +
                 leafcol[0] +
-                ',' +
+                "," +
                 leafcol[1] +
-                ',' +
+                "," +
                 leafcol[2] +
-                ',' +
+                "," +
                 (prng.random() * 0.2 + parseFloat(leafcol[3])).toFixed(1) +
-                ')',
-            }
+                ")",
+            },
           );
         }
       }
@@ -408,8 +408,8 @@ export class Tree {
       line2.push([nx + (nslist[i][1] - 0.5) * wid + wid / 2, ny]);
     }
 
-    canv += poly(line1, { fil: 'none', str: col, wid: 1.5 });
-    canv += poly(line2, { fil: 'none', str: col, wid: 1.5 });
+    canv += poly(line1, { fil: "none", str: col, wid: 1.5 });
+    canv += poly(line2, { fil: "none", str: col, wid: 1.5 });
     return canv;
   }
 
@@ -420,9 +420,9 @@ export class Tree {
     const hei = options.hei ?? 16;
     const wid = options.wid ?? 8;
     const clu = options.clu ?? 5;
-    const col = options.col ?? 'rgba(100,100,100,0.5)';
+    const col = options.col ?? "rgba(100,100,100,0.5)";
 
-    let canv = '';
+    let canv = "";
     for (let i = 0; i < clu; i++) {
       canv += blob(x + randGaussian() * clu * 4, y + randGaussian() * clu * 4, {
         ang: Math.PI / 2,
@@ -445,7 +445,7 @@ export class Tree {
     const hei = options.hei ?? 50;
     const wid = options.wid ?? 5;
     const ben = options.ben ?? ((x: number) => 0);
-    const col = options.col ?? 'rgba(100,100,100,0.5)';
+    const col = options.col ?? "rgba(100,100,100,0.5)";
 
     const reso = 10;
     const nslist: [number, number][] = [];
@@ -454,8 +454,8 @@ export class Tree {
     }
 
     const leafcol = parseColor(col);
-    let canv = '';
-    let blobs = '';
+    let canv = "";
+    let blobs = "";
     const line1: Polygon = [];
     const line2: Polygon = [];
 
@@ -472,15 +472,15 @@ export class Tree {
             wid: prng.random() * 6 + 3,
             ang: ((prng.random() - 0.5) * Math.PI) / 6,
             col:
-              'rgba(' +
+              "rgba(" +
               leafcol[0] +
-              ',' +
+              "," +
               leafcol[1] +
-              ',' +
+              "," +
               leafcol[2] +
-              ',' +
+              "," +
               (prng.random() * 0.2 + parseFloat(leafcol[3])).toFixed(3) +
-              ')',
+              ")",
           });
         }
       }
@@ -489,7 +489,7 @@ export class Tree {
     }
 
     const lc = line1.concat(line2.reverse());
-    canv += poly(lc, { fil: 'white', str: col, wid: 1.5 });
+    canv += poly(lc, { fil: "white", str: col, wid: 1.5 });
     canv += blobs;
     return canv;
   }
@@ -500,11 +500,11 @@ export class Tree {
   static tree04(x: number, y: number, options: Tree04Options = {}): string {
     const hei = options.hei ?? 300;
     const wid = options.wid ?? 6;
-    const col = options.col ?? 'rgba(100,100,100,0.5)';
+    const col = options.col ?? "rgba(100,100,100,0.5)";
 
-    let canv = '';
-    let txcanv = '';
-    let twcanv = '';
+    let canv = "";
+    let txcanv = "";
+    let twcanv = "";
 
     let trlist = branch({ hei: hei, wid: wid, ang: -Math.PI / 2 });
     txcanv += barkify(x, y, trlist);
@@ -514,9 +514,7 @@ export class Tree {
 
     for (let i = 0; i < trlistMerged.length; i++) {
       if (
-        (i >= trlistMerged.length * 0.3 &&
-          i <= trlistMerged.length * 0.7 &&
-          prng.random() < 0.1) ||
+        (i >= trlistMerged.length * 0.3 && i <= trlistMerged.length * 0.7 && prng.random() < 0.1) ||
         i === trlistMerged.length / 2 - 1
       ) {
         const ba = Math.PI * 0.2 - Math.PI * 1.4 * (i > trlistMerged.length / 2 ? 1 : 0);
@@ -542,33 +540,35 @@ export class Tree {
                 ang: ba > -Math.PI / 2 ? ba : ba + Math.PI,
                 sca: (0.5 * hei) / 300,
                 dir: ba > -Math.PI / 2 ? 1 : -1,
-              }
+              },
             );
           }
         }
 
         const brlistMerged = brlist[0].concat(brlist[1].reverse());
         trmlist.push(
-          ...brlistMerged.map((v) => [v[0] + trlistMerged[i][0], v[1] + trlistMerged[i][1]] as Point)
+          ...brlistMerged.map(
+            (v) => [v[0] + trlistMerged[i][0], v[1] + trlistMerged[i][1]] as Point,
+          ),
         );
       } else {
         trmlist.push(trlistMerged[i]);
       }
     }
 
-    canv += poly(trmlist, { xof: x, yof: y, fil: 'white', str: col, wid: 0 });
+    canv += poly(trmlist, { xof: x, yof: y, fil: "white", str: col, wid: 0 });
 
     trmlist.splice(0, 1);
     trmlist.splice(trmlist.length - 1, 1);
     canv += stroke(
       trmlist.map((v) => [v[0] + x, v[1] + y]),
       {
-        col: 'rgba(100,100,100,' + (0.4 + prng.random() * 0.1).toFixed(3) + ')',
+        col: "rgba(100,100,100," + (0.4 + prng.random() * 0.1).toFixed(3) + ")",
         wid: 2.5,
         fun: (x: number) => Math.sin(1),
         noi: 0.9,
         out: 0,
-      }
+      },
     );
 
     canv += txcanv;
@@ -582,11 +582,11 @@ export class Tree {
   static tree05(x: number, y: number, options: Tree05Options = {}): string {
     const hei = options.hei ?? 300;
     const wid = options.wid ?? 5;
-    const col = options.col ?? 'rgba(100,100,100,0.5)';
+    const col = options.col ?? "rgba(100,100,100,0.5)";
 
-    let canv = '';
-    let txcanv = '';
-    let twcanv = '';
+    let canv = "";
+    let txcanv = "";
+    let twcanv = "";
 
     let trlist = branch({ hei: hei, wid: wid, ang: -Math.PI / 2, ben: 0 });
     txcanv += barkify(x, y, trlist);
@@ -628,33 +628,35 @@ export class Tree {
                 sca: (0.2 * hei) / 300,
                 dir: ba > -Math.PI / 2 ? 1 : -1,
                 lea: [true, 5],
-              }
+              },
             );
           }
         }
 
         const brlistMerged = brlist[0].concat(brlist[1].reverse());
         trmlist.push(
-          ...brlistMerged.map((v) => [v[0] + trlistMerged[i][0], v[1] + trlistMerged[i][1]] as Point)
+          ...brlistMerged.map(
+            (v) => [v[0] + trlistMerged[i][0], v[1] + trlistMerged[i][1]] as Point,
+          ),
         );
       } else {
         trmlist.push(trlistMerged[i]);
       }
     }
 
-    canv += poly(trmlist, { xof: x, yof: y, fil: 'white', str: col, wid: 0 });
+    canv += poly(trmlist, { xof: x, yof: y, fil: "white", str: col, wid: 0 });
 
     trmlist.splice(0, 1);
     trmlist.splice(trmlist.length - 1, 1);
     canv += stroke(
       trmlist.map((v) => [v[0] + x, v[1] + y]),
       {
-        col: 'rgba(100,100,100,' + (0.4 + prng.random() * 0.1).toFixed(3) + ')',
+        col: "rgba(100,100,100," + (0.4 + prng.random() * 0.1).toFixed(3) + ")",
         wid: 2.5,
         fun: (x: number) => Math.sin(1),
         noi: 0.9,
         out: 0,
-      }
+      },
     );
 
     canv += txcanv;
@@ -668,17 +670,17 @@ export class Tree {
   static tree06(x: number, y: number, options: Tree06Options = {}): string {
     const hei = options.hei ?? 100;
     const wid = options.wid ?? 6;
-    const col = options.col ?? 'rgba(100,100,100,0.5)';
+    const col = options.col ?? "rgba(100,100,100,0.5)";
 
-    let canv = '';
-    let txcanv = '';
-    let twcanv = '';
+    let canv = "";
+    let txcanv = "";
+    let twcanv = "";
 
     function fracTree(
       xoff: number,
       yoff: number,
       dep: number,
-      args: { hei?: number; wid?: number; ang?: number; ben?: number } = {}
+      args: { hei?: number; wid?: number; ang?: number; ben?: number } = {},
     ): Polygon {
       const hei = args.hei ?? 300;
       const wid = args.wid ?? 5;
@@ -728,13 +730,13 @@ export class Tree {
                   sca: 0.3,
                   dir: ba > 0 ? 1 : -1,
                   lea: [false, 0],
-                }
+                },
               );
             }
           }
 
           trmlist.push(
-            ...brlist.map((v) => [v[0] + trlistMerged[i][0], v[1] + trlistMerged[i][1]] as Point)
+            ...brlist.map((v) => [v[0] + trlistMerged[i][0], v[1] + trlistMerged[i][1]] as Point),
           );
         } else {
           trmlist.push(trlistMerged[i]);
@@ -750,19 +752,19 @@ export class Tree {
       ben: 0,
     });
 
-    canv += poly(trmlist, { xof: x, yof: y, fil: 'white', str: col, wid: 0 });
+    canv += poly(trmlist, { xof: x, yof: y, fil: "white", str: col, wid: 0 });
 
     trmlist.splice(0, 1);
     trmlist.splice(trmlist.length - 1, 1);
     canv += stroke(
       trmlist.map((v) => [v[0] + x, v[1] + y]),
       {
-        col: 'rgba(100,100,100,' + (0.4 + prng.random() * 0.1).toFixed(3) + ')',
+        col: "rgba(100,100,100," + (0.4 + prng.random() * 0.1).toFixed(3) + ")",
         wid: 2.5,
         fun: (x: number) => Math.sin(1),
         noi: 0.9,
         out: 0,
-      }
+      },
     );
 
     canv += txcanv;
@@ -777,7 +779,7 @@ export class Tree {
     const hei = options.hei ?? 60;
     const wid = options.wid ?? 4;
     const ben = options.ben ?? ((x: number) => Math.sqrt(x) * 0.2);
-    const col = options.col ?? 'rgba(100,100,100,1)';
+    const col = options.col ?? "rgba(100,100,100,1)";
 
     const reso = 10;
     const nslist: [number, number][] = [];
@@ -786,7 +788,7 @@ export class Tree {
     }
 
     const leafcol = parseColor(col);
-    let canv = '';
+    let canv = "";
     const line1: Polygon = [];
     const line2: Polygon = [];
     let T: Polygon[] = [];
@@ -805,21 +807,21 @@ export class Tree {
               wid: prng.random() * 12 + 12,
               ang: (-prng.random() * Math.PI) / 6,
               col:
-                'rgba(' +
+                "rgba(" +
                 leafcol[0] +
-                ',' +
+                "," +
                 leafcol[1] +
-                ',' +
+                "," +
                 leafcol[2] +
-                ',' +
+                "," +
                 parseFloat(leafcol[3]).toFixed(3) +
-                ')',
+                ")",
               fun: (x: number) =>
                 x <= 1
                   ? 2.75 * x * Math.pow(1 - x, 1 / 1.8)
                   : 2.75 * (x - 2) * Math.pow(x - 1, 1 / 1.8),
               ret: 1,
-            }
+            },
           ) as Polygon;
 
           T = T.concat(
@@ -827,7 +829,7 @@ export class Tree {
               area: 50,
               convex: true,
               optimize: false,
-            })
+            }),
           );
         }
       }
@@ -844,7 +846,7 @@ export class Tree {
     for (let k = 0; k < T.length; k++) {
       const m = PolyTools.midPt(T[k]);
       const c = (noise.noise(m[0] * 0.02, m[1] * 0.02) * 200 + 50) | 0;
-      const co = 'rgba(' + c + ',' + c + ',' + c + ',0.8)';
+      const co = "rgba(" + c + "," + c + "," + c + ",0.8)";
       canv += poly(T[k], { fil: co, str: co, wid: 0 });
     }
 
@@ -857,11 +859,11 @@ export class Tree {
   static tree08(x: number, y: number, options: Tree08Options = {}): string {
     const hei = options.hei ?? 80;
     const wid = options.wid ?? 1;
-    const col = options.col ?? 'rgba(100,100,100,0.5)';
+    const col = options.col ?? "rgba(100,100,100,0.5)";
 
-    let canv = '';
-    let txcanv = '';
-    let twcanv = '';
+    let canv = "";
+    let txcanv = "";
+    let twcanv = "";
 
     const ang = normRand(-1, 1) * Math.PI * 0.2;
 
@@ -879,14 +881,13 @@ export class Tree {
       xoff: number,
       yoff: number,
       dep: number,
-      args: { ang?: number; len?: number; ben?: number } = {}
+      args: { ang?: number; len?: number; ben?: number } = {},
     ): string {
       const ang = args.ang ?? -Math.PI / 2;
       const len = args.len ?? 15;
       const ben = args.ben ?? 0;
 
-      const fun =
-        dep === 0 ? (x: number) => Math.cos(0.5 * Math.PI * x) : (x: number) => 1;
+      const fun = dep === 0 ? (x: number) => Math.cos(0.5 * Math.PI * x) : (x: number) => 1;
       const spt: Point = [xoff, yoff];
       const ept: Point = [xoff + Math.cos(ang) * len, yoff + Math.sin(ang) * len];
 
@@ -913,11 +914,11 @@ export class Tree {
         trmlist[i][1] = spt[1] + d * Math.sin(a + ang);
       }
 
-      let tcanv = '';
+      let tcanv = "";
       tcanv += stroke(trmlist, {
         fun: fun,
         wid: 0.8,
-        col: 'rgba(100,100,100,0.5)',
+        col: "rgba(100,100,100,0.5)",
       });
 
       if (dep !== 0) {
@@ -952,7 +953,7 @@ export class Tree {
           Math.floor(4 * prng.random()),
           {
             ang: -Math.PI / 2 - ang * prng.random(),
-          }
+          },
         );
       } else if (i === Math.floor(trlistMerged.length / 2)) {
         twcanv += fracTree(x + trlistMerged[i][0], y + trlistMerged[i][1], 3, {
@@ -961,17 +962,17 @@ export class Tree {
       }
     }
 
-    canv += poly(trlistMerged, { xof: x, yof: y, fil: 'white', str: col, wid: 0 });
+    canv += poly(trlistMerged, { xof: x, yof: y, fil: "white", str: col, wid: 0 });
 
     canv += stroke(
       trlistMerged.map((v) => [v[0] + x, v[1] + y]),
       {
-        col: 'rgba(100,100,100,' + (0.6 + prng.random() * 0.1).toFixed(3) + ')',
+        col: "rgba(100,100,100," + (0.6 + prng.random() * 0.1).toFixed(3) + ")",
         wid: 2.5,
         fun: (x: number) => Math.sin(1),
         noi: 0.9,
         out: 0,
-      }
+      },
     );
 
     canv += txcanv;

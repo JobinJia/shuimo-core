@@ -208,7 +208,7 @@ export interface InkDiffusionParams {
 export class InkDiffusionEngine {
   private device: GPUDevice | null = null;
   private context: GPUCanvasContext | null = null;
-  private format: GPUTextureFormat = 'bgra8unorm';
+  private format: GPUTextureFormat = "bgra8unorm";
 
   // Buffers
   private paramsBuffer: GPUBuffer | null = null;
@@ -248,20 +248,20 @@ export class InkDiffusionEngine {
   async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
     // 检查 WebGPU 支持
     if (!navigator.gpu) {
-      console.error('WebGPU 不支持');
+      console.error("WebGPU 不支持");
       return false;
     }
 
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) {
-      console.error('无法获取 GPU adapter');
+      console.error("无法获取 GPU adapter");
       return false;
     }
 
     this.device = await adapter.requestDevice();
-    this.context = canvas.getContext('webgpu');
+    this.context = canvas.getContext("webgpu");
     if (!this.context) {
-      console.error('无法获取 WebGPU context');
+      console.error("无法获取 WebGPU context");
       return false;
     }
 
@@ -269,7 +269,7 @@ export class InkDiffusionEngine {
     this.context.configure({
       device: this.device,
       format: this.format,
-      alphaMode: 'premultiplied',
+      alphaMode: "premultiplied",
     });
 
     await this.createBuffers();
@@ -377,11 +377,13 @@ export class InkDiffusionEngine {
     const smoothY = fracY * fracY * (3 - 2 * fracY);
 
     return (
-      a * (1 - smoothX) * (1 - smoothY) +
-      b * smoothX * (1 - smoothY) +
-      c * (1 - smoothX) * smoothY +
-      d * smoothX * smoothY
-    ) * 2 - 1;
+      (a * (1 - smoothX) * (1 - smoothY) +
+        b * smoothX * (1 - smoothY) +
+        c * (1 - smoothX) * smoothY +
+        d * smoothX * smoothY) *
+        2 -
+      1
+    );
   }
 
   /**
@@ -390,7 +392,16 @@ export class InkDiffusionEngine {
   private updateParams(): void {
     if (!this.device || !this.paramsBuffer || !this.renderParamsBuffer) return;
 
-    const { width, height, diffusionRate, evaporationRate, viscosity, paperAbsorption, inkColor, paperColor } = this.params;
+    const {
+      width,
+      height,
+      diffusionRate,
+      evaporationRate,
+      viscosity,
+      paperAbsorption,
+      inkColor,
+      paperColor,
+    } = this.params;
 
     // Compute 参数
     const computeParams = new Float32Array([
@@ -401,7 +412,7 @@ export class InkDiffusionEngine {
       viscosity,
       paperAbsorption,
       0.016, // deltaTime
-      1.0,   // noiseScale
+      1.0, // noiseScale
     ]);
     this.device.queue.writeBuffer(this.paramsBuffer, 0, computeParams);
 
@@ -409,7 +420,8 @@ export class InkDiffusionEngine {
     const renderParams = new Float32Array([
       width,
       height,
-      0, 0, // padding
+      0,
+      0, // padding
       ...inkColor,
       0, // padding
       ...paperColor,
@@ -430,10 +442,10 @@ export class InkDiffusionEngine {
     });
 
     this.computePipeline = this.device.createComputePipeline({
-      layout: 'auto',
+      layout: "auto",
       compute: {
         module: computeModule,
-        entryPoint: 'main',
+        entryPoint: "main",
       },
     });
 
@@ -443,18 +455,18 @@ export class InkDiffusionEngine {
     });
 
     this.renderPipeline = this.device.createRenderPipeline({
-      layout: 'auto',
+      layout: "auto",
       vertex: {
         module: renderModule,
-        entryPoint: 'vertexMain',
+        entryPoint: "vertexMain",
       },
       fragment: {
         module: renderModule,
-        entryPoint: 'fragmentMain',
+        entryPoint: "fragmentMain",
         targets: [{ format: this.format }],
       },
       primitive: {
-        topology: 'triangle-list',
+        topology: "triangle-list",
       },
     });
   }
@@ -464,7 +476,8 @@ export class InkDiffusionEngine {
    */
   private async createBindGroups(): Promise<void> {
     if (!this.device || !this.computePipeline || !this.renderPipeline) return;
-    if (!this.paramsBuffer || !this.inkBuffers || !this.paperBuffer || !this.renderParamsBuffer) return;
+    if (!this.paramsBuffer || !this.inkBuffers || !this.paperBuffer || !this.renderParamsBuffer)
+      return;
 
     // Compute 绑定组（双缓冲）
     this.computeBindGroups = [
@@ -585,10 +598,7 @@ export class InkDiffusionEngine {
 
     passEncoder.setPipeline(this.computePipeline);
     passEncoder.setBindGroup(0, this.computeBindGroups[this.currentBuffer]);
-    passEncoder.dispatchWorkgroups(
-      Math.ceil(width / 16),
-      Math.ceil(height / 16)
-    );
+    passEncoder.dispatchWorkgroups(Math.ceil(width / 16), Math.ceil(height / 16));
     passEncoder.end();
 
     this.device.queue.submit([commandEncoder.finish()]);
@@ -619,12 +629,14 @@ export class InkDiffusionEngine {
     const textureView = this.context.getCurrentTexture().createView();
 
     const passEncoder = commandEncoder.beginRenderPass({
-      colorAttachments: [{
-        view: textureView,
-        clearValue: { r: 0.96, g: 0.94, b: 0.9, a: 1.0 },
-        loadOp: 'clear',
-        storeOp: 'store',
-      }],
+      colorAttachments: [
+        {
+          view: textureView,
+          clearValue: { r: 0.96, g: 0.94, b: 0.9, a: 1.0 },
+          loadOp: "clear",
+          storeOp: "store",
+        },
+      ],
     });
 
     passEncoder.setPipeline(this.renderPipeline);
