@@ -790,7 +790,10 @@ function buildVerticalGlyphPath(
   });
 
   const bbox = combinedPath.getBoundingBox();
-  const desiredLeft = x + (desiredBox?.x ?? -bbox.x2);
+  const inkWidth = Math.max(0, bbox.x2 - bbox.x1);
+  // Center ink within the desired box (advance width may be wider than ink)
+  const centeringOffset = desiredBox ? (desiredBox.width - inkWidth) / 2 : 0;
+  const desiredLeft = x + (desiredBox?.x ?? -bbox.x2) + centeringOffset;
   const desiredTop = y + (desiredBox?.y ?? bbox.y1);
   const translated = translateGlyphPath(combinedPath, desiredLeft - bbox.x1, desiredTop - bbox.y1);
   return translated.toPathData(2);
@@ -1398,6 +1401,7 @@ export function generateStampPath(options: StampOptions): StampResult {
       height = (baseHeight + shortSide * 0.15) * scaleY;
     }
 
+    width -= 2;
     path = generateEllipsePath(width, height, actualBorderPoints, applyNoise, regularShape);
     bounds = {
       left: 0,
@@ -1568,9 +1572,10 @@ export function generateStamp(options: StampOptions): string {
   const stampTextColor = options.textColor || (type === 'yin' ? '#FFFFFF' : '#C8102E');
   const stampBgColor = type === 'yin' ? stampColor : '#FFFFFF';
 
-  // Yin stamps use straight-line borders; edge erosion comes from SVG filter only
+  // Yin stamps with straight-edge shapes use regularShape; ellipse/circle keep border noise
+  const yinStraightShapes = type === 'yin' && shape !== 'ellipse' && shape !== 'circle';
   const { path, bounds } = generateStampPath(
-    type === 'yin' ? { ...options, regularShape: true } : options,
+    yinStraightShapes ? { ...options, regularShape: true } : options,
   );
 
   // Keep text array in original order (same as in generateStampPath)
@@ -1590,9 +1595,14 @@ export function generateStamp(options: StampOptions): string {
   const columnHeights = textDims.columnHeights;
   const columnGap = fontSize * actualColumnSpacing;
   const measuredBoxes = options.measuredColumnBoxes?.length === displayText.length ? options.measuredColumnBoxes : undefined;
+  // Use the same buffered boxes as generateStampPath for consistent sizing/centering
+  const bufferedBoxes = measuredBoxes?.map((box) => {
+    const verticalBuffer = getMeasuredHeightBuffer(fontSize);
+    return { ...box, y: box.y - verticalBuffer / 2, height: box.height + verticalBuffer };
+  });
   const positioningBoxes = shouldUseCellCenteredFrame(shape, displayText.length)
     ? undefined
-    : measuredBoxes;
+    : bufferedBoxes;
   const visualFrame = calculateVisualTextFrame(
     columnWidths,
     columnHeights,
@@ -1605,7 +1615,9 @@ export function generateStamp(options: StampOptions): string {
   const verticalSpace = bounds.height - visualHeight;
   const targetLeft = (offsetX + 1) / 2 * horizontalSpace;
   const targetTop = (offsetY + 1) / 2 * verticalSpace;
-  const shiftX = targetLeft - visualFrame.left;
+  // Ellipse yin stamps: asymmetric margin adjustment (left +1, right -2)
+  const ellipseMarginShift = (shape === 'ellipse' && type === 'yin') ? 3.0 : 0;
+  const shiftX = targetLeft - visualFrame.left + ellipseMarginShift;
   const shiftY = targetTop - visualFrame.top;
 
   // One <text> element per column — required for replaceTextElementsWithGlyphPaths
