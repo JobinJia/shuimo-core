@@ -17,7 +17,7 @@ import { calculateStampTextMetrics, calculateColumnCharPositions, hasFontMetrics
 // legacy value exactly.
 
 const REFERENCE_FONT_SIZE = 70;
-const DEFAULT_NOISE_AMOUNT = 12 / REFERENCE_FONT_SIZE;
+const DEFAULT_NOISE_AMOUNT = 8 / REFERENCE_FONT_SIZE;
 const DEFAULT_CORNER_RADIUS = 15 / REFERENCE_FONT_SIZE;
 const DEFAULT_BORDER_WIDTH = 1 / REFERENCE_FONT_SIZE;
 const DEFAULT_BORDER_POINTS = 24 / REFERENCE_FONT_SIZE;
@@ -191,7 +191,13 @@ interface CornerRadii {
   bottomLeft: number;
 }
 
-type NoiseFn = (x: number, y: number, edgeProgress: number) => { x: number; y: number };
+/**
+ * Noise function for stamp border distortion.
+ * @param inwardNX/inwardNY — unit inward normal of the edge at this point.
+ *   When provided, noise is projected onto this direction and only the inward
+ *   component is kept (凹陷 only, no 凸起).
+ */
+type NoiseFn = (x: number, y: number, edgeProgress: number, inwardNX?: number, inwardNY?: number) => { x: number; y: number };
 
 interface TextLayout {
   width: number;
@@ -283,6 +289,7 @@ function randomizeCornerRadii(base: number, random: () => number, regular: boole
  * @param applyNoise  Noise function
  * @param fullNoise   true → edgeProgress = 1.0 (top edge style);
  *                    false → edgeProgress = sin(t·π) (other edges)
+ * @param inwardNX/inwardNY  Unit inward normal of this edge
  */
 function generateEdgePoints(
   builder: PathBuilder,
@@ -291,13 +298,15 @@ function generateEdgePoints(
   count: number,
   applyNoise: NoiseFn,
   fullNoise: boolean,
+  inwardNX: number,
+  inwardNY: number,
 ): void {
   for (let i = 1; i < count; i++) {
     const t = i / count;
     const edgeProgress = fullNoise ? 1.0 : dsin(t * PI);
     const x = fromX + t * (toX - fromX);
     const y = fromY + t * (toY - fromY);
-    const pt = applyNoise(x, y, edgeProgress);
+    const pt = applyNoise(x, y, edgeProgress, inwardNX, inwardNY);
     builder.lineTo(pt.x, pt.y);
   }
 }
@@ -884,42 +893,42 @@ function generateSquarePath(
   applyNoise: NoiseFn,
   regularShape: boolean
 ): string {
-  const cr = randomizeCornerRadii(cornerRadius, random, regularShape);
-
   if (regularShape) {
+    const cr = randomizeCornerRadii(cornerRadius, random, true);
     return buildRegularQuadPath(size, size, cr);
   }
 
+  // Small uniform outer corner rounding — inner angle stays 90°, outer tip slightly rounded
+  const r = Math.min(cornerRadius, size * 0.03);
   const pointsPerEdge = Math.floor(borderPoints / 4);
   const b = new PathBuilder();
 
-  // Top-left corner start point
-  const start = applyNoise(cr.topLeft, 0, 0);
-  b.moveTo(start.x, start.y);
+  // Start after top-left outer rounding
+  b.moveTo(r, 0);
 
-  // Top edge (full noise)
-  generateEdgePoints(b, cr.topLeft, 0, size - cr.topRight, 0, pointsPerEdge, applyNoise, true);
+  // Top edge → inward is downward (0, +1)
+  generateEdgePoints(b, r, 0, size - r, 0, pointsPerEdge, applyNoise, true, 0, 1);
 
-  // Top-right corner
-  b.quadTo(size, 0, size, cr.topRight);
+  // Top-right corner: small outer rounding
+  b.quadTo(size, 0, size, r);
 
-  // Right edge
-  generateEdgePoints(b, size, cr.topRight, size, size - cr.bottomRight, pointsPerEdge, applyNoise, false);
+  // Right edge → inward is leftward (-1, 0)
+  generateEdgePoints(b, size, r, size, size - r, pointsPerEdge, applyNoise, false, -1, 0);
 
   // Bottom-right corner
-  b.quadTo(size, size, size - cr.bottomRight, size);
+  b.quadTo(size, size, size - r, size);
 
-  // Bottom edge (right to left)
-  generateEdgePoints(b, size - cr.bottomRight, size, cr.bottomLeft, size, pointsPerEdge, applyNoise, false);
+  // Bottom edge → inward is upward (0, -1)
+  generateEdgePoints(b, size - r, size, r, size, pointsPerEdge, applyNoise, false, 0, -1);
 
   // Bottom-left corner
-  b.quadTo(0, size, 0, size - cr.bottomLeft);
+  b.quadTo(0, size, 0, size - r);
 
-  // Left edge (bottom to top)
-  generateEdgePoints(b, 0, size - cr.bottomLeft, 0, cr.topLeft, pointsPerEdge, applyNoise, false);
+  // Left edge → inward is rightward (+1, 0)
+  generateEdgePoints(b, 0, size - r, 0, r, pointsPerEdge, applyNoise, false, 1, 0);
 
-  // Top-left corner (close)
-  b.quadTo(0, 0, start.x, start.y);
+  // Close back to top-left
+  b.quadTo(0, 0, r, 0);
   b.close();
 
   return b.toString();
@@ -937,41 +946,41 @@ function generateRectanglePath(
   applyNoise: NoiseFn,
   regularShape: boolean
 ): string {
-  const cr = randomizeCornerRadii(cornerRadius, random, regularShape);
-
   if (regularShape) {
+    const cr = randomizeCornerRadii(cornerRadius, random, true);
     return buildRegularQuadPath(width, height, cr);
   }
 
+  // Small uniform outer corner rounding — inner angle stays 90°, outer tip slightly rounded
+  const r = Math.min(cornerRadius, Math.min(width, height) * 0.03);
   const pointsPerEdge = Math.floor(borderPoints / 4);
   const b = new PathBuilder();
 
-  const start = applyNoise(cr.topLeft, 0, 0);
-  b.moveTo(start.x, start.y);
+  b.moveTo(r, 0);
 
-  // Top edge (full noise)
-  generateEdgePoints(b, cr.topLeft, 0, width - cr.topRight, 0, pointsPerEdge, applyNoise, true);
+  // Top edge → inward is downward (0, +1)
+  generateEdgePoints(b, r, 0, width - r, 0, pointsPerEdge, applyNoise, true, 0, 1);
 
   // Top-right corner
-  b.quadTo(width, 0, width, cr.topRight);
+  b.quadTo(width, 0, width, r);
 
-  // Right edge
-  generateEdgePoints(b, width, cr.topRight, width, height - cr.bottomRight, pointsPerEdge, applyNoise, false);
+  // Right edge → inward is leftward (-1, 0)
+  generateEdgePoints(b, width, r, width, height - r, pointsPerEdge, applyNoise, false, -1, 0);
 
   // Bottom-right corner
-  b.quadTo(width, height, width - cr.bottomRight, height);
+  b.quadTo(width, height, width - r, height);
 
-  // Bottom edge (right to left)
-  generateEdgePoints(b, width - cr.bottomRight, height, cr.bottomLeft, height, pointsPerEdge, applyNoise, false);
+  // Bottom edge → inward is upward (0, -1)
+  generateEdgePoints(b, width - r, height, r, height, pointsPerEdge, applyNoise, false, 0, -1);
 
   // Bottom-left corner
-  b.quadTo(0, height, 0, height - cr.bottomLeft);
+  b.quadTo(0, height, 0, height - r);
 
-  // Left edge (bottom to top)
-  generateEdgePoints(b, 0, height - cr.bottomLeft, 0, cr.topLeft, pointsPerEdge, applyNoise, false);
+  // Left edge → inward is rightward (+1, 0)
+  generateEdgePoints(b, 0, height - r, 0, r, pointsPerEdge, applyNoise, false, 1, 0);
 
-  // Top-left corner (close)
-  b.quadTo(0, 0, start.x, start.y);
+  // Close back to top-left
+  b.quadTo(0, 0, r, 0);
   b.close();
 
   return b.toString();
@@ -1000,8 +1009,12 @@ function generateCirclePath(
     const x = centerX + dcos(angle) * radius;
     const y = centerY + dsin(angle) * radius;
 
+    // Inward normal for circle = toward center = -(cos, sin)
+    const inwardNX = -dcos(angle);
+    const inwardNY = -dsin(angle);
+
     const edgeProgress = 1.0;
-    const pt = applyNoise(x, y, edgeProgress);
+    const pt = applyNoise(x, y, edgeProgress, inwardNX, inwardNY);
 
     if (i === 0) {
       b.moveTo(pt.x, pt.y);
@@ -1035,6 +1048,10 @@ function generateEllipsePath(
   const pointsPerEdge = Math.floor(borderPoints / 4);
   const b = new PathBuilder();
 
+  // Shape center for radial inward normal on curved segments
+  const shapeCX = width / 2;
+  const shapeCY = height / 2;
+
   if (width > height) {
     // Horizontal capsule: straight top/bottom + curved left/right
     const radius = height / 2;
@@ -1044,45 +1061,46 @@ function generateEllipsePath(
     const start = applyNoise(curveRadius, 0, 0);
     b.moveTo(start.x, start.y);
 
-    // Top edge (straight)
+    // Top edge (straight) → inward downward (0, +1)
     for (let i = 1; i < pointsPerEdge; i++) {
       const t = i / pointsPerEdge;
       const edgeProgress = dsin(t * PI);
-      const pt = applyNoise(curveRadius + t * straightLength, 0, edgeProgress);
+      const pt = applyNoise(curveRadius + t * straightLength, 0, edgeProgress, 0, 1);
       b.lineTo(pt.x, pt.y);
     }
 
-    // Right curve (top to bottom)
-    const rightCenterX = width - curveRadius;
-    const rightCenterY = radius;
+    // Right curve (top to bottom) → radial inward toward shape center
     for (let i = 0; i < pointsPerEdge; i++) {
       const t = i / pointsPerEdge;
       const angle = -PI / 2 + t * PI;
       const edgeProgress = dsin(t * PI);
-      const x = rightCenterX + dcos(angle) * curveRadius;
-      const y = rightCenterY + dsin(angle) * radius;
-      const pt = applyNoise(x, y, edgeProgress);
+      const x = (width - curveRadius) + dcos(angle) * curveRadius;
+      const y = radius + dsin(angle) * radius;
+      // Inward normal: toward shape center
+      const dx = x - shapeCX; const dy = y - shapeCY;
+      const d = Math.sqrt(dx * dx + dy * dy) || 1;
+      const pt = applyNoise(x, y, edgeProgress, -dx / d, -dy / d);
       b.lineTo(pt.x, pt.y);
     }
 
-    // Bottom edge (right to left)
+    // Bottom edge (right to left) → inward upward (0, -1)
     for (let i = 1; i < pointsPerEdge; i++) {
       const t = i / pointsPerEdge;
       const edgeProgress = dsin(t * PI);
-      const pt = applyNoise((width - curveRadius) - t * straightLength, height, edgeProgress);
+      const pt = applyNoise((width - curveRadius) - t * straightLength, height, edgeProgress, 0, -1);
       b.lineTo(pt.x, pt.y);
     }
 
-    // Left curve (bottom to top)
-    const leftCenterX = curveRadius;
-    const leftCenterY = radius;
+    // Left curve (bottom to top) → radial inward toward shape center
     for (let i = 0; i < pointsPerEdge; i++) {
       const t = i / pointsPerEdge;
       const angle = PI / 2 + t * PI;
       const edgeProgress = dsin(t * PI);
-      const x = leftCenterX + dcos(angle) * curveRadius;
-      const y = leftCenterY + dsin(angle) * radius;
-      const pt = applyNoise(x, y, edgeProgress);
+      const x = curveRadius + dcos(angle) * curveRadius;
+      const y = radius + dsin(angle) * radius;
+      const dx = x - shapeCX; const dy = y - shapeCY;
+      const d = Math.sqrt(dx * dx + dy * dy) || 1;
+      const pt = applyNoise(x, y, edgeProgress, -dx / d, -dy / d);
       b.lineTo(pt.x, pt.y);
     }
   } else {
@@ -1094,45 +1112,45 @@ function generateEllipsePath(
     const start = applyNoise(0, curveRadius, 0);
     b.moveTo(start.x, start.y);
 
-    // Top curve (left to right)
-    const topCenterX = radius;
-    const topCenterY = curveRadius;
+    // Top curve (left to right) → radial inward toward shape center
     for (let i = 0; i < pointsPerEdge; i++) {
       const t = i / pointsPerEdge;
       const angle = PI + t * PI;
       const edgeProgress = dsin(t * PI);
-      const x = topCenterX + dcos(angle) * radius;
-      const y = topCenterY + dsin(angle) * curveRadius;
-      const pt = applyNoise(x, y, edgeProgress);
+      const x = radius + dcos(angle) * radius;
+      const y = curveRadius + dsin(angle) * curveRadius;
+      const dx = x - shapeCX; const dy = y - shapeCY;
+      const d = Math.sqrt(dx * dx + dy * dy) || 1;
+      const pt = applyNoise(x, y, edgeProgress, -dx / d, -dy / d);
       b.lineTo(pt.x, pt.y);
     }
 
-    // Right edge (top to bottom)
+    // Right edge (top to bottom) → inward leftward (-1, 0)
     for (let i = 1; i < pointsPerEdge; i++) {
       const t = i / pointsPerEdge;
       const edgeProgress = dsin(t * PI);
-      const pt = applyNoise(width, curveRadius + t * straightLength, edgeProgress);
+      const pt = applyNoise(width, curveRadius + t * straightLength, edgeProgress, -1, 0);
       b.lineTo(pt.x, pt.y);
     }
 
-    // Bottom curve (right to left)
-    const bottomCenterX = radius;
-    const bottomCenterY = height - curveRadius;
+    // Bottom curve (right to left) → radial inward toward shape center
     for (let i = 0; i < pointsPerEdge; i++) {
       const t = i / pointsPerEdge;
       const angle = 0 + t * PI;
       const edgeProgress = dsin(t * PI);
-      const x = bottomCenterX + dcos(angle) * radius;
-      const y = bottomCenterY + dsin(angle) * curveRadius;
-      const pt = applyNoise(x, y, edgeProgress);
+      const x = radius + dcos(angle) * radius;
+      const y = (height - curveRadius) + dsin(angle) * curveRadius;
+      const dx = x - shapeCX; const dy = y - shapeCY;
+      const d = Math.sqrt(dx * dx + dy * dy) || 1;
+      const pt = applyNoise(x, y, edgeProgress, -dx / d, -dy / d);
       b.lineTo(pt.x, pt.y);
     }
 
-    // Left edge (bottom to top)
+    // Left edge (bottom to top) → inward rightward (+1, 0)
     for (let i = 1; i < pointsPerEdge; i++) {
       const t = i / pointsPerEdge;
       const edgeProgress = dsin(t * PI);
-      const pt = applyNoise(0, (height - curveRadius) - t * straightLength, edgeProgress);
+      const pt = applyNoise(0, (height - curveRadius) - t * straightLength, edgeProgress, 1, 0);
       b.lineTo(pt.x, pt.y);
     }
   }
@@ -1270,26 +1288,32 @@ export function generateStampPath(options: StampOptions): StampResult {
   // Initialize improved Perlin Noise with seed
   const noise = createStampNoise(seed);
 
-  // Helper function to apply improved Perlin noise
-  const applyNoise: NoiseFn = (x, y, edgeProgress) => {
+  // Helper function to apply improved Perlin noise.
+  // When an inward normal is provided, noise is projected onto that direction
+  // and only the inward component is kept — no protrusions (凸起), no tangential drift.
+  const applyNoise: NoiseFn = (x, y, edgeProgress, inwardNX, inwardNY) => {
     // edgeProgress: 0 at corner, 1 at middle of edge
-    // Reduce noise near corners for smooth connections
     const cornerFactor = edgeProgress;
 
-    // Use octave noise for more natural, organic variation
-    // Scale coordinates for noise sampling
-    const noiseScale = 0.015; // Lower frequency for smoother, more natural curves
-
-    // Sample octave noise for X and Y offsets independently
-    // Using different z-offsets to decorrelate X and Y variations
+    const noiseScale = 0.015;
     const noiseX = noise.noise3D(x * noiseScale, y * noiseScale, 0);
     const noiseY = noise.noise3D(x * noiseScale, y * noiseScale, 100);
 
-    // Apply noise amount and corner factor
-    // Noise is in range [-1, 1] already
     const totalNoiseX = noiseX * actualNoiseAmount * cornerFactor;
     const totalNoiseY = noiseY * actualNoiseAmount * cornerFactor;
 
+    if (inwardNX !== undefined && inwardNY !== undefined) {
+      // Project noise vector onto the inward normal
+      const inwardProj = totalNoiseX * inwardNX + totalNoiseY * inwardNY;
+      // Only keep the inward component (positive projection = inward displacement)
+      const inward = Math.max(0, inwardProj);
+      return {
+        x: x + inward * inwardNX,
+        y: y + inward * inwardNY,
+      };
+    }
+
+    // Fallback: raw noise (used at corners with edgeProgress=0 where noise is zero)
     return { x: x + totalNoiseX, y: y + totalNoiseY };
   };
 
@@ -1409,46 +1433,44 @@ export function generateStampPath(options: StampOptions): StampResult {
       height: tallestColumnHeight * scaleY
     };
 
-    const cr = randomizeCornerRadii(actualCornerRadius, random, false);
     const pointsPerEdge = Math.floor(actualBorderPoints / 4);
+    const r = Math.min(actualCornerRadius, Math.min(maxWidth, Math.max(leftHeight, rightHeight)) * 0.03);
 
     const b = new PathBuilder();
 
-    // Top-left corner start point (after corner radius)
-    const start = applyNoise(cr.topLeft, 0, 0);
-    b.moveTo(start.x, start.y);
+    // Top-left corner: small outer rounding
+    b.moveTo(r, 0);
 
-    // Top edge (从左上圆角后到右上圆角前) — full noise
-    generateEdgePoints(b, cr.topLeft, 0, maxWidth - cr.topRight, 0, pointsPerEdge, applyNoise, true);
+    // Top edge → inward downward (0, +1)
+    generateEdgePoints(b, r, 0, maxWidth - r, 0, pointsPerEdge, applyNoise, true, 0, 1);
 
-    // Top-right corner (二次贝塞尔曲线)
-    b.quadTo(maxWidth, 0, maxWidth, cr.topRight);
+    // Top-right corner
+    b.quadTo(maxWidth, 0, maxWidth, r);
 
-    // Right edge (从右上圆角后到右下圆角前)
-    generateEdgePoints(b, maxWidth, cr.topRight, maxWidth, rightHeight - cr.bottomRight, pointsPerEdge, applyNoise, false);
+    // Right edge → inward leftward (-1, 0)
+    generateEdgePoints(b, maxWidth, r, maxWidth, rightHeight - r, pointsPerEdge, applyNoise, false, -1, 0);
 
     // Bottom-right corner
-    b.quadTo(maxWidth, rightHeight, maxWidth - cr.bottomRight, rightHeight);
+    b.quadTo(maxWidth, rightHeight, maxWidth - r, rightHeight);
 
-    // Bottom edge (trapezoid: right→left with height interpolation)
+    // Bottom edge (trapezoid: right→left with height interpolation) → inward upward (0, -1)
     for (let i = 1; i < pointsPerEdge; i++) {
       const t = i / pointsPerEdge;
       const edgeProgress = dsin(t * PI);
-      const xPos = (maxWidth - cr.bottomRight) - t * (maxWidth - cr.bottomRight - cr.bottomLeft);
+      const xPos = (maxWidth - r) - t * (maxWidth - r - r);
       const yPos = interpolateProfileY(autoProfile, xPos);
-      const pt = applyNoise(xPos, yPos, edgeProgress);
+      const pt = applyNoise(xPos, yPos, edgeProgress, 0, -1);
       b.lineTo(pt.x, pt.y);
     }
 
     // Bottom-left corner
-    b.quadTo(0, leftHeight, 0, leftHeight - cr.bottomLeft);
+    b.quadTo(0, leftHeight, 0, leftHeight - r);
 
-    // Left edge (从左下圆角后到左上圆角前)
-    generateEdgePoints(b, 0, leftHeight - cr.bottomLeft, 0, cr.topLeft, pointsPerEdge, applyNoise, false);
+    // Left edge → inward rightward (+1, 0)
+    generateEdgePoints(b, 0, leftHeight - r, 0, r, pointsPerEdge, applyNoise, false, 1, 0);
 
-    // Top-left corner (close)
-    b.quadTo(0, 0, cr.topLeft, 0);
-
+    // Close back to top-left
+    b.quadTo(0, 0, r, 0);
     b.close();
     path = b.toString();
   }
@@ -1546,7 +1568,10 @@ export function generateStamp(options: StampOptions): string {
   const stampTextColor = options.textColor || (type === 'yin' ? '#FFFFFF' : '#C8102E');
   const stampBgColor = type === 'yin' ? stampColor : '#FFFFFF';
 
-  const { path, bounds } = generateStampPath(options);
+  // Yin stamps use straight-line borders; edge erosion comes from SVG filter only
+  const { path, bounds } = generateStampPath(
+    type === 'yin' ? { ...options, regularShape: true } : options,
+  );
 
   // Keep text array in original order (same as in generateStampPath)
   const displayText = [...text];
@@ -1625,9 +1650,10 @@ export function generateStamp(options: StampOptions): string {
   <defs>
     <!-- Realistic ink stamp texture - simulates paper fiber absorption and ink splatter -->
     <filter id="stamp-ink-texture" x="-20%" y="-20%" width="140%" height="140%">
-      <!-- Step 1: Edge displacement for irregular border -->
+      <!-- Step 1: Edge displacement for irregular border, then clip to original boundary (凹陷 only, no 凸起) -->
       <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.04 * filterScaleInv)}" numOctaves="4" seed="${seed + 123}" result="borderNoise"/>
-      <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmtNum(18 * filterScale)}" xChannelSelector="R" yChannelSelector="G" result="displacedShape"/>
+      <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmtNum(10 * filterScale)}" xChannelSelector="R" yChannelSelector="G" result="rawDisplaced"/>
+      <feComposite in="rawDisplaced" in2="SourceGraphic" operator="in" result="displacedShape"/>
 
       <!-- Step 2: Create granular texture (paper fibers) - increased visibility -->
       <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.4 * filterScaleInv)}" numOctaves="4" seed="${seed + 456}" result="grainNoise"/>
