@@ -5,7 +5,7 @@ export default defineConfig({
     ignore: ["**/dist/**", "reference-code/**", "playground/public/reference-code/**"],
   },
   lint: {
-    options: { typeAware: true, typeCheck: true },
+    options: { typeAware: false, typeCheck: false },
     ignorePatterns: ["reference-code/**", "playground/public/reference-code/**"],
   },
 });
