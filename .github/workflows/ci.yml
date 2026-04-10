@@ -26,13 +26,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Install Vite+
-        run: curl -fsSL https://vite.plus | bash
-        env:
-          VP_SKIP_SHELL_SETUP: "1"
-
       - name: Check (fmt + lint + type-check)
-        run: ~/.vp/bin/vp check
+        run: pnpm exec vp check
 
       - name: Test
         run: pnpm test -- --run
