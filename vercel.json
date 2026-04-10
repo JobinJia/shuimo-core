@@ -1,4 +1,6 @@
 {
+    "buildCommand": "pnpm build && pnpm --filter @shuimo/playground build",
+    "outputDirectory": "playground/dist",
     "rewrites": [
         {
             "source": "/(.*)",

@@ -31,3 +31,4 @@ coverage/
 *.tmp
 .cache/
 .mcp.json
+.vercel
