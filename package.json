@@ -3,6 +3,7 @@
   "type": "module",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.33.0",
   "description": "A procedural Chinese landscape painting generation library",
   "engines": {
     "node": ">=18.0.0",
@@ -19,7 +20,8 @@
   },
   "devDependencies": {
     "@jobinjia/eslint-config": "1.0.1",
+    "eslint": "^9.39.4",
+    "jiti": "^2.6.1",
     "vite-plus": "catalog:"
-  },
-  "packageManager": "pnpm@10.33.0"
+  }
 }

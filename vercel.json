@@ -1,10 +1,10 @@
 {
-    "buildCommand": "pnpm build && pnpm --filter @shuimo/playground build",
-    "outputDirectory": "playground/dist",
-    "rewrites": [
-        {
-            "source": "/(.*)",
-            "destination": "/index.html"
-        }
-    ]
+  "buildCommand": "pnpm build && pnpm --filter @shuimo/playground build",
+  "outputDirectory": "playground/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
