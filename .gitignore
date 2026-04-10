@@ -13,6 +13,7 @@ logs/
 # Environment
 .env
 .env.local
+.npmrc
 
 # IDE
 .vscode/

@@ -11,14 +11,22 @@
     "build:playground": "pnpm run build && pnpm --filter @shuimo/playground build",
     "test": "pnpm --filter @shuimo/core test",
     "lint": "vp check",
+    "release": "bumpp && pnpm build && pnpm --filter @shuimo/core publish --access public --no-git-checks",
     "upgrade": "pnpm dlx taze -r -w major --install"
   },
   "devDependencies": {
+    "bumpp": "^11.0.1",
     "vite-plus": "catalog:"
   },
   "engines": {
     "node": ">=18.0.0",
     "pnpm": ">=10.0.0"
   },
-  "packageManager": "pnpm@10.33.0"
+  "packageManager": "pnpm@10.33.0",
+  "bumpp": {
+    "files": [
+      "package.json",
+      "packages/core/package.json"
+    ]
+  }
 }
