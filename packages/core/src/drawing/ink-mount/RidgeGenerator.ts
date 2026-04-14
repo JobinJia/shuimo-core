@@ -70,8 +70,10 @@ export function generateRidge(input: RidgeGeneratorInput): MountainLayer {
   const rand = seededRandom(seed);
   const noise = new SimplexNoise(seed);
 
-  const baselineY = height * (0.3 + depth * 0.5);
-  const heightAmplitude = height * (0.15 + depth * 0.35);
+  // Far mountains (depth≈0): high up, small amplitude
+  // Near mountains (depth≈1): lower, larger amplitude, more dramatic
+  const baselineY = height * (0.15 + depth * 0.55);
+  const heightAmplitude = height * (0.08 + depth * 0.3);
 
   // Step 1: Generate base FBM ridge line
   const ridgeLine: Vector2[] = [];
