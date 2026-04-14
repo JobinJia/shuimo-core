@@ -43,3 +43,20 @@ export {
   PAPER_COL_AGED,
   type PaperOptions,
 } from "./flower/FlowerPaper";
+export {
+  InkMount,
+  generateRidge,
+  generateCunFaStrokes,
+  generateInkFill,
+  generateMist,
+  Canvas2DBackend,
+  type InkMountOptions,
+  type InkMountLayerOptions,
+  type InkMountScene,
+  type MountainLayer,
+  type CunFaStroke,
+  type InkFill,
+  type MistRegion,
+  type RenderBackend,
+  type RenderOutput,
+} from "./ink-mount";
