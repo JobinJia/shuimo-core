@@ -77,8 +77,8 @@ export function generateCunFaStrokes(input: CunFaEngineInput): CunFaStroke[] {
   const noise = new SimplexNoise(seed);
 
   const [minLen, maxLen] = lengthRange;
-  const baseWidth = 1.5 + depth * 2.5;
-  const baseCount = Math.floor(resolution * density * 3);
+  const baseWidth = 0.3 + depth * 0.8;
+  const baseCount = Math.floor(resolution * density * 1.5);
 
   const strokes: CunFaStroke[] = [];
 
@@ -114,11 +114,11 @@ export function generateCunFaStrokes(input: CunFaEngineInput): CunFaStroke[] {
       const t = p / (pointCount - 1);
       const dist = t * strokeLen;
 
-      // Noise wobble perpendicular to stroke direction
+      // Subtle noise wobble perpendicular to stroke direction
       const wobble = noise.noise2D(
         point.x * 0.05 + p * 0.3,
         point.y * 0.05 + seed * 0.1,
-      ) * 3;
+      ) * 0.8;
 
       const perpX = -direction.y;
       const perpY = direction.x;

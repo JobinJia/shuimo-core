@@ -105,8 +105,24 @@ export class Canvas2DBackend implements RenderBackend {
     ctx.restore();
   }
 
-  drawCunFaStrokes(strokes: CunFaStroke[]): void {
+  drawCunFaStrokes(strokes: CunFaStroke[], clipLayer?: MountainLayer): void {
     const ctx = this.ctx;
+    const canvasHeight = this.canvas.height;
+
+    // Clip strokes to mountain silhouette if provided
+    if (clipLayer && clipLayer.ridgeLine.length > 0) {
+      ctx.save();
+      ctx.beginPath();
+      const rl = clipLayer.ridgeLine;
+      ctx.moveTo(rl[0].x, rl[0].y);
+      for (let i = 1; i < rl.length; i++) {
+        ctx.lineTo(rl[i].x, rl[i].y);
+      }
+      ctx.lineTo(rl[rl.length - 1].x, canvasHeight);
+      ctx.lineTo(rl[0].x, canvasHeight);
+      ctx.closePath();
+      ctx.clip();
+    }
 
     for (const stroke of strokes) {
       const { path, widths, opacity } = stroke;
@@ -116,13 +132,18 @@ export class Canvas2DBackend implements RenderBackend {
       ctx.lineJoin = "round";
       ctx.strokeStyle = `rgba(10,10,15,${opacity})`;
 
-      for (let i = 0; i < path.length - 1; i++) {
-        ctx.beginPath();
-        ctx.lineWidth = widths[Math.min(i, widths.length - 1)];
-        ctx.moveTo(path[i].x, path[i].y);
-        ctx.lineTo(path[i + 1].x, path[i + 1].y);
-        ctx.stroke();
+      // Draw as a single smooth path with average width for performance
+      ctx.beginPath();
+      ctx.lineWidth = widths[Math.floor(widths.length / 2)];
+      ctx.moveTo(path[0].x, path[0].y);
+      for (let i = 1; i < path.length; i++) {
+        ctx.lineTo(path[i].x, path[i].y);
       }
+      ctx.stroke();
+    }
+
+    if (clipLayer) {
+      ctx.restore();
     }
   }
 

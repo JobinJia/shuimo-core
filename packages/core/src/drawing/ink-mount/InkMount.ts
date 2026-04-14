@@ -174,6 +174,10 @@ export class InkMount {
   static renderScene(scene: InkMountScene, backend: RenderBackend): void {
     backend.clear();
 
+    const mistPerGap = scene.layers.length > 1
+      ? Math.ceil(scene.mists.length / (scene.layers.length - 1))
+      : 0;
+
     // Render layers back-to-front (far to near, depth ascending)
     for (let i = 0; i < scene.layers.length; i++) {
       const layer = scene.layers[i];
@@ -184,23 +188,27 @@ export class InkMount {
       // Draw mountain fill
       backend.drawMountainFill(layer, fill);
 
-      // Draw cunfa strokes
-      backend.drawCunFaStrokes(strokes);
+      // Draw cunfa strokes (clipped to mountain body)
+      backend.drawCunFaStrokes(strokes, layer);
 
       // Draw main ridge line
-      const ridgeOpacity = 0.2 + depth * 0.5;
-      const ridgeWidth = 0.5 + depth * 1.0;
+      const ridgeOpacity = 0.15 + depth * 0.4;
+      const ridgeWidth = 0.3 + depth * 0.7;
       backend.drawRidgeLine(layer.ridgeLine, ridgeOpacity, ridgeWidth);
 
-      // Draw sub-ridges at 50% opacity and 60% width
+      // Draw sub-ridges at 40% opacity and 50% width
       for (const subRidge of layer.subRidges) {
-        backend.drawRidgeLine(subRidge, ridgeOpacity * 0.5, ridgeWidth * 0.6);
+        backend.drawRidgeLine(subRidge, ridgeOpacity * 0.4, ridgeWidth * 0.5);
       }
-    }
 
-    // Draw mist between layers
-    if (scene.mists.length > 0) {
-      backend.drawMist(scene.mists);
+      // Draw mist between this layer and the next
+      if (i < scene.layers.length - 1 && scene.mists.length > 0) {
+        const mistStart = i * mistPerGap;
+        const mistEnd = Math.min(mistStart + mistPerGap, scene.mists.length);
+        if (mistStart < scene.mists.length) {
+          backend.drawMist(scene.mists.slice(mistStart, mistEnd));
+        }
+      }
     }
   }
 

@@ -8,7 +8,7 @@ export type RenderOutput =
 export interface RenderBackend {
   clear(): void;
   drawMountainFill(layer: MountainLayer, ink: InkFill): void;
-  drawCunFaStrokes(strokes: CunFaStroke[]): void;
+  drawCunFaStrokes(strokes: CunFaStroke[], clipLayer?: MountainLayer): void;
   drawMist(regions: MistRegion[]): void;
   drawRidgeLine(points: Vector2[], opacity: number, lineWidth: number): void;
   toOutput(): RenderOutput;
