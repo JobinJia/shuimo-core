@@ -14,6 +14,7 @@ import WebGPUShanshuiScroll from "../demos/WebGPUShanshuiScroll.vue";
 import XuanPaperDemo from "../demos/XuanPaperDemo.vue";
 import PaintingGeneratorDemo from "../demos/PaintingGeneratorDemo.vue";
 import FourGentlemenDemo from "../demos/FourGentlemenDemo.vue";
+import InkMountDemo from "../demos/InkMountDemo.vue";
 
 const routes = [
   {
@@ -93,6 +94,11 @@ const routes = [
     path: "/four-gentlemen",
     name: "FourGentlemen",
     component: FourGentlemenDemo,
+  },
+  {
+    path: "/ink-mount",
+    name: "InkMount",
+    component: InkMountDemo,
   },
 ];
 
