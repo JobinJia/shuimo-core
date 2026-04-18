@@ -20,7 +20,7 @@ export interface MistOptions {
 }
 
 export type QualityPreset = "draft" | "normal" | "high";
-export type BackendType = "canvas2d" | "webgpu" | "auto";
+export type BackendType = "canvas2d" | "auto";
 
 export interface InkMountOptions {
   width: number;

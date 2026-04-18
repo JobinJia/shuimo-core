@@ -40,7 +40,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 
-const expandedGroups = ref(["Generator", "Flower", "Shanshui", "Stamp", "Experimental", "WebGPU"]);
+const expandedGroups = ref(["Generator", "Flower", "Shanshui", "Stamp"]);
 
 const menuItems = [
   {
@@ -71,18 +71,6 @@ const menuItems = [
     children: [
       { path: "/stamp", name: "Basic" },
       { path: "/stamp-playground", name: "Playground" },
-    ],
-  },
-  {
-    name: "Experimental",
-    children: [{ path: "/stroke-animation", name: "Stroke Animation" }],
-  },
-  {
-    name: "WebGPU",
-    children: [
-      { path: "/ink-diffusion", name: "Ink Diffusion" },
-      { path: "/webgpu-shanshui", name: "Shanshui" },
-      { path: "/webgpu-scroll", name: "Scroll (Main)" },
     ],
   },
 ];

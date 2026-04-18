@@ -1696,8 +1696,10 @@ export function generateStamp(options: StampOptions): string {
   const verticalSpace = bounds.height - visualHeight;
   const targetLeft = ((offsetX + 1) / 2) * horizontalSpace;
   const targetTop = ((offsetY + 1) / 2) * verticalSpace;
-  // Ellipse yin stamps: asymmetric margin adjustment (left +1, right -2)
-  const ellipseMarginShift = shape === "ellipse" && type === "yin" ? 3.0 : 0;
+  let ellipseMarginShift = 0;
+  if (shape === "ellipse") {
+    ellipseMarginShift = type === "yin" ? 1.0 : -2.0;
+  }
   const shiftX = targetLeft - visualFrame.left + ellipseMarginShift;
   const shiftY = targetTop - visualFrame.top;
 

@@ -17,7 +17,9 @@ function render() {
   canvas.width = 1200;
   canvas.height = 800;
 
-  // No background fill needed — renderer handles paper color via pixel buffer
+  ctx.fillStyle = "#faf8f5";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
   InkMount.generate({
     width: canvas.width,
     height: canvas.height,
