@@ -1,29 +1,23 @@
 /**
- * Blum-Blum-Shub Pseudorandom Number Generator
+ * Mulberry32-based Pseudorandom Number Generator
  *
- * A cryptographically secure PRNG based on the difficulty of factoring large numbers.
- * Uses two large prime numbers (p and q) to generate a sequence of random numbers.
+ * Replaces the original BBS implementation which suffered from JavaScript
+ * integer overflow (s*s exceeded Number.MAX_SAFE_INTEGER), causing degenerate
+ * short-period sequences and visually regular patterns.
  */
 export class PRNG {
   private s: number = 1234;
-  private readonly p: number = 999979;
-  private readonly q: number = 999983;
-  private readonly m: number;
-
-  constructor() {
-    this.m = this.p * this.q;
-  }
 
   /**
    * Hash function to convert any input to a numeric seed
    */
   private hash(x: any): number {
-    const y = window.btoa(JSON.stringify(x));
-    let z = 0;
-    for (let i = 0; i < y.length; i++) {
-      z += y.charCodeAt(i) * Math.pow(128, i);
+    const str = JSON.stringify(x);
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+      h = ((h << 5) - h + str.charCodeAt(i)) | 0;
     }
-    return z;
+    return Math.abs(h);
   }
 
   /**
@@ -34,22 +28,8 @@ export class PRNG {
     if (x === undefined) {
       x = new Date().getTime();
     }
-
-    let y = 0;
-    let z = 0;
-
-    const redo = () => {
-      y = (this.hash(x) + z) % this.m;
-      z += 1;
-    };
-
-    // Ensure seed is not divisible by p or q, and not 0 or 1
-    while (y % this.p === 0 || y % this.q === 0 || y === 0 || y === 1) {
-      redo();
-    }
-
-    this.s = y;
-    console.log(["int seed", this.s]);
+    this.s = this.hash(x) >>> 0;
+    if (this.s === 0) this.s = 1;
 
     // Warm up the generator
     for (let i = 0; i < 10; i++) {
@@ -58,16 +38,18 @@ export class PRNG {
   }
 
   /**
-   * Generate the next random number in the sequence
+   * Generate the next random number in the sequence (Mulberry32)
    * @returns A random number between 0 and 1
    */
   next(): number {
-    this.s = (this.s * this.s) % this.m;
-    return this.s / this.m;
+    this.s = (this.s + 0x6D2B79F5) | 0;
+    let t = Math.imul(this.s ^ (this.s >>> 15), 1 | this.s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   }
 
   /**
-   * Alias for next() - generates a random number between 0 and 1
+   * Alias for next()
    * @returns A random number between 0 and 1
    */
   random(): number {
