@@ -1,6 +1,6 @@
 {
   "name": "shuimo-core",
-  "version": "0.0.5",
+  "version": "1.0.0",
   "private": true,
   "description": "A procedural Chinese landscape painting generation library",
   "type": "module",
