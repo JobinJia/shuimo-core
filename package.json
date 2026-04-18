@@ -11,7 +11,7 @@
     "build:playground": "pnpm run build && pnpm --filter @shuimo/playground build",
     "test": "pnpm --filter @jobinjia/shuimo-core test",
     "lint": "vp check",
-    "release": "bumpp && pnpm build && pnpm --filter @jobinjia/shuimo-core publish --access public --no-git-checks",
+    "release": "bumpp --execute 'pnpm build' && pnpm --filter @jobinjia/shuimo-core publish --access public --no-git-checks",
     "upgrade": "pnpm dlx taze -r -w major --install"
   },
   "devDependencies": {
