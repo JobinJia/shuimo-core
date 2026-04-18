@@ -456,6 +456,7 @@ export class XuanPaper {
   /**
    * Generate gold flecks (洒金效果) using Perlin noise for natural distribution
    * Creates realistic torn gold foil fragments like real 洒金宣
+   * Flecks near tile edges are wrapped around to ensure seamless tiling
    */
   private static generateGoldFlecks(
     ctx: CanvasRenderingContext2D,
@@ -474,19 +475,19 @@ export class XuanPaper {
     const perlin2 = new PerlinNoise();
     perlin2.noiseSeed(seed + 4500);
 
-    // Calculate number of gold flecks - more for realistic look
     const area = width * height;
     const baseCount = area * density * 0.0006;
     const fleckCount = Math.floor(baseCount);
 
     const [goldR, goldG, goldB] = color;
+    const maxGoldSize = sizeRange[1];
+    const wrapMargin = maxGoldSize * 1.5;
 
     ctx.save();
 
     for (let i = 0; i < fleckCount; i++) {
       let x: number, y: number;
 
-      // Use Perlin noise for natural clustering
       if (clustering > 0) {
         let attempts = 0;
         const maxAttempts = 15;
@@ -507,19 +508,15 @@ export class XuanPaper {
         y = rng.next() * height;
       }
 
-      // Size variation - power distribution for more small pieces, fewer large
-      const sizeRandom = Math.pow(rng.next(), 0.7); // Bias towards smaller
+      const sizeRandom = Math.pow(rng.next(), 0.7);
       const baseSize = sizeRange[0] + sizeRandom * (sizeRange[1] - sizeRange[0]);
 
-      // Additional size variation from noise
       const sizeNoise = perlin2.noise(x! * 0.03, y! * 0.03);
       const size = baseSize * (0.6 + sizeNoise * 0.8);
 
-      // Metallic color variation - simulate light reflection
       const colorNoise = perlin.noise(x! * 0.05 + 100, y! * 0.05 + 100);
       const brightness = 0.75 + colorNoise * 0.5;
 
-      // Some pieces are brighter (highlights)
       const isHighlight = rng.next() < 0.15;
       const highlightBoost = isHighlight ? 1.2 : 1.0;
 
@@ -527,13 +524,35 @@ export class XuanPaper {
       const g = Math.min(255, Math.floor(goldG * brightness * highlightBoost));
       const b = Math.min(255, Math.floor(goldB * brightness * highlightBoost * 0.9));
 
-      // High opacity for metallic look
       const alpha = 0.85 + rng.next() * 0.15;
 
       ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
 
-      // Draw irregular foil fragment
-      this.generateFoilPath(ctx, x!, y!, size, rng, perlin2);
+      // Save RNG state before drawing so we can replay for wrapped copies
+      const rngSnapshot = rng.next();
+      const rngSeed = seed + i * 7;
+      const drawFleck = (ox: number, oy: number) => {
+        const localRng = new PRNG();
+        localRng.seed(rngSeed);
+        this.generateFoilPath(ctx, ox, oy, size, localRng, perlin2);
+      };
+
+      drawFleck(x!, y!);
+
+      // Wrap-around: draw copies at tile boundaries for seamless tiling
+      const nearRight = x! + wrapMargin > width;
+      const nearBottom = y! + wrapMargin > height;
+      const nearLeft = x! - wrapMargin < 0;
+      const nearTop = y! - wrapMargin < 0;
+
+      if (nearRight) drawFleck(x! - width, y!);
+      if (nearBottom) drawFleck(x!, y! - height);
+      if (nearLeft) drawFleck(x! + width, y!);
+      if (nearTop) drawFleck(x!, y! + height);
+      if (nearRight && nearBottom) drawFleck(x! - width, y! - height);
+      if (nearRight && nearTop) drawFleck(x! - width, y! + height);
+      if (nearLeft && nearBottom) drawFleck(x! + width, y! - height);
+      if (nearLeft && nearTop) drawFleck(x! + width, y! + height);
     }
 
     ctx.restore();
@@ -932,6 +951,7 @@ export class XuanPaper {
 
   /**
    * Generate gold flecks as SVG elements
+   * Flecks near tile edges are wrapped around to ensure seamless tiling
    */
   private static generateGoldFlecksSVG(
     width: number,
@@ -954,17 +974,17 @@ export class XuanPaper {
     const perlin2 = new PerlinNoise();
     perlin2.noiseSeed(seed + 4500);
 
-    // Calculate number of gold flecks
     const area = width * height;
     const baseCount = area * density * 0.0006;
     const fleckCount = Math.floor(baseCount);
 
     const [goldR, goldG, goldB] = color;
+    const maxGoldSize = sizeRange[1];
+    const wrapMargin = maxGoldSize * 1.5;
 
     for (let i = 0; i < fleckCount; i++) {
       let x: number, y: number;
 
-      // Use Perlin noise for natural clustering
       if (clustering > 0) {
         let attempts = 0;
         const maxAttempts = 15;
@@ -985,13 +1005,11 @@ export class XuanPaper {
         y = rng.next() * height;
       }
 
-      // Size variation
       const sizeRandom = Math.pow(rng.next(), 0.7);
       const baseSize = sizeRange[0] + sizeRandom * (sizeRange[1] - sizeRange[0]);
       const sizeNoise = perlin2.noise(x! * 0.03, y! * 0.03);
       const size = baseSize * (0.6 + sizeNoise * 0.8);
 
-      // Color variation
       const colorNoise = perlin.noise(x! * 0.05 + 100, y! * 0.05 + 100);
       const brightness = 0.75 + colorNoise * 0.5;
       const isHighlight = rng.next() < 0.15;
@@ -1001,11 +1019,32 @@ export class XuanPaper {
       const g = Math.min(255, Math.floor(goldG * brightness * highlightBoost));
       const b = Math.min(255, Math.floor(goldB * brightness * highlightBoost * 0.9));
       const alpha = 0.85 + rng.next() * 0.15;
+      const fillColor = `rgba(${r}, ${g}, ${b}, ${alpha})`;
 
-      // Generate irregular polygon path
-      const path = this.generateFoilPathSVG(x!, y!, size, rng, perlin2, SVG_NS);
-      path.setAttribute("fill", `rgba(${r}, ${g}, ${b}, ${alpha})`);
-      group.appendChild(path);
+      const rngSeed = seed + i * 7;
+      const addFleck = (ox: number, oy: number) => {
+        const localRng = new PRNG();
+        localRng.seed(rngSeed);
+        const path = this.generateFoilPathSVG(ox, oy, size, localRng, perlin2, SVG_NS);
+        path.setAttribute("fill", fillColor);
+        group.appendChild(path);
+      };
+
+      addFleck(x!, y!);
+
+      const nearRight = x! + wrapMargin > width;
+      const nearBottom = y! + wrapMargin > height;
+      const nearLeft = x! - wrapMargin < 0;
+      const nearTop = y! - wrapMargin < 0;
+
+      if (nearRight) addFleck(x! - width, y!);
+      if (nearBottom) addFleck(x!, y! - height);
+      if (nearLeft) addFleck(x! + width, y!);
+      if (nearTop) addFleck(x!, y! + height);
+      if (nearRight && nearBottom) addFleck(x! - width, y! - height);
+      if (nearRight && nearTop) addFleck(x! - width, y! + height);
+      if (nearLeft && nearBottom) addFleck(x! + width, y! - height);
+      if (nearLeft && nearTop) addFleck(x! + width, y! + height);
     }
 
     return group;
@@ -1082,7 +1121,7 @@ export class XuanPaper {
    * Create SVG pattern element for tiling
    */
   static createPattern(id: string, options: XuanPaperOptions = {}): SVGPatternElement {
-    const { width = 256, height = 256 } = options;
+    const { width = 512, height = 512 } = options;
 
     const SVG_NS = "http://www.w3.org/2000/svg";
 
