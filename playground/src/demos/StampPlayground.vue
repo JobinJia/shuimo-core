@@ -13,8 +13,8 @@ const FONT_URLS: Record<string, string | undefined> = {
 };
 
 // Text configuration
-const textLines = ref(["水墨", "江南"]);
-const initialText = "水墨\n江南";
+const textLines = ref(["落梅", "听风", "雪"]);
+const initialText = "落梅\n听风\n雪";
 const fontsReady = ref(false);
 
 interface StampTuningProfile {
@@ -274,7 +274,7 @@ function randomizeSeed() {
 
 function resetDefaults() {
   textInput.value = initialText;
-  textLines.value = ["水墨", "江南"];
+  textLines.value = ["落梅", "听风", "雪"];
   userModifiedText.value = false;
   userModifiedTuning.value = false;
   stampType.value = "yang";

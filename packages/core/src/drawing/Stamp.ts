@@ -29,6 +29,14 @@ const DEFAULT_BORDER_POINTS = 24 / REFERENCE_FONT_SIZE;
 const MEASURED_HEIGHT_BUFFER = 0.05;
 
 /**
+ * Ellipse/capsule curve factor: curveRadius = shortSide/2 × this factor.
+ * Smaller = softer, more rectangular caps; larger = more bulbous.
+ * The long-axis width reservation in generateStampPath uses the same factor
+ * so text stays within the straight zone.
+ */
+const ELLIPSE_CURVE_FACTOR = 0.08;
+
+/**
  * Stamp type: 阴章 (Yin) or 阳章 (Yang)
  * - yin: Red background with white text (default)
  * - yang: White background with red text and red border
@@ -1090,7 +1098,7 @@ function generateEllipsePath(
   if (width > height) {
     // Horizontal capsule: straight top/bottom + curved left/right
     const radius = height / 2;
-    const curveRadius = radius * 0.5;
+    const curveRadius = radius * ELLIPSE_CURVE_FACTOR;
     const straightLength = width - radius * 2;
 
     const start = applyNoise(curveRadius, 0, 0);
@@ -1143,7 +1151,7 @@ function generateEllipsePath(
   } else {
     // Vertical capsule: straight left/right + curved top/bottom
     const radius = width / 2;
-    const curveRadius = radius * 0.5;
+    const curveRadius = radius * ELLIPSE_CURVE_FACTOR;
     const straightLength = height - curveRadius * 2;
 
     const start = applyNoise(0, curveRadius, 0);
@@ -1238,7 +1246,12 @@ export function generateStampPath(options: StampOptions): StampResult {
     characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
   const actualPaddingX = paddingXPx !== undefined ? paddingXPx : fontSize * paddingX;
   const actualPaddingY = paddingYPx !== undefined ? paddingYPx : fontSize * paddingY;
-  const actualNoiseAmount = noiseAmountPx ?? fontSize * noiseAmount;
+  // Border noise displaces the border inward only (凹陷), so it can never
+  // push the border past the available padding before eating into the text.
+  // Cap it at 90% of the smaller padding to keep a small safety gap.
+  const requestedNoiseAmount = noiseAmountPx ?? fontSize * noiseAmount;
+  const noiseBudget = Math.max(0, Math.min(actualPaddingX, actualPaddingY)) * 0.9;
+  const actualNoiseAmount = Math.min(requestedNoiseAmount, noiseBudget);
   const actualBorderPoints = Math.round(borderPointsPx ?? fontSize * borderPoints);
   const actualCornerRadius = cornerRadiusPx ?? fontSize * cornerRadius;
 
@@ -1293,11 +1306,18 @@ export function generateStampPath(options: StampOptions): StampResult {
     fontSize * actualColumnSpacing,
     bufferedMeasuredBoxes,
   );
-  // Calculate column positions and heights
-  const columnData = displayText.map((line, index) => ({
-    height: bufferedMeasuredBoxes
-      ? visualFrame.placements[index].visualBottom - visualFrame.top
-      : textDims.columnHeights[index],
+  // Short columns (fewer chars) get padded up to the tallest column's height so
+  // the border reserves 2-slot space on every column instead of collapsing into
+  // a trapezoid. The character itself is vertically centered at render time.
+  const reservedColumnHeight = Math.max(
+    ...displayText.map((_, index) =>
+      bufferedMeasuredBoxes
+        ? visualFrame.placements[index].visualBottom - visualFrame.top
+        : textDims.columnHeights[index],
+    ),
+  );
+  const columnData = displayText.map((line) => ({
+    height: reservedColumnHeight,
     text: line,
   }));
 
@@ -1414,13 +1434,14 @@ export function generateStampPath(options: StampOptions): StampResult {
       height,
     };
   } else if (shape === "circle") {
-    // Circle: fits text dimensions with padding and border scale
+    // Circle: diameter must cover the text's diagonal so the four corners of
+    // the text rectangle stay inside the disc. Only a tiny margin on top of
+    // that — just enough to separate the text corners from the stroke.
     const textWidth = visualFrame.width;
     const textHeight = visualFrame.height;
-    const baseDiameter = Math.max(
-      textWidth + horizontalPadding * 2,
-      textHeight + verticalPadding * 2,
-    );
+    const diagonal = Math.sqrt(textWidth * textWidth + textHeight * textHeight);
+    const diameterMargin = Math.min(horizontalPadding, verticalPadding) * 0.3;
+    const baseDiameter = diagonal + diameterMargin;
     // For circle, use the average of scaleX and scaleY to maintain circular shape
     const avgScale = (scaleX + scaleY) / 2;
     const diameter = baseDiameter * avgScale;
@@ -1444,19 +1465,20 @@ export function generateStampPath(options: StampOptions): StampResult {
     let width: number;
     let height: number;
 
+    // Capsule curve factor — must match ELLIPSE_CURVE_FACTOR in
+    // generateEllipsePath. Total curve extent on both ends = 2 × curveRadius
+    // = shortSide × ELLIPSE_CURVE_FACTOR, so we reserve exactly that much
+    // along the long axis to keep text inside the straight zone.
     if (aspectRatio > 1) {
-      // Horizontal layout
       const baseHeight = textHeight + verticalPadding * 2;
-      const baseWidth = textWidth + horizontalPadding * 2 + baseHeight * 0.15;
+      const baseWidth = textWidth + horizontalPadding * 2 + baseHeight * ELLIPSE_CURVE_FACTOR;
       width = baseWidth * scaleX;
       height = baseHeight * scaleY;
     } else {
-      // Vertical layout
-      const baseHeight = textHeight + verticalPadding * 2;
       const baseWidth = textWidth + horizontalPadding * 2;
-      const shortSide = Math.min(baseWidth, baseHeight);
+      const baseHeight = textHeight + verticalPadding * 2;
       width = baseWidth * scaleX;
-      height = (baseHeight + shortSide * 0.15) * scaleY;
+      height = (baseHeight + baseWidth * ELLIPSE_CURVE_FACTOR) * scaleY;
     }
 
     width -= 2;
@@ -1587,10 +1609,22 @@ export function generateStamp(options: StampOptions): string {
     columnSpacingPx !== undefined ? columnSpacingPx / fontSize : columnSpacing;
   const actualCharacterSpacing =
     characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
+  const actualPaddingX =
+    options.paddingXPx !== undefined ? options.paddingXPx : fontSize * (options.paddingX ?? 0.02);
+  const actualPaddingY =
+    options.paddingYPx !== undefined ? options.paddingYPx : fontSize * (options.paddingY ?? 0.02);
 
   // SVG filter scaling — keep visual texture density consistent across font sizes
   const filterScale = fontSize / REFERENCE_FONT_SIZE;
   const filterScaleInv = REFERENCE_FONT_SIZE / fontSize;
+
+  // feDisplacementMap's `scale` parameter is the maximum pixel displacement
+  // (symmetric), so a scale of S can push the border up to S/2 inward. Cap
+  // that by the available padding so border noise can never encroach into
+  // the text region.
+  const displacementBudget = Math.max(0, Math.min(actualPaddingX, actualPaddingY)) * 1.8;
+  const inkDisplacement = Math.min(10 * filterScale, displacementBudget);
+  const borderDisplacement = Math.min(8 * filterScale, displacementBudget);
   const carvingProfile =
     textCarving === "stone-cut"
       ? {
@@ -1705,10 +1739,16 @@ export function generateStamp(options: StampOptions): string {
 
   // One <text> element per column — required for replaceTextElementsWithGlyphPaths
   // which converts these to cross-platform SVG paths from the font file.
+  // Short columns are vertically centered within the reserved (tallest) column
+  // height so a 1-char last column in a 2-char layout sits in the middle of the
+  // 2-slot space instead of top-aligned. Font size stays at the base so stroke
+  // weight matches the other columns exactly.
   const textElements = visualFrame.placements
-    .map(({ x, y }, index) => {
+    .map((placement, index) => {
+      const { x, y, visualBottom } = placement;
       const shiftedX = x + shiftX;
-      const shiftedY = y + shiftY;
+      const centerOffset = (visualFrame.bottom - visualBottom) / 2;
+      const shiftedY = y + shiftY + centerOffset;
       const line = displayText[index];
 
       return `<text x="${shiftedX}" y="${shiftedY}"
@@ -1750,7 +1790,7 @@ export function generateStamp(options: StampOptions): string {
     <filter id="stamp-ink-texture" x="-20%" y="-20%" width="140%" height="140%">
       <!-- Step 1: Edge displacement for irregular border, then clip to original boundary (凹陷 only, no 凸起) -->
       <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.04 * filterScaleInv)}" numOctaves="4" seed="${seed + 123}" result="borderNoise"/>
-      <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmtNum(10 * filterScale)}" xChannelSelector="R" yChannelSelector="G" result="rawDisplaced"/>
+      <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmtNum(inkDisplacement)}" xChannelSelector="R" yChannelSelector="G" result="rawDisplaced"/>
       <feComposite in="rawDisplaced" in2="SourceGraphic" operator="in" result="displacedShape"/>
 
       <!-- Step 2: Create granular texture (paper fibers) - increased visibility -->
@@ -1792,7 +1832,7 @@ export function generateStamp(options: StampOptions): string {
     <filter id="stamp-border-texture" x="-20%" y="-20%" width="140%" height="140%">
       <!-- Edge displacement -->
       <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.04 * filterScaleInv)}" numOctaves="3" seed="${seed + 123}" result="borderNoise"/>
-      <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmtNum(8 * filterScale)}" xChannelSelector="R" yChannelSelector="G" result="displacedBorder"/>
+      <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmtNum(borderDisplacement)}" xChannelSelector="R" yChannelSelector="G" result="displacedBorder"/>
 
       <!-- Slight blur for natural ink spread -->
       <feGaussianBlur in="displacedBorder" stdDeviation="${fmtNum(0.3 * filterScale)}" result="blurredBorder"/>
