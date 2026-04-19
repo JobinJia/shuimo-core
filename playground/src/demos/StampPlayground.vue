@@ -298,6 +298,40 @@ function downloadSVG() {
   URL.revokeObjectURL(url);
 }
 
+function exportConfig() {
+  const config = {
+    text: textInput.value,
+    type: stampType.value,
+    shape: stampShape.value,
+    color: color.value,
+    fontFamily: fontFamily.value,
+    fontSize: fontSize.value,
+    fontWeight: fontWeight.value,
+    textCarving: textCarving.value,
+    offsetX: offsetX.value,
+    offsetY: offsetY.value,
+    columnSpacing: columnSpacing.value,
+    characterSpacing: characterSpacing.value,
+    paddingX: paddingX.value,
+    paddingY: paddingY.value,
+    borderScaleX: borderScaleX.value,
+    borderScaleY: borderScaleY.value,
+    noiseAmountPx: noiseAmount.value,
+    borderPointsPx: borderPoints.value,
+    cornerRadiusPx: cornerRadius.value,
+    borderWidthPx: borderWidth.value,
+    regularShape: regularShape.value,
+    seed: seed.value,
+  };
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `stamp-config-${Date.now()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 // Preset examples
 const presets = [
   {
@@ -393,6 +427,9 @@ function applyPreset(preset: (typeof presets)[0]) {
     <div class="controls-panel">
       <div class="panel-header">
         <h3>印章参数配置</h3>
+        <button class="export-config-btn" @click="exportConfig" title="导出当前配置为 JSON">
+          导出配置
+        </button>
       </div>
 
       <div class="controls-content">
@@ -766,6 +803,10 @@ function applyPreset(preset: (typeof presets)[0]) {
   padding: 20px 24px;
   border-bottom: 1px solid #e0e0e0;
   background-color: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .panel-header h3 {
@@ -773,6 +814,23 @@ function applyPreset(preset: (typeof presets)[0]) {
   font-size: 18px;
   font-weight: 600;
   color: #333;
+}
+
+.export-config-btn {
+  padding: 6px 14px;
+  border: 1px solid #3498db;
+  border-radius: 6px;
+  background-color: #3498db;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.export-config-btn:hover {
+  background-color: #2980b9;
+  border-color: #2980b9;
 }
 
 .controls-content {
