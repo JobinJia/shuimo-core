@@ -218,4 +218,73 @@ describe("Stamp layout", () => {
     expect(svg).toContain("<path");
     expect(svg).not.toContain("<text");
   });
+
+  it("does not clamp path noise by padding, so explicit noiseAmountPx still changes the border", () => {
+    const baseOptions = {
+      text: ["印"],
+      shape: "rectangle",
+      fontSize: 70,
+      paddingXPx: 1,
+      paddingYPx: 1,
+      seed: 1,
+    } as const;
+
+    const lowNoise = generateStampPath({
+      ...baseOptions,
+      noiseAmountPx: 1,
+    });
+    const highNoise = generateStampPath({
+      ...baseOptions,
+      noiseAmountPx: 20,
+    });
+
+    expect(lowNoise.path).not.toBe(highNoise.path);
+  });
+
+  it("keeps filter displacement independent from padding so default texture strength stays stable", () => {
+    const compactSvg = generateStamp({
+      text: ["印"],
+      fontSize: 70,
+      paddingXPx: 1,
+      paddingYPx: 1,
+      seed: 1,
+    });
+    const roomySvg = generateStamp({
+      text: ["印"],
+      fontSize: 70,
+      paddingXPx: 20,
+      paddingYPx: 20,
+      seed: 1,
+    });
+
+    const extractScales = (svg: string) =>
+      [...svg.matchAll(/<feDisplacementMap[^>]*scale="([^"]+)"/g)].map((match) => match[1]);
+
+    expect(extractScales(compactSvg)).toEqual(extractScales(roomySvg));
+  });
+
+  it("reserves ellipse end-cap space based on the final scaled long axis", () => {
+    const result = generateStampPath({
+      text: ["甲", "乙"],
+      shape: "ellipse",
+      fontSize: 70,
+      measuredColumnWidths: [38, 38],
+      measuredColumnHeights: [70, 70],
+      paddingXPx: 4,
+      paddingYPx: 4,
+      borderScaleX: 0.7,
+      borderScaleY: 1.4,
+      regularShape: true,
+      seed: 1,
+    });
+
+    const scaledInnerWidth = (38 + 38 + 70 * 0.02 + 8) * 0.7;
+    const scaledInnerHeight = (70 + 70 * 0.05 + 70 * 0.03 + 8) * 1.4;
+    const expectedWidth = scaledInnerWidth - 2;
+    const expectedHeight = scaledInnerHeight + scaledInnerWidth * 0.08;
+
+    expect(result.bounds.width).toBeCloseTo(expectedWidth, 3);
+    expect(result.bounds.height).toBeCloseTo(expectedHeight, 3);
+    expect(result.bounds.height).toBeGreaterThan(result.bounds.width);
+  });
 });

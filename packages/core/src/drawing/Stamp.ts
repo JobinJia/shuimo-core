@@ -1246,12 +1246,7 @@ export function generateStampPath(options: StampOptions): StampResult {
     characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
   const actualPaddingX = paddingXPx !== undefined ? paddingXPx : fontSize * paddingX;
   const actualPaddingY = paddingYPx !== undefined ? paddingYPx : fontSize * paddingY;
-  // Border noise displaces the border inward only (凹陷), so it can never
-  // push the border past the available padding before eating into the text.
-  // Cap it at 90% of the smaller padding to keep a small safety gap.
-  const requestedNoiseAmount = noiseAmountPx ?? fontSize * noiseAmount;
-  const noiseBudget = Math.max(0, Math.min(actualPaddingX, actualPaddingY)) * 0.9;
-  const actualNoiseAmount = Math.min(requestedNoiseAmount, noiseBudget);
+  const actualNoiseAmount = noiseAmountPx ?? fontSize * noiseAmount;
   const actualBorderPoints = Math.round(borderPointsPx ?? fontSize * borderPoints);
   const actualCornerRadius = cornerRadiusPx ?? fontSize * cornerRadius;
 
@@ -1461,24 +1456,22 @@ export function generateStampPath(options: StampOptions): StampResult {
     const textWidth = visualFrame.width;
     const textHeight = visualFrame.height;
 
-    const aspectRatio = textWidth / textHeight;
+    const innerWidth = textWidth + horizontalPadding * 2;
+    const innerHeight = textHeight + verticalPadding * 2;
+    const scaledWidth = innerWidth * scaleX;
+    const scaledHeight = innerHeight * scaleY;
     let width: number;
     let height: number;
 
-    // Capsule curve factor — must match ELLIPSE_CURVE_FACTOR in
-    // generateEllipsePath. Total curve extent on both ends = 2 × curveRadius
-    // = shortSide × ELLIPSE_CURVE_FACTOR, so we reserve exactly that much
-    // along the long axis to keep text inside the straight zone.
-    if (aspectRatio > 1) {
-      const baseHeight = textHeight + verticalPadding * 2;
-      const baseWidth = textWidth + horizontalPadding * 2 + baseHeight * ELLIPSE_CURVE_FACTOR;
-      width = baseWidth * scaleX;
-      height = baseHeight * scaleY;
+    // Reserve the capsule end-cap width along the final long axis, not the
+    // pre-scale text aspect ratio. This keeps the text inside the straight
+    // section even when borderScaleX/Y flips the dominant axis.
+    if (scaledWidth >= scaledHeight) {
+      height = scaledHeight;
+      width = scaledWidth + height * ELLIPSE_CURVE_FACTOR;
     } else {
-      const baseWidth = textWidth + horizontalPadding * 2;
-      const baseHeight = textHeight + verticalPadding * 2;
-      width = baseWidth * scaleX;
-      height = (baseHeight + baseWidth * ELLIPSE_CURVE_FACTOR) * scaleY;
+      width = scaledWidth;
+      height = scaledHeight + width * ELLIPSE_CURVE_FACTOR;
     }
 
     width -= 2;
@@ -1618,13 +1611,8 @@ export function generateStamp(options: StampOptions): string {
   const filterScale = fontSize / REFERENCE_FONT_SIZE;
   const filterScaleInv = REFERENCE_FONT_SIZE / fontSize;
 
-  // feDisplacementMap's `scale` parameter is the maximum pixel displacement
-  // (symmetric), so a scale of S can push the border up to S/2 inward. Cap
-  // that by the available padding so border noise can never encroach into
-  // the text region.
-  const displacementBudget = Math.max(0, Math.min(actualPaddingX, actualPaddingY)) * 1.8;
-  const inkDisplacement = Math.min(10 * filterScale, displacementBudget);
-  const borderDisplacement = Math.min(8 * filterScale, displacementBudget);
+  const inkDisplacement = 10 * filterScale;
+  const borderDisplacement = 8 * filterScale;
   const carvingProfile =
     textCarving === "stone-cut"
       ? {
