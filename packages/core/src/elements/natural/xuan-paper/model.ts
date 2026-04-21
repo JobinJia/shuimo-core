@@ -1,4 +1,4 @@
-import { PerlinNoise } from "../../../foundation/noise";
+import { GaborNoise, WorleyNoise } from "../../../foundation/noise";
 import { PRNG } from "../../../foundation/random";
 import { DEFAULT_BASE_COLOR, XuanPaperColors } from "./presets";
 import type {
@@ -15,6 +15,8 @@ import type {
   XuanPaperScene,
 } from "./types";
 
+const TWO_PI = Math.PI * 2;
+
 const SEED_OFFSETS = {
   tone: 101,
   formation: 307,
@@ -25,6 +27,10 @@ const SEED_OFFSETS = {
   gold: 2203,
   deckle: 2801,
 } as const;
+
+// ---------------------------------------------------------------------------
+// utility
+// ---------------------------------------------------------------------------
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -52,6 +58,34 @@ function adjustColor(
 function distance(a: [number, number, number], b: [number, number, number]): number {
   return Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2);
 }
+
+function gaussianSample(rng: PRNG): number {
+  const u1 = Math.max(1e-9, rng.next());
+  const u2 = rng.next();
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(TWO_PI * u2);
+}
+
+function angleDiff(a: number, b: number): number {
+  let d = a - b;
+  while (d > Math.PI) d -= TWO_PI;
+  while (d < -Math.PI) d += TWO_PI;
+  return d;
+}
+
+// Gabor returns an undirected orientation in [-π/2, π/2]. Pick whichever of the
+// two physically-equivalent headings (θ or θ+π) is closer to the fiber's
+// current travel direction so growth flows without U-turns.
+function nearestHeading(undirected: number, currentHeading: number): number {
+  const opt1 = undirected;
+  const opt2 = undirected + Math.PI;
+  return Math.abs(angleDiff(opt1, currentHeading)) < Math.abs(angleDiff(opt2, currentHeading))
+    ? opt1
+    : opt2;
+}
+
+// ---------------------------------------------------------------------------
+// profile
+// ---------------------------------------------------------------------------
 
 function resolvePaperKind(baseColor: [number, number, number]): XuanPaperKind {
   const presets: Array<{ color: [number, number, number]; kind: XuanPaperKind }> = [
@@ -100,6 +134,7 @@ export function normalizeXuanPaperOptions(
     goldSize: [goldSizeMin, goldSizeMax],
     goldColor: options.goldColor ?? [218, 165, 32],
     goldClustering: clamp(options.goldClustering ?? 0.3, 0, 1),
+    goldDistribution: options.goldDistribution ?? "poisson",
   };
 }
 
@@ -148,61 +183,89 @@ export function buildXuanPaperProfile(options: NormalizedXuanPaperOptions): Xuan
   return profileByKind[kind];
 }
 
-function createNoise(seed: number, octaves: number = 4, falloff: number = 0.5): PerlinNoise {
-  const noise = new PerlinNoise();
-  noise.noiseSeed(seed);
-  noise.noiseDetail(octaves, falloff);
-  return noise;
+// ---------------------------------------------------------------------------
+// fibers: Gabor direction field + Thomas cluster process
+// ---------------------------------------------------------------------------
+
+interface ThomasCluster {
+  x: number;
+  y: number;
+  sigma: number;
 }
 
-function createStroke(
+function sampleThomasClusters(width: number, height: number, rng: PRNG): ThomasCluster[] {
+  const area = width * height;
+  const count = Math.max(2, Math.round(area / 48000));
+  const baseSigma = Math.sqrt(area / count) * 0.32;
+  const clusters: ThomasCluster[] = [];
+  for (let i = 0; i < count; i++) {
+    clusters.push({
+      x: rng.next() * width,
+      y: rng.next() * height,
+      sigma: baseSigma * (0.7 + rng.next() * 0.6),
+    });
+  }
+  return clusters;
+}
+
+function pickAnchor(
   width: number,
   height: number,
-  seed: number,
   rng: PRNG,
-  scale: number,
-  profile: XuanPaperProfile,
-  baseColor: [number, number, number],
-  fragment: boolean,
-): FiberStroke {
-  const directionNoise = createNoise(seed);
-  const curlNoise = createNoise(seed + 19);
-  const startX = rng.next() * width;
-  const startY = rng.next() * height;
-  const points: PaperPoint[] = [{ x: startX, y: startY }];
+  clusters: ThomasCluster[],
+  clusterProbability: number,
+): { x: number; y: number } {
+  if (clusters.length > 0 && rng.next() < clusterProbability) {
+    const cluster = clusters[Math.floor(rng.next() * clusters.length)]!;
+    return {
+      x: cluster.x + gaussianSample(rng) * cluster.sigma,
+      y: cluster.y + gaussianSample(rng) * cluster.sigma,
+    };
+  }
+  return { x: rng.next() * width, y: rng.next() * height };
+}
 
-  const baseLength = fragment ? 28 + rng.next() * 54 : 85 + rng.next() * 160;
-  const segments = fragment ? 7 + Math.floor(rng.next() * 7) : 15 + Math.floor(rng.next() * 15);
-  const strokeLength = baseLength * scale * profile.fiberLengthMultiplier;
-  const segmentLength = strokeLength / segments;
+function growFiber(
+  anchorX: number,
+  anchorY: number,
+  directionField: GaborNoise,
+  rng: PRNG,
+  segmentLength: number,
+  forwardSteps: number,
+  backwardSteps: number,
+  turnJitter: number,
+): PaperPoint[] {
+  const anchorAngle = directionField.directionAt(anchorX, anchorY);
 
-  let x = startX;
-  let y = startY;
-  let angle = directionNoise.noise(startX * 0.005, startY * 0.005) * Math.PI * 2;
+  // Backward growth (opposite heading).
+  const backPoints: PaperPoint[] = [];
+  let bx = anchorX;
+  let by = anchorY;
+  let bHeading = anchorAngle + Math.PI;
+  for (let i = 0; i < backwardSteps; i++) {
+    const fieldAngle = directionField.directionAt(bx, by);
+    bHeading = nearestHeading(fieldAngle, bHeading) + (rng.next() - 0.5) * turnJitter;
+    bx += Math.cos(bHeading) * segmentLength;
+    by += Math.sin(bHeading) * segmentLength;
+    backPoints.push({ x: bx, y: by });
+  }
+  backPoints.reverse();
 
-  for (let index = 0; index < segments; index++) {
-    const curl =
-      (curlNoise.noise(x * 0.008 + index * 0.1, y * 0.008) - 0.5) * (fragment ? 0.48 : 0.34);
-    angle += curl;
-    x += Math.cos(angle) * segmentLength;
-    y += Math.sin(angle) * segmentLength;
-    points.push({ x, y });
+  const points: PaperPoint[] = [...backPoints, { x: anchorX, y: anchorY }];
+
+  // Forward growth.
+  let fx = anchorX;
+  let fy = anchorY;
+  let fHeading = anchorAngle;
+  for (let i = 0; i < forwardSteps; i++) {
+    const fieldAngle = directionField.directionAt(fx, fy);
+    fHeading = nearestHeading(fieldAngle, fHeading) + (rng.next() - 0.5) * turnJitter;
+    fx += Math.cos(fHeading) * segmentLength;
+    fy += Math.sin(fHeading) * segmentLength;
+    points.push({ x: fx, y: fy });
   }
 
-  const darkness = fragment ? 60 : 46;
-  const warmthLift = profile.warmth * 18;
-  const color = adjustColor(baseColor, [
-    -(darkness - warmthLift),
-    -(darkness + 5 - warmthLift * 0.6),
-    -(darkness + 14),
-  ]);
-
-  return {
-    points,
-    width: (fragment ? 0.35 : 0.28) + rng.next() * (fragment ? 0.55 : 0.42),
-    color,
-    alpha: (fragment ? 0.08 : 0.05) + rng.next() * 0.08 * profile.fiberContrast,
-  };
+  return points;
 }
 
 function generateFibers(
@@ -215,40 +278,98 @@ function generateFibers(
   const area = options.width * options.height;
   const mainCount = Math.floor(area * options.fiberDensity * 0.00012 * profile.fiberContrast);
   const fragmentCount = Math.floor(mainCount * (0.22 + profile.absorbency * 0.08));
+
+  // Paper-scale Gabor field. Raw xuan (high absorbency) shows looser fiber
+  // alignment; sized paper is tighter. Main orientation is a mild tilt off
+  // horizontal so the grain does not read as machine-perfect.
+  const orientationTilt = (rng.next() - 0.5) * 0.3;
+  const directionField = new GaborNoise(options.seed + SEED_OFFSETS.fibers, {
+    frequency: 38 * options.fiberScale,
+    kernelRadius: 62 * options.fiberScale,
+    mainOrientation: orientationTilt,
+    orientationConcentration: mix(1.6, 0.35, clamp(profile.absorbency - 0.5, 0, 1)),
+    kernelsPerCell: 3,
+  });
+
+  const clusters = sampleThomasClusters(options.width, options.height, rng);
   const fibers: FiberStroke[] = [];
 
   for (let index = 0; index < mainCount; index++) {
-    fibers.push(
-      createStroke(
-        options.width,
-        options.height,
-        options.seed + SEED_OFFSETS.fibers + index * 7,
-        rng,
-        options.fiberScale,
-        profile,
-        options.baseColor,
-        false,
-      ),
+    const anchor = pickAnchor(options.width, options.height, rng, clusters, 0.58);
+    const strokeLength =
+      (85 + rng.next() * 160) * options.fiberScale * profile.fiberLengthMultiplier;
+    const segments = 15 + Math.floor(rng.next() * 15);
+    const segmentLength = strokeLength / segments;
+    const forwardSteps = Math.floor(segments * (0.42 + rng.next() * 0.16));
+    const backwardSteps = segments - forwardSteps;
+
+    const points = growFiber(
+      anchor.x,
+      anchor.y,
+      directionField,
+      rng,
+      segmentLength,
+      forwardSteps,
+      backwardSteps,
+      0.12,
     );
+
+    const darkness = 46;
+    const warmthLift = profile.warmth * 18;
+    const color = adjustColor(options.baseColor, [
+      -(darkness - warmthLift),
+      -(darkness + 5 - warmthLift * 0.6),
+      -(darkness + 14),
+    ]);
+
+    fibers.push({
+      points,
+      width: 0.28 + rng.next() * 0.42,
+      color,
+      alpha: 0.05 + rng.next() * 0.08 * profile.fiberContrast,
+    });
   }
 
   for (let index = 0; index < fragmentCount; index++) {
-    fibers.push(
-      createStroke(
-        options.width,
-        options.height,
-        options.seed + SEED_OFFSETS.fibers + 5000 + index * 11,
-        rng,
-        options.fiberScale,
-        profile,
-        options.baseColor,
-        true,
-      ),
+    const anchor = pickAnchor(options.width, options.height, rng, clusters, 0.12);
+    const strokeLength =
+      (28 + rng.next() * 54) * options.fiberScale * profile.fiberLengthMultiplier;
+    const segments = 7 + Math.floor(rng.next() * 7);
+    const segmentLength = strokeLength / segments;
+
+    const points = growFiber(
+      anchor.x,
+      anchor.y,
+      directionField,
+      rng,
+      segmentLength,
+      segments,
+      0,
+      0.3,
     );
+
+    const darkness = 60;
+    const warmthLift = profile.warmth * 18;
+    const color = adjustColor(options.baseColor, [
+      -(darkness - warmthLift),
+      -(darkness + 5 - warmthLift * 0.6),
+      -(darkness + 14),
+    ]);
+
+    fibers.push({
+      points,
+      width: 0.35 + rng.next() * 0.55,
+      color,
+      alpha: 0.08 + rng.next() * 0.08 * profile.fiberContrast,
+    });
   }
 
   return fibers;
 }
+
+// ---------------------------------------------------------------------------
+// grain particles: Worley F2-F1 edge bias
+// ---------------------------------------------------------------------------
 
 function generateParticles(
   options: NormalizedXuanPaperOptions,
@@ -257,16 +378,23 @@ function generateParticles(
   const rng = new PRNG();
   rng.seed(options.seed + SEED_OFFSETS.particles);
 
-  const densityNoise = createNoise(options.seed + SEED_OFFSETS.particles + 37);
+  const worley = new WorleyNoise(options.seed + SEED_OFFSETS.particles + 37);
   const area = options.width * options.height;
   const count = Math.floor(area * options.grainDensity * 0.0016 * profile.particleContrast);
   const particles: GrainParticle[] = [];
 
+  const cellSize = 14 + (1 - options.grainDensity) * 10;
+  // Worley edgeNoise is small (≈0) at Voronoi cell boundaries and grows toward
+  // cell interiors. Fiber intersections in Xuan paper correspond to those
+  // boundaries, so we accept candidates where the edge value is below a
+  // threshold that relaxes with grainDensity.
+  const edgeThreshold = 0.12 + options.grainDensity * 0.18;
+
   for (let index = 0; index < count; index++) {
     const x = rng.next() * options.width;
     const y = rng.next() * options.height;
-    const weight = densityNoise.noise(x * 0.01, y * 0.01);
-    if (weight < 0.28) {
+    const edge = worley.edgeNoise2D(x, y, { cellSize });
+    if (edge > edgeThreshold) {
       continue;
     }
 
@@ -293,6 +421,10 @@ function generateParticles(
 
   return particles;
 }
+
+// ---------------------------------------------------------------------------
+// gold flecks (unchanged)
+// ---------------------------------------------------------------------------
 
 interface GoldCluster {
   x: number;
@@ -360,6 +492,48 @@ function buildGoldCommands(x: number, y: number, size: number, rng: PRNG): GoldP
 
   commands.push({ type: "Z" });
   return commands;
+}
+
+// Dust-sized specks: 3-5 straight edges, near-round. Cheap to render because
+// the Xuan paper will ship thousands of these.
+function buildDustCommands(x: number, y: number, size: number, rng: PRNG): GoldPathCommand[] {
+  const pointCount = 3 + Math.floor(rng.next() * 3);
+  const commands: GoldPathCommand[] = [];
+  const startAngle = rng.next() * TWO_PI;
+  for (let i = 0; i < pointCount; i++) {
+    const theta = startAngle + (i / pointCount) * TWO_PI + (rng.next() - 0.5) * 0.6;
+    const radius = size * (0.65 + rng.next() * 0.55);
+    const px = x + Math.cos(theta) * radius;
+    const py = y + Math.sin(theta) * radius;
+    commands.push(i === 0 ? { type: "M", x: px, y: py } : { type: "L", x: px, y: py });
+  }
+  commands.push({ type: "Z" });
+  return commands;
+}
+
+function buildWrapCopies(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  margin: number,
+): PaperPoint[] {
+  const copies: PaperPoint[] = [{ x: 0, y: 0 }];
+  const nearRight = x + margin > width;
+  const nearBottom = y + margin > height;
+  const nearLeft = x - margin < 0;
+  const nearTop = y - margin < 0;
+
+  if (nearRight) copies.push({ x: -width, y: 0 });
+  if (nearBottom) copies.push({ x: 0, y: -height });
+  if (nearLeft) copies.push({ x: width, y: 0 });
+  if (nearTop) copies.push({ x: 0, y: height });
+  if (nearRight && nearBottom) copies.push({ x: -width, y: -height });
+  if (nearRight && nearTop) copies.push({ x: -width, y: height });
+  if (nearLeft && nearBottom) copies.push({ x: width, y: -height });
+  if (nearLeft && nearTop) copies.push({ x: width, y: height });
+
+  return copies;
 }
 
 function createGoldClusters(
@@ -491,54 +665,87 @@ function generateGoldFlecks(
   const area = options.width * options.height;
   const resolutionScale = Math.sqrt(area / (800 * 600));
   const lowResBoost = clamp(1.18 - resolutionScale * 0.18, 1, 1.18);
-  const count = Math.max(
-    Math.round(8 * options.goldDensity),
-    Math.floor(area * options.goldDensity * 0.00055 * lowResBoost),
+
+  // Real sprinkled-gold Xuan paper carries thousands of particles per sheet,
+  // dominated by tiny dust. Total count scales linearly with area.
+  const totalCount = Math.max(
+    Math.round(80 * options.goldDensity),
+    Math.floor(area * options.goldDensity * 0.003 * lowResBoost),
   );
+
+  const minSize = options.goldSize[0];
   const maxSize = options.goldSize[1];
-  const wrapMargin = maxSize * 1.6;
+  const wrapMargin = maxSize * 2.2;
   const flecks: GoldFleck[] = [];
-  const accepted: AcceptedGoldFleck[] = [];
-  const clusters = createGoldClusters(options, rng, count);
+  const bigAccepted: AcceptedGoldFleck[] = [];
+  const clusters = createGoldClusters(options, rng, totalCount);
   const clusterWeight = clamp(options.goldClustering * 1.15 + 0.08, 0.08, 1);
-  const isolatedRatio = clamp(0.72 - clusterWeight * 0.5, 0.2, 0.72);
+  // Lean hard toward "isolated" (uniform scatter); clusters only bend local
+  // density, they do not form tight groups.
+  const isolatedRatio = clamp(0.9 - clusterWeight * 0.35, 0.55, 0.9);
   const lowResSizeBoost = clamp(1.18 - resolutionScale * 0.12, 1, 1.18);
 
-  for (let index = 0; index < count; index++) {
+  // Threshold above which a particle is treated as a "flake" (irregular
+  // polygon + rejection sampling + potential satellite halo). Everything below
+  // is dust (simple polygon, no rejection).
+  const flakeSizeThreshold = minSize + (maxSize - minSize) * 0.18;
+
+  const skipRejection = options.goldDistribution === "random";
+
+  // Pre-roll sizes from a dedicated stream so rejection retries on positions
+  // do not shift the size distribution between "poisson" and "random" modes.
+  // Pareto-like skew (u^4.2) lands ~8% above the flake threshold at default
+  // [2, 12] sizing.
+  const sizeRng = new PRNG();
+  sizeRng.seed(options.seed + SEED_OFFSETS.gold + 20001);
+  const preSizes: Array<{ size: number; isFlake: boolean }> = [];
+  for (let i = 0; i < totalCount; i++) {
+    const sizeRatio = Math.pow(sizeRng.next(), 4.2);
+    const raw = mix(minSize, maxSize, sizeRatio) * lowResSizeBoost * (0.82 + sizeRng.next() * 0.32);
+    preSizes.push({ size: raw, isFlake: raw >= flakeSizeThreshold });
+  }
+
+  for (let index = 0; index < totalCount; index++) {
+    const { size: targetSize, isFlake } = preSizes[index]!;
+
     let attempts = 0;
     let x = 0;
     let y = 0;
-    let size = options.goldSize[0];
     let clusterToneBias = 1;
     let clusterSizeBias = 1;
+    let accepted = false;
 
-    while (attempts < 18) {
+    const maxAttempts = isFlake && !skipRejection ? 8 : 1;
+
+    while (attempts < maxAttempts) {
       const useCluster = clusters.length > 0 && rng.next() > isolatedRatio;
       const sampled = sampleGoldPosition(options, clusters, useCluster, rng);
       x = sampled.point.x;
       y = sampled.point.y;
 
       if (useCluster && sampled.cluster) {
-        const cluster = sampled.cluster;
-        clusterToneBias = cluster.toneBias;
-        clusterSizeBias = cluster.sizeBias;
+        clusterToneBias = sampled.cluster.toneBias;
+        clusterSizeBias = sampled.cluster.sizeBias;
       } else {
         clusterToneBias = 0.92 + rng.next() * 0.2;
-        clusterSizeBias = 0.9 + rng.next() * 0.18;
+        clusterSizeBias = 0.94 + rng.next() * 0.12;
       }
 
-      size =
-        mix(options.goldSize[0], options.goldSize[1], Math.pow(rng.next(), 0.66)) *
-        clusterSizeBias *
-        lowResSizeBoost *
-        (0.84 + rng.next() * 0.26);
-
-      if (tryAcceptGoldFleck(accepted, x, y, size, options, rng)) {
-        accepted.push({ x, y, size });
+      if (!isFlake || skipRejection) {
+        accepted = true;
         break;
       }
-
+      if (tryAcceptGoldFleck(bigAccepted, x, y, targetSize, options, rng)) {
+        accepted = true;
+        break;
+      }
       attempts++;
+    }
+    if (!accepted) continue;
+
+    const size = targetSize * clusterSizeBias;
+    if (isFlake) {
+      bigAccepted.push({ x, y, size });
     }
 
     const brightness =
@@ -552,32 +759,93 @@ function generateGoldFlecks(
 
     const localRng = new PRNG();
     localRng.seed(options.seed + SEED_OFFSETS.gold + index * 7);
-    const commands = buildGoldCommands(x, y, size, localRng);
-
-    const copies: PaperPoint[] = [{ x: 0, y: 0 }];
-    const nearRight = x + wrapMargin > options.width;
-    const nearBottom = y + wrapMargin > options.height;
-    const nearLeft = x - wrapMargin < 0;
-    const nearTop = y - wrapMargin < 0;
-
-    if (nearRight) copies.push({ x: -options.width, y: 0 });
-    if (nearBottom) copies.push({ x: 0, y: -options.height });
-    if (nearLeft) copies.push({ x: options.width, y: 0 });
-    if (nearTop) copies.push({ x: 0, y: options.height });
-    if (nearRight && nearBottom) copies.push({ x: -options.width, y: -options.height });
-    if (nearRight && nearTop) copies.push({ x: -options.width, y: options.height });
-    if (nearLeft && nearBottom) copies.push({ x: options.width, y: -options.height });
-    if (nearLeft && nearTop) copies.push({ x: options.width, y: options.height });
+    const commands = isFlake
+      ? buildGoldCommands(x, y, size, localRng)
+      : buildDustCommands(x, y, size, localRng);
 
     flecks.push({
       commands,
-      copies,
+      copies: buildWrapCopies(x, y, options.width, options.height, wrapMargin),
       color,
-      alpha: 0.82 + rng.next() * 0.16,
+      alpha: isFlake ? 0.82 + rng.next() * 0.16 : 0.68 + rng.next() * 0.22,
     });
   }
 
+  // Satellite halos: tiny specks scattered around each large flake to suggest
+  // the splatter pattern of cracked gold leaf. Seeded independently so this
+  // extra consumption does not shift the dust population when clustering or
+  // rejection behavior changes.
+  const satelliteRng = new PRNG();
+  satelliteRng.seed(options.seed + SEED_OFFSETS.gold + 70001);
+  for (let i = 0; i < bigAccepted.length; i++) {
+    const big = bigAccepted[i]!;
+    if (big.size < flakeSizeThreshold * 1.6) continue;
+    const satCount = 2 + Math.floor(satelliteRng.next() * 4);
+    for (let s = 0; s < satCount; s++) {
+      const theta = satelliteRng.next() * TWO_PI;
+      const dist = big.size * (1.2 + satelliteRng.next() * 2.6);
+      const sx = big.x + Math.cos(theta) * dist;
+      const sy = big.y + Math.sin(theta) * dist;
+      const ssize = 0.45 + satelliteRng.next() * 0.95;
+
+      const brightness = 0.78 + satelliteRng.next() * 0.22;
+      const satColor: [number, number, number] = [
+        clamp(round(options.goldColor[0] * brightness), 0, 255),
+        clamp(round(options.goldColor[1] * brightness), 0, 255),
+        clamp(round(options.goldColor[2] * brightness * 0.92), 0, 255),
+      ];
+
+      const satRng = new PRNG();
+      satRng.seed(options.seed + SEED_OFFSETS.gold + 70001 + i * 29 + s * 13);
+      flecks.push({
+        commands: buildDustCommands(sx, sy, ssize, satRng),
+        copies: buildWrapCopies(sx, sy, options.width, options.height, wrapMargin),
+        color: satColor,
+        alpha: 0.6 + satelliteRng.next() * 0.25,
+      });
+    }
+  }
+
   return flecks;
+}
+
+// ---------------------------------------------------------------------------
+// deckle edge: midpoint-displacement fBm
+// ---------------------------------------------------------------------------
+
+function midpointDisplacementProfile(
+  length: number,
+  baseInset: number,
+  roughness: number,
+  hurst: number,
+  rng: PRNG,
+): number[] {
+  let size = 1;
+  while (size < length) size *= 2;
+
+  const arr: number[] = Array.from({ length: size + 1 }, () => 0);
+  const endpointJitter = () => baseInset * (0.6 + rng.next() * 0.7);
+  arr[0] = endpointJitter();
+  arr[size] = endpointJitter();
+
+  let stride = size;
+  let sigma = baseInset * roughness;
+  const decay = Math.pow(2, -hurst);
+
+  while (stride > 1) {
+    const half = stride / 2;
+    for (let i = half; i < size; i += stride) {
+      const avg = (arr[i - half]! + arr[i + half]!) / 2;
+      arr[i] = Math.max(0, avg + gaussianSample(rng) * sigma);
+    }
+    stride = half;
+    sigma *= decay;
+  }
+
+  if (size > length) {
+    arr.length = length + 1;
+  }
+  return arr;
 }
 
 function buildDeckleOutline(
@@ -588,30 +856,25 @@ function buildDeckleOutline(
     return null;
   }
 
-  const topNoise = createNoise(options.seed + SEED_OFFSETS.deckle + 11);
-  const sideNoise = createNoise(options.seed + SEED_OFFSETS.deckle + 23);
-  const maxInset = (12 + options.deckleRoughness * 20) * profile.deckleSoftness;
-  const top: number[] = [];
-  const right: number[] = [];
-  const bottom: number[] = [];
-  const left: number[] = [];
+  const rng = new PRNG();
+  rng.seed(options.seed + SEED_OFFSETS.deckle);
 
-  for (let x = 0; x <= options.width; x++) {
-    const topNoiseValue = topNoise.noise(x * 0.05, 0);
-    const bottomNoiseValue = topNoise.noise(x * 0.05, 100);
-    top.push(maxInset * (0.24 + topNoiseValue * options.deckleRoughness));
-    bottom.push(maxInset * (0.24 + bottomNoiseValue * options.deckleRoughness));
-  }
+  const baseInset = (12 + options.deckleRoughness * 20) * profile.deckleSoftness;
+  // Higher roughness knob → lower Hurst → edge tears appear more fractal.
+  const hurst = clamp(0.85 - options.deckleRoughness * 0.35, 0.4, 0.9);
+  const roughness = 0.35 + options.deckleRoughness * 0.55;
 
-  for (let y = 0; y <= options.height; y++) {
-    const leftNoiseValue = sideNoise.noise(0, y * 0.05);
-    const rightNoiseValue = sideNoise.noise(100, y * 0.05);
-    left.push(maxInset * (0.24 + leftNoiseValue * options.deckleRoughness));
-    right.push(maxInset * (0.24 + rightNoiseValue * options.deckleRoughness));
-  }
-
-  return { top, right, bottom, left };
+  return {
+    top: midpointDisplacementProfile(options.width, baseInset, roughness, hurst, rng),
+    bottom: midpointDisplacementProfile(options.width, baseInset, roughness, hurst, rng),
+    left: midpointDisplacementProfile(options.height, baseInset, roughness, hurst, rng),
+    right: midpointDisplacementProfile(options.height, baseInset, roughness, hurst, rng),
+  };
 }
+
+// ---------------------------------------------------------------------------
+// entry point
+// ---------------------------------------------------------------------------
 
 export function buildXuanPaperScene(options: XuanPaperOptions = {}): XuanPaperScene {
   const normalized = normalizeXuanPaperOptions(options);

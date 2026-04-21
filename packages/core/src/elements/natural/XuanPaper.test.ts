@@ -121,6 +121,76 @@ describe("XuanPaper", () => {
     expect(occupiedGoldBuckets(3840, 2160, scene)).toBeGreaterThanOrEqual(36);
   });
 
+  it("defaults goldDistribution to 'poisson' matching legacy behavior", () => {
+    const implicit = buildXuanPaperScene({
+      width: 200,
+      height: 150,
+      seed: 7,
+      goldFlecks: true,
+      goldDensity: 0.5,
+    });
+
+    const explicit = buildXuanPaperScene({
+      width: 200,
+      height: 150,
+      seed: 7,
+      goldFlecks: true,
+      goldDensity: 0.5,
+      goldDistribution: "poisson",
+    });
+
+    expect(implicit).toEqual(explicit);
+  });
+
+  it("packs more gold flecks when goldDistribution is 'random'", () => {
+    const shared = {
+      width: 200,
+      height: 150,
+      seed: 13,
+      goldFlecks: true,
+      goldDensity: 0.7,
+      goldClustering: 0.2,
+    } as const;
+
+    const poisson = buildXuanPaperScene({ ...shared, goldDistribution: "poisson" });
+    const random = buildXuanPaperScene({ ...shared, goldDistribution: "random" });
+
+    // Random mode skips rejection entirely, so every attempted fleck is accepted
+    // (count is bounded by the same internal formula as poisson's nominal count).
+    expect(random.goldFlecks.length).toBeGreaterThanOrEqual(poisson.goldFlecks.length);
+
+    // Random mode allows overlaps: at least one pair of flecks should sit closer
+    // than the poisson mode's typical minimum spacing.
+    function firstAnchor(scene: ReturnType<typeof buildXuanPaperScene>): Array<[number, number]> {
+      const anchors: Array<[number, number]> = [];
+      for (const fleck of scene.goldFlecks) {
+        const first = fleck.commands[0];
+        if (first && first.type === "M") {
+          anchors.push([first.x, first.y]);
+        }
+      }
+      return anchors;
+    }
+
+    function minPairDistance(anchors: Array<[number, number]>): number {
+      let minD = Number.POSITIVE_INFINITY;
+      for (let i = 0; i < anchors.length; i++) {
+        for (let j = i + 1; j < anchors.length; j++) {
+          const dx = anchors[i]![0] - anchors[j]![0];
+          const dy = anchors[i]![1] - anchors[j]![1];
+          const d = Math.hypot(dx, dy);
+          if (d < minD) minD = d;
+        }
+      }
+      return minD;
+    }
+
+    const randomMin = minPairDistance(firstAnchor(random));
+    const poissonMin = minPairDistance(firstAnchor(poisson));
+
+    expect(randomMin).toBeLessThanOrEqual(poissonMin);
+  });
+
   it("renders SVG layers for fibers, particles, and gold when enabled", () => {
     const svg = XuanPaper.generateSVG({
       width: 180,

@@ -1,3 +1,5 @@
+export type GoldDistribution = "poisson" | "random";
+
 export interface XuanPaperOptions {
   width?: number;
   height?: number;
@@ -16,6 +18,7 @@ export interface XuanPaperOptions {
   goldSize?: [number, number];
   goldColor?: [number, number, number];
   goldClustering?: number;
+  goldDistribution?: GoldDistribution;
 }
 
 export interface NormalizedXuanPaperOptions {
@@ -36,6 +39,7 @@ export interface NormalizedXuanPaperOptions {
   goldSize: [number, number];
   goldColor: [number, number, number];
   goldClustering: number;
+  goldDistribution: GoldDistribution;
 }
 
 export type XuanPaperKind = "raw" | "halfSized" | "sized";
