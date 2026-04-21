@@ -48,7 +48,7 @@ export class Texture {
     const noi = options.noi ?? ((x: number) => 30 / x);
     const col =
       options.col ??
-      ((progress: number, layerDepth: number) =>
+      ((_progress: number, _layerDepth: number) =>
         "rgba(100,100,100," + (prng.random() * 0.3).toFixed(3) + ")");
     const dis =
       options.dis ??

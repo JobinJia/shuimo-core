@@ -94,7 +94,7 @@ export function generateCunFaStrokes(input: CunFaEngineInput): CunFaStroke[] {
     if (rand() < placementThreshold) continue;
 
     // Rotate normal by ±15° randomly
-    const angleOffset = (rand() - 0.5) * 2 * (15 * Math.PI / 180);
+    const angleOffset = (rand() - 0.5) * 2 * ((15 * Math.PI) / 180);
     const cosA = Math.cos(angleOffset);
     const sinA = Math.sin(angleOffset);
     const direction = new Vector2(
@@ -115,10 +115,7 @@ export function generateCunFaStrokes(input: CunFaEngineInput): CunFaStroke[] {
       const dist = t * strokeLen;
 
       // Subtle noise wobble perpendicular to stroke direction
-      const wobble = noise.noise2D(
-        point.x * 0.05 + p * 0.3,
-        point.y * 0.05 + seed * 0.1,
-      ) * 0.8;
+      const wobble = noise.noise2D(point.x * 0.05 + p * 0.3, point.y * 0.05 + seed * 0.1) * 0.8;
 
       const perpX = -direction.y;
       const perpY = direction.x;

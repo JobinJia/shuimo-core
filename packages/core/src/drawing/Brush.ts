@@ -142,13 +142,6 @@ export class Brush {
     const edgeAlpha = Math.min(baseAlpha * 1.2, 1.0);
     const edgeColor = `rgba(${Math.max(0, r - 30)},${Math.max(0, g - 30)},${Math.max(0, b - 30)},${edgeAlpha.toFixed(3)})`;
 
-    // Left edge
-    const leftEdgePath = leftEdge.map((p, i) => {
-      const t = i / (leftEdge.length - 1);
-      const ink = inkStart + (inkEnd - inkStart) * t;
-      return p;
-    });
-
     // Draw edges as strokes
     if (leftEdge.length > 1) {
       svg += this.generateEdgeStroke(leftEdge, edgeColor, 0.8, noiseAmount);
@@ -185,7 +178,7 @@ export class Brush {
     points: Point[],
     color: string,
     width: number,
-    noiseAmount: number,
+    _noiseAmount: number,
   ): string {
     if (points.length < 2) return "";
 

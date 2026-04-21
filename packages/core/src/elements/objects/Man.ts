@@ -3,7 +3,6 @@ import { noise } from "../../foundation/noise";
 import { prng } from "../../foundation/random";
 import { normRand } from "../../utils/random";
 import { stroke } from "../../drawing/Stroke";
-import { div } from "../../drawing/div";
 import { poly } from "../../utils/svg";
 import { bezmh } from "../../utils/bezier";
 

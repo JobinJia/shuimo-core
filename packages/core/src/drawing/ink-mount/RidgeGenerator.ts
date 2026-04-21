@@ -21,7 +21,7 @@ function seededRandom(seed: number): () => number {
   let s = seed | 0;
   return () => {
     s = (s * 1664525 + 1013904223) | 0;
-    return (s >>> 0) / 0xFFFFFFFF;
+    return (s >>> 0) / 0xffffffff;
   };
 }
 
@@ -96,10 +96,7 @@ export function generateRidge(input: RidgeGeneratorInput): MountainLayer {
       const dist = Math.abs(t * width - peakPos * width);
       if (dist < falloff) {
         const influence = (1 - dist / falloff) ** sharpness;
-        ridgeLine[i] = new Vector2(
-          ridgeLine[i].x,
-          ridgeLine[i].y - peakHeight * influence,
-        );
+        ridgeLine[i] = new Vector2(ridgeLine[i].x, ridgeLine[i].y - peakHeight * influence);
       }
     }
   }
@@ -110,11 +107,9 @@ export function generateRidge(input: RidgeGeneratorInput): MountainLayer {
     let tangent: Vector2;
     if (i === 0) {
       tangent = ridgeLine[1].sub(ridgeLine[0]);
-    }
-    else if (i === resolution - 1) {
+    } else if (i === resolution - 1) {
       tangent = ridgeLine[resolution - 1].sub(ridgeLine[resolution - 2]);
-    }
-    else {
+    } else {
       tangent = ridgeLine[i + 1].sub(ridgeLine[i - 1]);
     }
 

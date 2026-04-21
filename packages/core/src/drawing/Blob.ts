@@ -1,4 +1,4 @@
-import { Point, Polygon } from "../foundation/geometry";
+import { Polygon } from "../foundation/geometry";
 import { noise } from "../foundation/noise";
 import { prng } from "../foundation/random";
 import { poly } from "../utils/svg";

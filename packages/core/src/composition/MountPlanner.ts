@@ -47,7 +47,7 @@ export class MountPlanner {
     reg: PlanItem[],
     r: PlanItem,
     mind: number = 10,
-    planmtx: number[],
+    _planmtx: number[],
   ): boolean {
     for (let k = 0; k < reg.length; k++) {
       if (Math.abs(reg[k].x - r.x) < mind) {
@@ -71,14 +71,8 @@ export class MountPlanner {
     const samp = 0.03;
 
     // Noise functions for different purposes
-    const ns = (x: number, y: number): number => {
+    const ns = (x: number, _y: number): number => {
       return Math.max(noise.noise(x * samp) - 0.55, 0) * 2;
-    };
-    const nns = (x: number): number => {
-      return 1 - noise.noise(x * samp);
-    };
-    const nnns = (x: number, y: number): number => {
-      return Math.max(noise.noise(x * samp * 2, 2) - 0.55, 0) * 2;
     };
     const yr = (x: number): number => {
       return noise.noise(x * 0.01, Math.PI);

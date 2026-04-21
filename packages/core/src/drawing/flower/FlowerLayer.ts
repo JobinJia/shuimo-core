@@ -7,7 +7,6 @@
 import type { Layer, BlitOptions, Bounds } from "./types";
 import { SVG_NS } from "./types";
 import { prng } from "../../foundation/random";
-import { distance } from "./FlowerMath";
 
 // ============================================================================
 // Layer Management
@@ -92,7 +91,7 @@ export function bound(layer: Layer): Bounds {
       ymin: bbox.y,
       ymax: bbox.y + bbox.height,
     };
-  } catch (e) {
+  } catch {
     // If getBBox fails (empty group), return zeros
     return {
       xmin: 0,

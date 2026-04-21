@@ -211,9 +211,9 @@ export class Arch {
       tex: tex,
       wid: 1,
       len: 0.25,
-      col: (x: number) => "rgba(120,120,120," + (0.3 + prng.random() * 0.3).toFixed(3) + ")",
+      col: (_x: number) => "rgba(120,120,120," + (0.3 + prng.random() * 0.3).toFixed(3) + ")",
       dis: () => wtrand((a) => a * a),
-      noi: (x: number) => 5,
+      noi: (_x: number) => 5,
     });
 
     return canv;
@@ -230,7 +230,7 @@ export class Arch {
     const tra = options.tra ?? true;
     const bot = options.bot ?? true;
     const wei = options.wei ?? 3;
-    const dec = options.dec ?? ((a: any) => []);
+    const dec = options.dec ?? ((_a: any) => []);
 
     const mid = -wid * 0.5 + wid * rot;
     const bmid = -wid * 0.5 + wid * (1 - rot);
@@ -351,7 +351,7 @@ export class Arch {
           col: "rgba(100,100,100,0.4)",
           noi: 1,
           wid: wei,
-          fun: (x: number) => 1,
+          fun: (_x: number) => 1,
         },
       );
     }
@@ -422,8 +422,6 @@ export class Arch {
         const mmu = div([mlu, mru], vsp[1])[i];
         const mmd = div([mld, mrd], vsp[1])[i];
 
-        const ml = dl[i];
-        const mr = dr[i];
         plist.push(div([mml, mmr], 5));
         plist.push(div([mmu, mmd], 5));
       }
@@ -574,7 +572,7 @@ export class Arch {
           col: "rgba(100,100,100,0.5)",
           noi: 0.5,
           wid: wei,
-          fun: (x: number) => 1,
+          fun: (_x: number) => 1,
         },
       );
     }
@@ -603,7 +601,6 @@ export class Arch {
 
     const rrot = rot < 0.5 ? 1 - rot : rot;
     const mid = -wid * 0.5 + wid * rrot;
-    const bmid = -wid * 0.5 + wid * (1 - rrot);
     const quat = (mid + wid * 0.5) * 0.5 - mid;
 
     const ptlist: Polygon[] = [];
@@ -683,7 +680,7 @@ export class Arch {
           col: "rgba(100,100,100,0.4)",
           noi: 1,
           wid: wei,
-          fun: (x: number) => 1,
+          fun: (_x: number) => 1,
         },
       );
     }
@@ -724,7 +721,6 @@ export class Arch {
   private static pagroof(xoff: number, yoff: number, options: PagroofOptions = {}): string {
     const hei = options.hei ?? 20;
     const wid = options.wid ?? 120;
-    const rot = options.rot ?? 0.7;
     const per = options.per ?? 4;
     const cor = options.cor ?? 10;
     const sid = options.sid ?? 4;
@@ -757,7 +753,7 @@ export class Arch {
           col: "rgba(100,100,100,0.4)",
           noi: 1,
           wid: wei,
-          fun: (x: number) => 1,
+          fun: (_x: number) => 1,
         },
       );
     }
@@ -771,7 +767,6 @@ export class Arch {
   static arch01(xoff: number, yoff: number, seed: number, options: Arch01Options = {}): string {
     const hei = options.hei ?? 70;
     const wid = options.wid ?? 180;
-    const rot = options.rot ?? 0.7;
     const per = options.per ?? 5;
 
     const p = 0.4 + prng.random() * 0.2;
@@ -960,7 +955,7 @@ export class Arch {
         rot: rot,
         wei: 1.5,
         per: per / 2,
-        dec: (a) => [],
+        dec: (_a) => [],
       });
 
       canv += this.rail(xoff, yoff - hoff, i * 0.2, {
@@ -1047,7 +1042,7 @@ export class Arch {
     const quickstroke = (pl: Polygon): string =>
       stroke(div(pl, 5).map(toGlobal), {
         wid: 1,
-        fun: (x: number) => 0.5,
+        fun: (_x: number) => 0.5,
         col: "rgba(100,100,100,0.4)",
       });
 

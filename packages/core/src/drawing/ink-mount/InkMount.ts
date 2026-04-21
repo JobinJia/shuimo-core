@@ -14,14 +14,26 @@ import type {
 } from "./types";
 import type { RenderBackend, RenderOutput } from "./renderer/types";
 
-const QUALITY_PRESETS: Record<QualityPreset, { density: number; octaves: number; splashCount: number }> = {
+const QUALITY_PRESETS: Record<
+  QualityPreset,
+  { density: number; octaves: number; splashCount: number }
+> = {
   draft: { density: 0.2, octaves: 4, splashCount: 0 },
   normal: { density: 0.5, octaves: 6, splashCount: 3 },
   high: { density: 0.85, octaves: 8, splashCount: 5 },
 };
 
-const DEFAULT_RIDGE: RidgeOptions = { peakCount: 2, sharpness: 3, subRidgeCount: 2, noiseOctaves: 6 };
-const DEFAULT_CUNFA: CunFaOptions = { density: 0.5, lengthRange: [15, 60], pressureCurve: [0.3, 1.0, 0.3] };
+const DEFAULT_RIDGE: RidgeOptions = {
+  peakCount: 2,
+  sharpness: 3,
+  subRidgeCount: 2,
+  noiseOctaves: 6,
+};
+const DEFAULT_CUNFA: CunFaOptions = {
+  density: 0.5,
+  lengthRange: [15, 60],
+  pressureCurve: [0.3, 1.0, 0.3],
+};
 const DEFAULT_MIST: MistOptions = { opacity: 0.8, frequency: 0.005, coverage: 0.6 };
 
 export class InkMount {
@@ -34,8 +46,16 @@ export class InkMount {
 
     const layerCount = options.layers ?? Math.min(10, Math.max(2, Math.floor(height / 120)));
 
-    const ridge: RidgeOptions = { ...DEFAULT_RIDGE, ...options.ridge, noiseOctaves: options.ridge?.noiseOctaves ?? preset.octaves };
-    const cunfa: CunFaOptions = { ...DEFAULT_CUNFA, ...options.cunfa, density: options.cunfa?.density ?? preset.density };
+    const ridge: RidgeOptions = {
+      ...DEFAULT_RIDGE,
+      ...options.ridge,
+      noiseOctaves: options.ridge?.noiseOctaves ?? preset.octaves,
+    };
+    const cunfa: CunFaOptions = {
+      ...DEFAULT_CUNFA,
+      ...options.cunfa,
+      density: options.cunfa?.density ?? preset.density,
+    };
     const mistOpts: MistOptions = { ...DEFAULT_MIST, ...options.mist };
 
     const scene: InkMountScene = {
@@ -109,8 +129,16 @@ export class InkMount {
     const { width, height, seed, depth, quality = "normal" } = options;
     const preset = QUALITY_PRESETS[quality];
 
-    const ridge: RidgeOptions = { ...DEFAULT_RIDGE, ...options.ridge, noiseOctaves: options.ridge?.noiseOctaves ?? preset.octaves };
-    const cunfa: CunFaOptions = { ...DEFAULT_CUNFA, ...options.cunfa, density: options.cunfa?.density ?? preset.density };
+    const ridge: RidgeOptions = {
+      ...DEFAULT_RIDGE,
+      ...options.ridge,
+      noiseOctaves: options.ridge?.noiseOctaves ?? preset.octaves,
+    };
+    const cunfa: CunFaOptions = {
+      ...DEFAULT_CUNFA,
+      ...options.cunfa,
+      density: options.cunfa?.density ?? preset.density,
+    };
 
     const layer = generateRidge({
       width,
@@ -174,9 +202,8 @@ export class InkMount {
   static renderScene(scene: InkMountScene, backend: RenderBackend): void {
     backend.clear();
 
-    const mistPerGap = scene.layers.length > 1
-      ? Math.ceil(scene.mists.length / (scene.layers.length - 1))
-      : 0;
+    const mistPerGap =
+      scene.layers.length > 1 ? Math.ceil(scene.mists.length / (scene.layers.length - 1)) : 0;
 
     // Render layers back-to-front (far to near, depth ascending)
     for (let i = 0; i < scene.layers.length; i++) {
@@ -215,7 +242,11 @@ export class InkMount {
   /**
    * Create a render backend based on options.
    */
-  private static createBackend(options: { width: number; height: number; ctx?: CanvasRenderingContext2D }): RenderBackend {
+  private static createBackend(options: {
+    width: number;
+    height: number;
+    ctx?: CanvasRenderingContext2D;
+  }): RenderBackend {
     return new Canvas2DBackend({
       width: options.width,
       height: options.height,

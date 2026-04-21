@@ -74,9 +74,7 @@ const PI = Math.PI;
 const sin = Math.sin;
 const cos = Math.cos;
 const abs = Math.abs;
-const pow = Math.pow;
 const rad = (x: number) => (x * Math.PI) / 180;
-const deg = (x: number) => (x * 180) / Math.PI;
 
 function distance(p0: number[], p1: number[]): number {
   return Math.sqrt((p0[0] - p1[0]) ** 2 + (p0[1] - p1[1]) ** 2);
@@ -100,26 +98,8 @@ function normRand(m: number, M: number): number {
   return mapval(prng.random(), 0, 1, m, M);
 }
 
-function wtrand(func: (x: number) => number): number {
-  const x = prng.random();
-  const y = prng.random();
-  if (y < func(x)) {
-    return x;
-  } else {
-    return wtrand(func);
-  }
-}
-
-function randGaussian(): number {
-  return wtrand((x) => Math.E ** (-24 * (x - 0.5) ** 2)) * 2 - 1;
-}
-
 function sigmoid(x: number, k: number = 10): number {
   return 1 / (1 + Math.exp(-k * (x - 0.5)));
-}
-
-function bean(x: number): number {
-  return (0.25 - (x - 0.5) ** 2) ** 0.5 * (2.6 + 2.4 * x ** 1.5) * 0.54;
 }
 
 export function squircle(r: number, a: number): (th: number) => number {
@@ -240,20 +220,6 @@ const v3 = {
   },
 };
 
-function midPt(...args: Vec3[]): Vec3 {
-  const plist = args;
-  return plist.reduce(
-    (acc, v) => {
-      return [
-        v[0] / plist.length + acc[0],
-        v[1] / plist.length + acc[1],
-        v[2] / plist.length + acc[2],
-      ];
-    },
-    [0, 0, 0] as Vec3,
-  );
-}
-
 // ============================================================================
 // Color Functions
 // ============================================================================
@@ -336,7 +302,7 @@ interface TubifyArgs {
 
 function tubify(args: TubifyArgs = {}): [Vec3[], Vec3[]] {
   const pts = args.pts ?? [];
-  const wid = args.wid ?? ((x: number) => 10);
+  const wid = args.wid ?? ((_x: number) => 10);
 
   const vtxlist0: Vec3[] = [];
   const vtxlist1: Vec3[] = [];
@@ -475,7 +441,7 @@ function leaf(args: LeafArgs = {}): Vec3[] {
   const flo = args.flo ?? false;
   const col = args.col ?? { min: [90, 0.2, 0.3, 1], max: [90, 0.1, 0.9, 1] };
   const cof = args.cof ?? ((x: number) => x);
-  const ben = args.ben ?? ((x: number) => [normRand(-10, 10), 0, normRand(-5, 5)] as Vec3);
+  const ben = args.ben ?? ((_x: number) => [normRand(-10, 10), 0, normRand(-5, 5)] as Vec3);
 
   let disp: Vec3 = v3.zero;
   let crot: Vec3 = v3.zero;
@@ -609,9 +575,9 @@ function stem(args: StemArgs = {}): Vec3[] {
   const rot = args.rot ?? ([PI / 2, 0, 0] as Vec3);
   const len = args.len ?? 400;
   const seg = args.seg ?? 40;
-  const wid = args.wid ?? ((x: number) => 6);
+  const wid = args.wid ?? ((_x: number) => 6);
   const col = args.col ?? { min: [250, 0.2, 0.4, 1], max: [250, 0.3, 0.6, 1] };
-  const ben = args.ben ?? ((x: number) => [normRand(-10, 10), 0, normRand(-5, 5)] as Vec3);
+  const ben = args.ben ?? ((_x: number) => [normRand(-10, 10), 0, normRand(-5, 5)] as Vec3);
 
   let disp: Vec3 = v3.zero;
   let crot: Vec3 = v3.zero;
@@ -710,7 +676,7 @@ function branch(args: BranchArgs = {}): BranchResult[] {
   }
 
   const wfun = (x: number) => {
-    const [m, j] = jntdist(x);
+    const [m] = jntdist(x);
     if (m < 1) {
       return wid * (3 + 5 * (1 - x));
     } else {
@@ -783,7 +749,6 @@ export function genParams(): FlowerParams {
   PAR.flowerShape = (x: number) =>
     Noise.noise(x * flowerJaggedness, flowerShapeNoiseSeed) * flowerShapeMask(x);
 
-  const leafShapeNoiseSeed = prng.random() * PI;
   const leafJaggedness = normRand(0.1, 40);
   const leafPointyness = normRand(0.5, 1.5);
   PAR.leafShape = randChoice([
@@ -1036,7 +1001,7 @@ function woody(args: WoodyArgs = {}): CanvasRenderingContext2D {
             len: PAR.leafLength * normRand(0.8, 1.2),
             vei: PAR.leafType,
             col: PAR.leafColor,
-            rot: [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * 0],
+            rot: [normRand(-1, 1) * PI, normRand(-1, 1) * PI, 0],
             wid: (x: number) => PAR.leafShape(x) * PAR.leafWidth,
             ben: (x: number) => [
               mapval(Noise.noise(x * 1, i), 0, 1, -1, 1) * 5,
@@ -1047,7 +1012,7 @@ function woody(args: WoodyArgs = {}): CanvasRenderingContext2D {
         }
 
         if (prng.random() < PAR.flowerChance) {
-          const hr: Vec3 = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * 0];
+          const hr: Vec3 = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, 0];
 
           const P_ = stem({
             ctx: lay0.ctx,
@@ -1057,7 +1022,7 @@ function woody(args: WoodyArgs = {}): CanvasRenderingContext2D {
             len: PAR.pedicelLength,
             col: { min: [50, 1, 0.9, 1], max: [50, 1, 0.9, 1] },
             wid: (x: number) => sin(x * PI) * x * 2 + 1,
-            ben: (x: number) => [0, 0, 0],
+            ben: (_x: number) => [0, 0, 0],
           });
 
           const op = prng.random();
@@ -1170,7 +1135,7 @@ function herbal(args: HerbalArgs = {}): CanvasRenderingContext2D {
             len: 2 * PAR.leafLength * normRand(0.8, 1.2),
             vei: PAR.leafType,
             col: PAR.leafColor,
-            rot: [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * 0],
+            rot: [normRand(-1, 1) * PI, normRand(-1, 1) * PI, 0],
             wid: (x: number) => 2 * PAR.leafShape(x) * PAR.leafWidth,
             ben: (x: number) => [
               mapval(Noise.noise(x * 1, i), 0, 1, -1, 1) * 5,
@@ -1192,7 +1157,7 @@ function herbal(args: HerbalArgs = {}): CanvasRenderingContext2D {
         len: PAR.sheathLength,
         col: { min: [60, 0.3, 0.9, 1], max: [60, 0.3, 0.9, 1] },
         wid: (x: number) => PAR.sheathWidth * (sin(x * PI) ** 2 - x * 0.5 + 0.5),
-        ben: (x: number) => [0, 0, 0],
+        ben: (_x: number) => [0, 0, 0],
       });
     }
 
@@ -1204,7 +1169,7 @@ function herbal(args: HerbalArgs = {}): CanvasRenderingContext2D {
         rot: hr,
         len: PAR.shootLength * normRand(0.5, 1.5),
         col: { min: [70, 0.2, 0.9, 1], max: [70, 0.2, 0.9, 1] },
-        wid: (x: number) => 2,
+        wid: (_x: number) => 2,
         ben: (x: number) => [
           mapval(Noise.noise(x * 1, j), 0, 1, -1, 1) * x * 10,
           0,

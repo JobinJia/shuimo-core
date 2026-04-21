@@ -53,7 +53,7 @@ InkMount.generate(options)
 
 - 基础轮廓：6 阶 FBM（persistence=0.5, lacunarity=2.0）
 - 角峰注入：1-3 个主峰，`y += peakHeight * (1 - |x - peakX| / falloff)^sharpness`
-- 副脊线：主峰两侧 2-4 条，主轮廓 * 衰减 + 高频噪声
+- 副脊线：主峰两侧 2-4 条，主轮廓 \* 衰减 + 高频噪声
 - 输出：每层 200 个点的轮廓 + 每个点的法线向量
 
 ### CunFaEngine
@@ -81,14 +81,21 @@ InkMount.generate(options)
 ```typescript
 // 完整场景
 const result = InkMount.generate({
-  width: 1200, height: 800, seed: 42,
-  layers: 5, quality: 'high', backend: 'auto',
-})
+  width: 1200,
+  height: 800,
+  seed: 42,
+  layers: 5,
+  quality: "high",
+  backend: "auto",
+});
 
 // 单层元素（可组合）
 const layer = InkMount.generateLayer({
-  width: 1200, height: 300, seed: 42, depth: 0.8,
-})
+  width: 1200,
+  height: 300,
+  seed: 42,
+  depth: 0.8,
+});
 ```
 
 ### 主要类型
@@ -106,11 +113,11 @@ const layer = InkMount.generateLayer({
 
 ```typescript
 interface RenderBackend {
-  drawMountainFill(layer: MountainLayer, ink: InkFill): void
-  drawCunFaStrokes(strokes: CunFaStroke[]): void
-  drawMist(regions: MistRegion[]): void
-  drawRidgeLine(points: Vector2[], opacity: number): void
-  toOutput(): RenderOutput
+  drawMountainFill(layer: MountainLayer, ink: InkFill): void;
+  drawCunFaStrokes(strokes: CunFaStroke[]): void;
+  drawMist(regions: MistRegion[]): void;
+  drawRidgeLine(points: Vector2[], opacity: number): void;
+  toOutput(): RenderOutput;
 }
 ```
 
@@ -118,15 +125,16 @@ interface RenderBackend {
 
 ## 质量档位
 
-| 档位 | 皴法密度 | 噪声精度 | 泼墨块 | 适用场景 |
-|------|---------|---------|--------|---------|
-| draft | 0.2 | 4 阶 FBM | 0 | 实时预览 |
-| normal | 0.5 | 6 阶 FBM | 2-3 | 一般使用 |
-| high | 0.8-1.0 | 8 阶 FBM | 4-5 | 最终出图 |
+| 档位   | 皴法密度 | 噪声精度 | 泼墨块 | 适用场景 |
+| ------ | -------- | -------- | ------ | -------- |
+| draft  | 0.2      | 4 阶 FBM | 0      | 实时预览 |
+| normal | 0.5      | 6 阶 FBM | 2-3    | 一般使用 |
+| high   | 0.8-1.0  | 8 阶 FBM | 4-5    | 最终出图 |
 
 ## 依赖
 
 复用现有模块：
+
 - `foundation/noise/SimplexNoise` — FBM 噪声
 - `foundation/noise/PerlinNoise` — 墨色/云雾噪声
 - `foundation/geometry/Vector2` — 向量运算

@@ -10,8 +10,6 @@ import { Polygon } from "../foundation/geometry";
  */
 export function div(plist: Polygon, reso: number): Polygon {
   const tl = (plist.length - 1) * reso;
-  let lx = 0;
-  let ly = 0;
   const rlist: Polygon = [];
 
   for (let i = 0; i < tl; i += 1) {
@@ -21,11 +19,7 @@ export function div(plist: Polygon, reso: number): Polygon {
     const nx = lastp[0] * (1 - p) + nextp[0] * p;
     const ny = lastp[1] * (1 - p) + nextp[1] * p;
 
-    const ang = Math.atan2(ny - ly, nx - lx);
-
     rlist.push([nx, ny]);
-    lx = nx;
-    ly = ny;
   }
 
   if (plist.length > 0) {

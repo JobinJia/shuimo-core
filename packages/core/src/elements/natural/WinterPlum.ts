@@ -1,4 +1,4 @@
-import { Point, Polygon } from "../../foundation/geometry";
+import { Polygon } from "../../foundation/geometry";
 import { noise } from "../../foundation/noise";
 import { prng } from "../../foundation/random";
 import { Brush } from "../../drawing/Brush";
@@ -119,9 +119,6 @@ export class WinterPlum {
     const bendAmount = 0.3 + prng.next() * 0.4;
     const bendDir = prng.next() < 0.5 ? 1 : -1;
 
-    let currentX = x;
-    let currentY = y;
-
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
 
@@ -142,9 +139,6 @@ export class WinterPlum {
           depth: depth,
         });
       }
-
-      currentX = px;
-      currentY = py;
     }
 
     // Draw the branch with bark texture effect
@@ -215,7 +209,6 @@ export class WinterPlum {
    */
   private static addBarkTexture(points: Polygon, width: number, col: string): string {
     let svg = "";
-    const n0 = prng.next() * 100;
 
     // Add a few texture lines along the branch
     const textureCount = Math.floor(points.length / 5);
@@ -384,7 +377,6 @@ export class WinterPlum {
 
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
-      const len = budSize * (0.5 + Math.sin(t * Math.PI) * 0.5);
 
       points.push([x + Math.cos(budAngle) * budSize * t, y + Math.sin(budAngle) * budSize * t]);
     }

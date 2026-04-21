@@ -1,4 +1,4 @@
-import { Point, Polygon } from "../foundation/geometry";
+import { Polygon } from "../foundation/geometry";
 
 export interface PolyOptions {
   /** X offset */

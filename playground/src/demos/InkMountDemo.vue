@@ -61,9 +61,6 @@ function regenerate() {
       </label>
       <button @click="regenerate">Regenerate</button>
     </div>
-    <canvas
-      ref="canvasRef"
-      style="border: 1px solid #ddd; max-width: 100%; background: #faf8f5"
-    />
+    <canvas ref="canvasRef" style="border: 1px solid #ddd; max-width: 100%; background: #faf8f5" />
   </div>
 </template>

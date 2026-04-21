@@ -2,7 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { generateRidge } from "./RidgeGenerator";
 import { generateMist } from "./MistLayer";
 
-const layers = [0.2, 0.5, 0.8].map(depth =>
+const layers = [0.2, 0.5, 0.8].map((depth) =>
   generateRidge({
     width: 800,
     height: 400,

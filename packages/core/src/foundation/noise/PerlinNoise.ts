@@ -58,7 +58,7 @@ export class PerlinNoise {
   noise(x: number, y: number = 0, z: number = 0): number {
     // Initialize perlin table if not already done
     if (this.perlin == null) {
-      this.perlin = new Array(this.PERLIN_SIZE + 1);
+      this.perlin = Array.from({ length: this.PERLIN_SIZE + 1 });
       for (let i = 0; i < this.PERLIN_SIZE + 1; i++) {
         this.perlin[i] = prng.random();
       }
@@ -156,7 +156,7 @@ export class PerlinNoise {
   noiseSeed(seed: number): void {
     const lcg = new LCG();
     lcg.setSeed(seed);
-    this.perlin = new Array(this.PERLIN_SIZE + 1);
+    this.perlin = Array.from({ length: this.PERLIN_SIZE + 1 });
     for (let i = 0; i < this.PERLIN_SIZE + 1; i++) {
       this.perlin[i] = lcg.rand();
     }

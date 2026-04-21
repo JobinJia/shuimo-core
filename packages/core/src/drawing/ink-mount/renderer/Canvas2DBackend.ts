@@ -14,10 +14,10 @@ function stackBlur(ctx: CanvasRenderingContext2D, w: number, h: number, radius: 
   const wm = w - 1;
   const hm = h - 1;
   const div = radius + radius + 1;
-  const r: number[] = new Array(w * h);
-  const g: number[] = new Array(w * h);
-  const b: number[] = new Array(w * h);
-  const a: number[] = new Array(w * h);
+  const r: number[] = Array.from({ length: w * h });
+  const g: number[] = Array.from({ length: w * h });
+  const b: number[] = Array.from({ length: w * h });
+  const a: number[] = Array.from({ length: w * h });
 
   let rsum: number, gsum: number, bsum: number, asum: number;
   let p: number, p1: number, p2: number;
@@ -86,7 +86,11 @@ function stackBlur(ctx: CanvasRenderingContext2D, w: number, h: number, radius: 
 /**
  * Build a clip path for a mountain silhouette.
  */
-function clipToMountain(ctx: CanvasRenderingContext2D, ridgeLine: Vector2[], canvasHeight: number): void {
+function clipToMountain(
+  ctx: CanvasRenderingContext2D,
+  ridgeLine: Vector2[],
+  canvasHeight: number,
+): void {
   ctx.beginPath();
   ctx.moveTo(ridgeLine[0].x, ridgeLine[0].y);
   for (let i = 1; i < ridgeLine.length; i++) {
@@ -215,8 +219,12 @@ export class Canvas2DBackend implements RenderBackend {
     for (const splash of ink.splashes) {
       if (splash.length < 3) continue;
       // Paint splash as overlapping soft stamps
-      let cx = 0, cy = 0;
-      for (const p of splash) { cx += p.x; cy += p.y; }
+      let cx = 0,
+        cy = 0;
+      for (const p of splash) {
+        cx += p.x;
+        cy += p.y;
+      }
       cx /= splash.length;
       cy /= splash.length;
 
@@ -291,8 +299,12 @@ export class Canvas2DBackend implements RenderBackend {
       if (contour.length < 3) continue;
 
       // Compute centroid and bounding box
-      let cx = 0, cy = 0;
-      for (const p of contour) { cx += p.x; cy += p.y; }
+      let cx = 0,
+        cy = 0;
+      for (const p of contour) {
+        cx += p.x;
+        cy += p.y;
+      }
       cx /= contour.length;
       cy /= contour.length;
 
@@ -323,7 +335,16 @@ export class Canvas2DBackend implements RenderBackend {
     // Draw ridge as soft brush stamps + thin line for definition
     const gray = 20;
     for (let i = 0; i < points.length; i += 3) {
-      brushStamp(ctx, points[i].x, points[i].y, lineWidth * 2, gray, gray, gray + 3, opacity * 0.15);
+      brushStamp(
+        ctx,
+        points[i].x,
+        points[i].y,
+        lineWidth * 2,
+        gray,
+        gray,
+        gray + 3,
+        opacity * 0.15,
+      );
     }
 
     ctx.strokeStyle = `rgba(${gray},${gray},${gray + 3},${opacity * 0.6})`;

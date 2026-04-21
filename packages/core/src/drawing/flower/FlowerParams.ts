@@ -44,7 +44,6 @@ export function genParams(): FlowerParams {
     noise(x * flowerJaggedness, flowerShapeNoiseSeed) * flowerShapeMask(x);
 
   // Leaf shape
-  const leafShapeNoiseSeed = prng.random() * PI;
   const leafJaggedness = normRand(0.1, 40);
   const leafPointyness = normRand(0.5, 1.5);
   const leafShape = randChoice([

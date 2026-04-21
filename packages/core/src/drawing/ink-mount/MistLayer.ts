@@ -86,10 +86,7 @@ export function generateMist(input: MistInput): MistRegion[] {
         // Modulate the radius by noise: ~[-1,1] mapped to [0.7, 1.3]
         const radiusScale = 1.0 + noiseVal * 0.3;
 
-        contour.push(new Vector2(
-          centerX + baseX * radiusScale,
-          centerY + baseY * radiusScale,
-        ));
+        contour.push(new Vector2(centerX + baseX * radiusScale, centerY + baseY * radiusScale));
       }
 
       regions.push({

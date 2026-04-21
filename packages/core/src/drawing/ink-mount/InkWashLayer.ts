@@ -57,15 +57,11 @@ export function generateInkFill(input: InkWashInput): InkFill {
     const polygon: Vector2[] = [];
     for (let i = 0; i < segCount; i++) {
       const angle = (i / segCount) * Math.PI * 2;
-      const noiseVal = noise.noise2D(
-        Math.cos(angle) * 2 + s * 5,
-        Math.sin(angle) * 2 + s * 5,
-      );
+      const noiseVal = noise.noise2D(Math.cos(angle) * 2 + s * 5, Math.sin(angle) * 2 + s * 5);
       const radius = baseRadius * (0.7 + 0.5 * noiseVal);
-      polygon.push(new Vector2(
-        splashX + Math.cos(angle) * radius,
-        splashY + Math.sin(angle) * radius,
-      ));
+      polygon.push(
+        new Vector2(splashX + Math.cos(angle) * radius, splashY + Math.sin(angle) * radius),
+      );
     }
     splashes.push(polygon);
   }

@@ -7,7 +7,7 @@
  * instead of post-processing like Canvas version.
  */
 
-import type { LeafArgs, StemArgs, BranchArgs, Vec3, Vec2, LayerType } from "./types";
+import type { LeafArgs, StemArgs, BranchArgs, Vec3, Vec2 } from "./types";
 import { v3, PI, sin, abs, grot } from "./FlowerMath";
 import { mapval, normRand } from "./FlowerMath";
 import { prng } from "../../foundation/random";
@@ -38,7 +38,7 @@ export function leaf(args: LeafArgs = {}): { group: SVGGElement; points: Vec3[] 
     flo = false,
     col = { min: [90, 0.2, 0.3, 1], max: [90, 0.1, 0.9, 1] },
     cof = (x: number) => x,
-    ben = (x: number): Vec3 => [normRand(-10, 10), 0, normRand(-5, 5)],
+    ben = (_x: number): Vec3 => [normRand(-10, 10), 0, normRand(-5, 5)],
     layerType = "lay0",
   } = args;
 
@@ -299,9 +299,9 @@ export function stem(args: StemArgs = {}): { group: SVGGElement; points: Vec3[] 
     rot = [PI / 2, 0, 0],
     len = 400,
     seg = 40,
-    wid = (x: number) => 6,
+    wid = (_x: number) => 6,
     col = { min: [250, 0.2, 0.4, 1], max: [250, 0.3, 0.6, 1] },
-    ben = (x: number): Vec3 => [normRand(-10, 10), 0, normRand(-5, 5)],
+    ben = (_x: number): Vec3 => [normRand(-10, 10), 0, normRand(-5, 5)],
     layerType = "lay0",
   } = args;
 
@@ -444,7 +444,7 @@ export function branch(args: BranchArgs = {}): {
   }
 
   const wfun = (x: number): number => {
-    const [m, j] = jntdist(x);
+    const [m] = jntdist(x);
     if (m < 1) {
       return wid * (3 + 5 * (1 - x));
     } else {

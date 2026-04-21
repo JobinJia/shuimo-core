@@ -8,12 +8,7 @@
 import * as opentype from "opentype.js";
 import { createStampNoise } from "./StampNoise";
 import { dsin, dcos, fmtNum } from "../utils/math";
-import {
-  calculateStampTextMetrics,
-  calculateColumnCharPositions,
-  hasFontMetrics,
-  findFontMetrics,
-} from "./StampMetrics";
+import { calculateStampTextMetrics } from "./StampMetrics";
 
 // ─── Reference constants ────────────────────────────────────────────
 // All distance defaults are expressed as ratios of fontSize.
@@ -1251,7 +1246,7 @@ export function generateStampPath(options: StampOptions): StampResult {
   const actualCornerRadius = cornerRadiusPx ?? fontSize * cornerRadius;
 
   // Early return if no valid text
-  if (!text || text.length === 0 || text.every((t) => !t || t.trim().length === 0)) {
+  if (!text || text.every((t) => !t || t.trim().length === 0)) {
     const defaultSize = 100;
     return {
       path: `M 0 0 L ${defaultSize} 0 L ${defaultSize} ${defaultSize} L 0 ${defaultSize} Z`,
@@ -1487,7 +1482,6 @@ export function generateStampPath(options: StampOptions): StampResult {
   } else {
     // Auto (default): trapezoid based on text layout
     const textBlockLeft = (maxWidth - visualFrame.width) / 2;
-    const textBlockRight = maxWidth - textBlockLeft;
     const autoProfile: ProfilePoint[] = [{ x: 0, y: leftHeight }];
 
     for (let index = 0; index < columnData.length; index++) {
@@ -1602,10 +1596,6 @@ export function generateStamp(options: StampOptions): string {
     columnSpacingPx !== undefined ? columnSpacingPx / fontSize : columnSpacing;
   const actualCharacterSpacing =
     characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
-  const actualPaddingX =
-    options.paddingXPx !== undefined ? options.paddingXPx : fontSize * (options.paddingX ?? 0.02);
-  const actualPaddingY =
-    options.paddingYPx !== undefined ? options.paddingYPx : fontSize * (options.paddingY ?? 0.02);
 
   // SVG filter scaling — keep visual texture density consistent across font sizes
   const filterScale = fontSize / REFERENCE_FONT_SIZE;
@@ -1663,7 +1653,7 @@ export function generateStamp(options: StampOptions): string {
           };
 
   // Early return if no valid text
-  if (!text || text.length === 0 || text.every((t) => !t || t.trim().length === 0)) {
+  if (!text || text.every((t) => !t || t.trim().length === 0)) {
     return '<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"></svg>';
   }
 

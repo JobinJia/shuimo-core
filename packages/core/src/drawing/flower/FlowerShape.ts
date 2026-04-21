@@ -5,7 +5,7 @@
  * Original: reference-code/flowers/main.js (Lines 374-459)
  */
 
-import type { PolygonArgs, StrokeArgs, TubifyArgs, Vec2, Vec3 } from "./types";
+import type { PolygonArgs, StrokeArgs, TubifyArgs, Vec2 } from "./types";
 import { SVG_NS } from "./types";
 import { PI, sin } from "./FlowerMath";
 import { mapval } from "./FlowerMath";
@@ -102,7 +102,7 @@ export function polygon(args: PolygonArgs): SVGPathElement {
  * @returns [leftEdge, rightEdge] vertex lists
  */
 export function tubify(args: TubifyArgs): [Vec2[], Vec2[]] {
-  const { pts = [], wid = (x: number) => 10 } = args;
+  const { pts = [], wid = (_x: number) => 10 } = args;
 
   const vtxlist0: Vec2[] = [];
   const vtxlist1: Vec2[] = [];

@@ -61,8 +61,8 @@ export class SimplexNoise {
     }
 
     // Extend permutation table
-    this.perm = new Array(512);
-    this.permMod12 = new Array(512);
+    this.perm = Array.from({ length: 512 });
+    this.permMod12 = Array.from({ length: 512 });
     for (let i = 0; i < 512; i++) {
       this.perm[i] = p[i & 255];
       this.permMod12[i] = this.perm[i] % 12;

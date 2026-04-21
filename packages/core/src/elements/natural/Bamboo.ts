@@ -203,7 +203,6 @@ export class Bamboo {
 
     // Control points for bezier curves - create slight inward curve (waist effect)
     const waist = 0.06; // Amount of inward curve
-    const midY = (y1 + y2) / 2;
 
     // Left side control points
     const leftCtrl1: Point = [

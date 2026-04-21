@@ -213,7 +213,7 @@ export class Mount {
         const ns = noise.noise(j * 0.1, seed);
         return i === 0 && ns * ns * ns < 0.1 && Math.abs(ptlist[i][j][1]) / h > 0.2;
       },
-      (veglist, i) => true,
+      (_veglist, _i) => true,
     );
 
     // WHITE BG
@@ -270,7 +270,7 @@ export class Mount {
         const ns = noise.noise(i * 0.1, j * 0.1, seed + 2);
         return ns * ns * ns < 0.1 && Math.abs(ptlist[i][j][1]) / h > 0.5;
       },
-      (veglist, i) => true,
+      (_veglist, _i) => true,
     );
 
     if (veg) {
@@ -331,7 +331,7 @@ export class Mount {
           const ns = noise.noise(i * 0.2, j * 0.05, seed);
           return (j === 0 || j === ptlist[i].length - 1) && ns * ns * ns * ns < 0.012;
         },
-        (veglist, i) => true,
+        (_veglist, _i) => true,
       );
     }
 
@@ -358,7 +358,6 @@ export class Mount {
     const wid = options.wid ?? 400 + prng.random() * 200;
     const tex = options.tex ?? 80;
     const cho = options.cho ?? 0.5;
-    const ret = options.ret ?? 0;
 
     seed = seed ?? 0;
 
@@ -873,8 +872,6 @@ export class Mount {
       // Calculate opacity and color based on layer depth
       // Far mountains (layerDepth=0) are lighter, near mountains (layerDepth=1) are darker
       // Increased opacity to compensate for texture filter lightening effect
-      const fillOpacity = 0.5 + layerDepth * 0.45; // 0.5 to 0.95
-      const strokeBaseOpacity = 0.2 + layerDepth * 0.45; // 0.2 to 0.65
 
       // Color gradation: ink cyan-blue tone (墨青色) - traditional Chinese ink wash
       // Far: (50, 65, 80) light ink cyan
@@ -1081,7 +1078,6 @@ export class Mount {
     const hei = options.hei ?? 80;
     const wid = options.wid ?? 100;
     const tex = options.tex ?? 40;
-    const ret = options.ret ?? 0;
     const sha = options.sha ?? 10;
 
     seed = seed ?? 0;
@@ -1142,7 +1138,7 @@ export class Mount {
       tex: tex,
       wid: 3,
       sha: sha,
-      col: (progress: number, layerDepth: number) =>
+      col: (_progress: number, _layerDepth: number) =>
         "rgba(180,180,180," + (0.3 + prng.random() * 0.3).toFixed(3) + ")",
       dis: () => {
         if (prng.random() > 0.5) {

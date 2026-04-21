@@ -60,7 +60,7 @@ export function woody(args: WoodyArgs = {}): Layer {
             len: PAR.leafLength * normRand(0.8, 1.2),
             vei: PAR.leafType,
             col: PAR.leafColor,
-            rot: [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * 0],
+            rot: [normRand(-1, 1) * PI, normRand(-1, 1) * PI, 0],
             wid: (x: number) => PAR.leafShape(x) * PAR.leafWidth,
             ben: (x: number): Vec3 => [
               mapval(noise(x * 1, i), 0, 1, -1, 1) * 5,
@@ -74,7 +74,7 @@ export function woody(args: WoodyArgs = {}): Layer {
 
         // Add flowers
         if (prng.random() < PAR.flowerChance) {
-          const hr: Vec3 = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * 0];
+          const hr: Vec3 = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, 0];
 
           // Pedicel (flower stem) - lay0
           const { points: P_ } = stem({
@@ -84,7 +84,7 @@ export function woody(args: WoodyArgs = {}): Layer {
             len: PAR.pedicelLength,
             col: { min: [50, 1, 0.9, 1], max: [50, 1, 0.9, 1] },
             wid: (x: number) => sin(x * PI) * x * 2 + 1,
-            ben: (x: number): Vec3 => [0, 0, 0],
+            ben: (_x: number): Vec3 => [0, 0, 0],
             layerType: "lay0",
           });
 
@@ -203,7 +203,7 @@ export function herbal(args: HerbalArgs = {}): Layer {
             len: 2 * PAR.leafLength * normRand(0.8, 1.2),
             vei: PAR.leafType,
             col: PAR.leafColor,
-            rot: [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * 0],
+            rot: [normRand(-1, 1) * PI, normRand(-1, 1) * PI, 0],
             wid: (x: number) => 2 * PAR.leafShape(x) * PAR.leafWidth,
             ben: (x: number): Vec3 => [
               mapval(noise(x * 1, i), 0, 1, -1, 1) * 5,
@@ -227,7 +227,7 @@ export function herbal(args: HerbalArgs = {}): Layer {
         len: PAR.sheathLength,
         col: { min: [60, 0.3, 0.9, 1], max: [60, 0.3, 0.9, 1] },
         wid: (x: number) => PAR.sheathWidth * (sin(x * PI) ** 2 - x * 0.5 + 0.5),
-        ben: (x: number): Vec3 => [0, 0, 0],
+        ben: (_x: number): Vec3 => [0, 0, 0],
         layerType: "lay0",
       });
       lay0.group.appendChild(sheathGroup);
@@ -241,7 +241,7 @@ export function herbal(args: HerbalArgs = {}): Layer {
         rot: hr,
         len: PAR.shootLength * normRand(0.5, 1.5),
         col: { min: [70, 0.2, 0.9, 1], max: [70, 0.2, 0.9, 1] },
-        wid: (x: number) => 2,
+        wid: (_x: number) => 2,
         ben: (x: number): Vec3 => [
           mapval(noise(x * 1, j), 0, 1, -1, 1) * x * 10,
           0,

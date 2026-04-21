@@ -43,8 +43,8 @@ describe("RidgeGenerator", () => {
     const withPeaks = generateRidge({ ...baseInput, peakCount: 2 });
     const withoutPeaks = generateRidge({ ...baseInput, peakCount: 0 });
 
-    const minYWithPeaks = Math.min(...withPeaks.ridgeLine.map(p => p.y));
-    const minYWithoutPeaks = Math.min(...withoutPeaks.ridgeLine.map(p => p.y));
+    const minYWithPeaks = Math.min(...withPeaks.ridgeLine.map((p) => p.y));
+    const minYWithoutPeaks = Math.min(...withoutPeaks.ridgeLine.map((p) => p.y));
 
     // Peaks push y upward (lower y value in screen coords)
     expect(minYWithPeaks).toBeLessThan(minYWithoutPeaks);

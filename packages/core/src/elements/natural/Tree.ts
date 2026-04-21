@@ -364,7 +364,6 @@ export class Tree {
     const hei = options.hei ?? 50;
     const wid = options.wid ?? 3;
     const col = options.col ?? "rgba(100,100,100,0.5)";
-    const noi = options.noi ?? 0.5;
 
     const reso = 10;
     const nslist: [number, number][] = [];
@@ -444,7 +443,7 @@ export class Tree {
   static tree03(x: number, y: number, options: Tree03Options = {}): string {
     const hei = options.hei ?? 50;
     const wid = options.wid ?? 5;
-    const ben = options.ben ?? ((x: number) => 0);
+    const ben = options.ben ?? ((_x: number) => 0);
     const col = options.col ?? "rgba(100,100,100,0.5)";
 
     const reso = 10;
@@ -565,7 +564,7 @@ export class Tree {
       {
         col: "rgba(100,100,100," + (0.4 + prng.random() * 0.1).toFixed(3) + ")",
         wid: 2.5,
-        fun: (x: number) => Math.sin(1),
+        fun: (_x: number) => Math.sin(1),
         noi: 0.9,
         out: 0,
       },
@@ -614,7 +613,6 @@ export class Tree {
 
         brlist[0].splice(0, 1);
         brlist[1].splice(0, 1);
-        const foff = (v: Point) => [v[0] + trlistMerged[i][0], v[1] + trlistMerged[i][1]] as Point;
 
         for (let j = 0; j < brlist[0].length; j++) {
           if (j % 20 === 0 || j === brlist[0].length - 1) {
@@ -653,7 +651,7 @@ export class Tree {
       {
         col: "rgba(100,100,100," + (0.4 + prng.random() * 0.1).toFixed(3) + ")",
         wid: 2.5,
-        fun: (x: number) => Math.sin(1),
+        fun: (_x: number) => Math.sin(1),
         noi: 0.9,
         out: 0,
       },
@@ -700,7 +698,6 @@ export class Tree {
       const trmlist: Polygon = [];
 
       for (let i = 0; i < trlistMerged.length; i++) {
-        const p = Math.abs(i - trlistMerged.length * 0.5) / (trlistMerged.length * 0.5);
         if (
           ((prng.random() < 0.025 &&
             i >= trlistMerged.length * 0.2 &&
@@ -761,7 +758,7 @@ export class Tree {
       {
         col: "rgba(100,100,100," + (0.4 + prng.random() * 0.1).toFixed(3) + ")",
         wid: 2.5,
-        fun: (x: number) => Math.sin(1),
+        fun: (_x: number) => Math.sin(1),
         noi: 0.9,
         out: 0,
       },
@@ -887,7 +884,7 @@ export class Tree {
       const len = args.len ?? 15;
       const ben = args.ben ?? 0;
 
-      const fun = dep === 0 ? (x: number) => Math.cos(0.5 * Math.PI * x) : (x: number) => 1;
+      const fun = dep === 0 ? (x: number) => Math.cos(0.5 * Math.PI * x) : (_x: number) => 1;
       const spt: Point = [xoff, yoff];
       const ept: Point = [xoff + Math.cos(ang) * len, yoff + Math.sin(ang) * len];
 
@@ -969,7 +966,7 @@ export class Tree {
       {
         col: "rgba(100,100,100," + (0.6 + prng.random() * 0.1).toFixed(3) + ")",
         wid: 2.5,
-        fun: (x: number) => Math.sin(1),
+        fun: (_x: number) => Math.sin(1),
         noi: 0.9,
         out: 0,
       },
