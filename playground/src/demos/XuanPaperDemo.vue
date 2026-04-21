@@ -1,139 +1,101 @@
 <script setup lang="ts">
-import { XuanPaper, XuanPaperColors, GoldFleckColors, type XuanPaperOptions } from "@jobinjia/shuimo-core";
-import { onMounted, ref, watch } from "vue";
+import {
+  XuanPaper,
+  XuanPaperColors,
+  GoldFleckColors,
+  type XuanPaperOptions,
+} from "@jobinjia/shuimo-core";
+import { computed, onMounted, reactive, useTemplateRef, watch } from "vue";
 
-const canvasContainer = ref<HTMLDivElement>();
-const svgContainer = ref<HTMLDivElement>();
+const canvasContainer = useTemplateRef<HTMLDivElement>("canvasContainer");
+const svgContainer = useTemplateRef<HTMLDivElement>("svgContainer");
 
-// Basic settings
-const width = ref(600);
-const height = ref(400);
-const seed = ref(Date.now());
+const state = reactive({
+  width: 600,
+  height: 400,
+  seed: Date.now(),
+  fiberDensity: 1.0,
+  fiberScale: 1.0,
+  textureIntensity: 0.3,
+  grainDensity: 0.5,
+  age: 0,
+  deckleEdge: false,
+  deckleRoughness: 0.5,
+  colorPreset: "processed" as keyof typeof XuanPaperColors,
+  renderMode: "canvas" as "canvas" | "svg",
+  goldFlecks: false,
+  goldDensity: 0.5,
+  goldSizeMin: 2,
+  goldSizeMax: 12,
+  goldColorPreset: "gold" as keyof typeof GoldFleckColors,
+  goldClustering: 0.3,
+});
 
-// Paper settings
-const fiberDensity = ref(1.0);
-const fiberScale = ref(1.0);
-const textureIntensity = ref(0.3);
-const grainDensity = ref(0.5);
-const age = ref(0);
-const deckleEdge = ref(false);
-const deckleRoughness = ref(0.5);
+const selectedColor = computed(() => XuanPaperColors[state.colorPreset]);
+const selectedGoldColor = computed(() => GoldFleckColors[state.goldColorPreset]);
 
-// Color presets
-const colorPreset = ref<keyof typeof XuanPaperColors>("processed");
+const paperPresetDescription = computed(() => {
+  switch (state.colorPreset) {
+    case "raw":
+      return "偏生宣气质：更清白、更轻、更有纤维显露。";
+    case "processed":
+      return "默认半熟到熟宣之间：温润、均衡，适合大多数书画底纸。";
+    case "antique":
+      return "熟宣取向的旧色纸：底色更暖，纸面更沉静。";
+    case "teaStained":
+      return "染色熟宣取向：保留熟宣质感，同时加入茶染旧化感。";
+    case "moonWhite":
+      return "偏生宣的冷白变体：更冷净，适合清雅画面。";
+  }
+});
 
-// Render mode
-const renderMode = ref<"canvas" | "svg">("canvas");
-
-// Gold fleck settings (洒金宣)
-const goldFlecks = ref(false);
-const goldDensity = ref(0.5);
-const goldSizeMin = ref(2);
-const goldSizeMax = ref(12);
-const goldColorPreset = ref<keyof typeof GoldFleckColors>("gold");
-const goldClustering = ref(0.3);
-
-function getColor(): [number, number, number] {
-  return XuanPaperColors[colorPreset.value];
-}
-
-function getGoldColor(): [number, number, number] {
-  return GoldFleckColors[goldColorPreset.value];
-}
+const currentOptions = computed<XuanPaperOptions>(() => ({
+  width: state.width,
+  height: state.height,
+  baseColor: selectedColor.value,
+  fiberDensity: state.fiberDensity,
+  fiberScale: state.fiberScale,
+  textureIntensity: state.textureIntensity,
+  grainDensity: state.grainDensity,
+  age: state.age,
+  deckleEdge: state.deckleEdge,
+  deckleRoughness: state.deckleRoughness,
+  seed: state.seed,
+  goldFlecks: state.goldFlecks,
+  goldDensity: state.goldDensity,
+  goldSize: [state.goldSizeMin, state.goldSizeMax],
+  goldColor: selectedGoldColor.value,
+  goldClustering: state.goldClustering,
+}));
 
 function generate() {
-  const options: XuanPaperOptions = {
-    width: width.value,
-    height: height.value,
-    baseColor: getColor(),
-    fiberDensity: fiberDensity.value,
-    fiberScale: fiberScale.value,
-    textureIntensity: textureIntensity.value,
-    grainDensity: grainDensity.value,
-    age: age.value,
-    deckleEdge: deckleEdge.value,
-    deckleRoughness: deckleRoughness.value,
-    seed: seed.value,
-    // Gold fleck options
-    goldFlecks: goldFlecks.value,
-    goldDensity: goldDensity.value,
-    goldSize: [goldSizeMin.value, goldSizeMax.value],
-    goldColor: getGoldColor(),
-    goldClustering: goldClustering.value,
-  };
-
-  if (renderMode.value === "canvas" && canvasContainer.value) {
+  if (state.renderMode === "canvas" && canvasContainer.value) {
     canvasContainer.value.innerHTML = "";
-    const canvas = XuanPaper.generate(options);
+    const canvas = XuanPaper.generate(currentOptions.value);
     canvasContainer.value.appendChild(canvas);
-  } else if (renderMode.value === "svg" && svgContainer.value) {
+  } else if (state.renderMode === "svg" && svgContainer.value) {
     svgContainer.value.innerHTML = "";
-    const svg = XuanPaper.generateSVG(options);
+    const svg = XuanPaper.generateSVG(currentOptions.value);
     svgContainer.value.appendChild(svg);
   }
 }
 
 function generateNew() {
-  seed.value = Date.now();
+  state.seed = Date.now();
   generate();
 }
 
 function downloadPaper() {
-  const options: XuanPaperOptions = {
-    width: width.value,
-    height: height.value,
-    baseColor: getColor(),
-    fiberDensity: fiberDensity.value,
-    fiberScale: fiberScale.value,
-    textureIntensity: textureIntensity.value,
-    grainDensity: grainDensity.value,
-    age: age.value,
-    deckleEdge: deckleEdge.value,
-    deckleRoughness: deckleRoughness.value,
-    seed: seed.value,
-    goldFlecks: goldFlecks.value,
-    goldDensity: goldDensity.value,
-    goldSize: [goldSizeMin.value, goldSizeMax.value],
-    goldColor: getGoldColor(),
-    goldClustering: goldClustering.value,
-  };
-
-  const canvas = XuanPaper.generate(options);
+  const canvas = XuanPaper.generate(currentOptions.value);
   const link = document.createElement("a");
-  link.download = `xuan-paper-${seed.value}.png`;
+  link.download = `xuan-paper-${state.seed}.png`;
   link.href = canvas.toDataURL("image/png");
   link.click();
 }
 
-// Watch for changes and regenerate
-watch(
-  [
-    width,
-    height,
-    fiberDensity,
-    fiberScale,
-    textureIntensity,
-    grainDensity,
-    age,
-    deckleEdge,
-    deckleRoughness,
-    colorPreset,
-    renderMode,
-    goldFlecks,
-    goldDensity,
-    goldSizeMin,
-    goldSizeMax,
-    goldColorPreset,
-    goldClustering,
-  ],
-  () => {
-    generate();
-  },
-);
+onMounted(generate);
 
-onMounted(() => {
-  generate();
-});
+watch([currentOptions, () => state.renderMode], generate);
 </script>
 
 <template>
@@ -152,11 +114,11 @@ onMounted(() => {
             <label>渲染模式:</label>
             <div class="radio-group">
               <label class="radio-label">
-                <input v-model="renderMode" type="radio" value="canvas" />
+                <input v-model="state.renderMode" type="radio" value="canvas" />
                 Canvas
               </label>
               <label class="radio-label">
-                <input v-model="renderMode" type="radio" value="svg" />
+                <input v-model="state.renderMode" type="radio" value="svg" />
                 SVG
               </label>
             </div>
@@ -165,17 +127,17 @@ onMounted(() => {
           <div class="control-row">
             <div class="control-group">
               <label>宽度:</label>
-              <input v-model.number="width" type="number" min="200" max="1200" step="50" />
+              <input v-model.number="state.width" type="number" min="200" max="1200" step="50" />
             </div>
             <div class="control-group">
               <label>高度:</label>
-              <input v-model.number="height" type="number" min="200" max="800" step="50" />
+              <input v-model.number="state.height" type="number" min="200" max="800" step="50" />
             </div>
           </div>
 
           <div class="control-group">
             <label>随机种子:</label>
-            <input v-model.number="seed" type="number" />
+            <input v-model.number="state.seed" type="number" />
           </div>
         </div>
 
@@ -184,7 +146,7 @@ onMounted(() => {
 
           <div class="control-group color-preset">
             <label>预设颜色:</label>
-            <select v-model="colorPreset">
+            <select v-model="state.colorPreset">
               <option value="raw">生宣 Raw (纯白)</option>
               <option value="processed">熟宣 Processed (暖白)</option>
               <option value="antique">古宣 Antique (米黄)</option>
@@ -197,11 +159,12 @@ onMounted(() => {
             <div
               class="color-swatch"
               :style="{
-                backgroundColor: `rgb(${getColor().join(',')})`,
+                backgroundColor: `rgb(${selectedColor.join(',')})`,
               }"
             />
-            <span class="color-value">RGB({{ getColor().join(", ") }})</span>
+            <span class="color-value">RGB({{ selectedColor.join(", ") }})</span>
           </div>
+          <p class="preset-note">{{ paperPresetDescription }}</p>
         </div>
 
         <div class="control-section">
@@ -209,26 +172,32 @@ onMounted(() => {
 
           <div class="control-group">
             <label>纤维密度:</label>
-            <input v-model.number="fiberDensity" type="range" min="0" max="3" step="0.1" />
-            <span class="value">{{ fiberDensity.toFixed(1) }}</span>
+            <input v-model.number="state.fiberDensity" type="range" min="0" max="3" step="0.1" />
+            <span class="value">{{ state.fiberDensity.toFixed(1) }}</span>
           </div>
 
           <div class="control-group">
             <label>纤维长度:</label>
-            <input v-model.number="fiberScale" type="range" min="0.3" max="2" step="0.1" />
-            <span class="value">{{ fiberScale.toFixed(1) }}</span>
+            <input v-model.number="state.fiberScale" type="range" min="0.3" max="2" step="0.1" />
+            <span class="value">{{ state.fiberScale.toFixed(1) }}</span>
           </div>
 
           <div class="control-group">
             <label>纹理强度:</label>
-            <input v-model.number="textureIntensity" type="range" min="0" max="1" step="0.05" />
-            <span class="value">{{ textureIntensity.toFixed(2) }}</span>
+            <input
+              v-model.number="state.textureIntensity"
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+            />
+            <span class="value">{{ state.textureIntensity.toFixed(2) }}</span>
           </div>
 
           <div class="control-group">
             <label>颗粒密度:</label>
-            <input v-model.number="grainDensity" type="range" min="0" max="1" step="0.1" />
-            <span class="value">{{ grainDensity.toFixed(1) }}</span>
+            <input v-model.number="state.grainDensity" type="range" min="0" max="1" step="0.1" />
+            <span class="value">{{ state.grainDensity.toFixed(1) }}</span>
           </div>
         </div>
 
@@ -237,15 +206,15 @@ onMounted(() => {
 
           <div class="control-group checkbox">
             <label>
-              <input v-model="goldFlecks" type="checkbox" />
+              <input v-model="state.goldFlecks" type="checkbox" />
               启用撒金 (Enable Gold)
             </label>
           </div>
 
-          <template v-if="goldFlecks">
+          <template v-if="state.goldFlecks">
             <div class="control-group color-preset">
               <label>金色:</label>
-              <select v-model="goldColorPreset">
+              <select v-model="state.goldColorPreset">
                 <option value="gold">经典金 Gold</option>
                 <option value="paleGold">淡金 Pale Gold</option>
                 <option value="roseGold">玫瑰金 Rose Gold</option>
@@ -259,33 +228,39 @@ onMounted(() => {
               <div
                 class="color-swatch gold"
                 :style="{
-                  backgroundColor: `rgb(${getGoldColor().join(',')})`,
+                  backgroundColor: `rgb(${selectedGoldColor.join(',')})`,
                 }"
               />
             </div>
 
             <div class="control-group">
               <label>密度:</label>
-              <input v-model.number="goldDensity" type="range" min="0.1" max="1" step="0.1" />
-              <span class="value">{{ goldDensity.toFixed(1) }}</span>
+              <input v-model.number="state.goldDensity" type="range" min="0.1" max="1" step="0.1" />
+              <span class="value">{{ state.goldDensity.toFixed(1) }}</span>
             </div>
 
             <div class="control-group">
               <label>最小尺寸:</label>
-              <input v-model.number="goldSizeMin" type="range" min="1" max="8" step="1" />
-              <span class="value">{{ goldSizeMin }}px</span>
+              <input v-model.number="state.goldSizeMin" type="range" min="1" max="8" step="1" />
+              <span class="value">{{ state.goldSizeMin }}px</span>
             </div>
 
             <div class="control-group">
               <label>最大尺寸:</label>
-              <input v-model.number="goldSizeMax" type="range" min="5" max="25" step="1" />
-              <span class="value">{{ goldSizeMax }}px</span>
+              <input v-model.number="state.goldSizeMax" type="range" min="5" max="25" step="1" />
+              <span class="value">{{ state.goldSizeMax }}px</span>
             </div>
 
             <div class="control-group">
               <label>聚集度:</label>
-              <input v-model.number="goldClustering" type="range" min="0" max="0.8" step="0.1" />
-              <span class="value">{{ goldClustering.toFixed(1) }}</span>
+              <input
+                v-model.number="state.goldClustering"
+                type="range"
+                min="0"
+                max="0.8"
+                step="0.1"
+              />
+              <span class="value">{{ state.goldClustering.toFixed(1) }}</span>
             </div>
           </template>
         </div>
@@ -295,21 +270,27 @@ onMounted(() => {
 
           <div class="control-group">
             <label>老化程度:</label>
-            <input v-model.number="age" type="range" min="0" max="1" step="0.05" />
-            <span class="value">{{ (age * 100).toFixed(0) }}%</span>
+            <input v-model.number="state.age" type="range" min="0" max="1" step="0.05" />
+            <span class="value">{{ (state.age * 100).toFixed(0) }}%</span>
           </div>
 
           <div class="control-group checkbox">
             <label>
-              <input v-model="deckleEdge" type="checkbox" />
+              <input v-model="state.deckleEdge" type="checkbox" />
               毛边效果 (Deckle Edge)
             </label>
           </div>
 
-          <div v-if="deckleEdge" class="control-group">
+          <div v-if="state.deckleEdge" class="control-group">
             <label>毛边粗糙度:</label>
-            <input v-model.number="deckleRoughness" type="range" min="0.1" max="1" step="0.1" />
-            <span class="value">{{ deckleRoughness.toFixed(1) }}</span>
+            <input
+              v-model.number="state.deckleRoughness"
+              type="range"
+              min="0.1"
+              max="1"
+              step="0.1"
+            />
+            <span class="value">{{ state.deckleRoughness.toFixed(1) }}</span>
           </div>
         </div>
 
@@ -321,8 +302,8 @@ onMounted(() => {
       </div>
 
       <div class="preview">
-        <div v-show="renderMode === 'canvas'" ref="canvasContainer" class="paper-display" />
-        <div v-show="renderMode === 'svg'" ref="svgContainer" class="paper-display" />
+        <div v-show="state.renderMode === 'canvas'" ref="canvasContainer" class="paper-display" />
+        <div v-show="state.renderMode === 'svg'" ref="svgContainer" class="paper-display" />
       </div>
     </div>
 
@@ -336,18 +317,18 @@ onMounted(() => {
       <h3>撒金宣 / Gold-Flecked Paper</h3>
       <p>
         撒金宣是一种装饰性宣纸，表面撒有金箔或金粉碎片，常用于书写对联、贺词等喜庆场合。
-        本生成器使用 <strong>Perlin 噪声</strong> 算法来控制金点的分布，使其看起来自然随机，
-        避免过于规则的人工感。
+        现在的生成器会先建立纸性的“底材模型”，再让金箔贴合纸面的厚薄起伏与边缘节奏，
+        不再只是单独盖一层金点。
       </p>
 
-      <h3>Perlin 噪声算法 / Perlin Noise Algorithm</h3>
+      <h3>纸性模型 / Paper Character Model</h3>
       <ul>
+        <li><strong>生宣取向:</strong> 纤维更外露，纸面更轻、更白，厚薄起伏更明显。</li>
+        <li><strong>半熟取向:</strong> 纤维、颗粒和底色比较均衡，适合作为默认展示。</li>
         <li>
-          <strong>位置分布:</strong> 使用 Perlin 噪声创建聚集效果，金点会自然聚集在噪声值高的区域
+          <strong>熟宣取向:</strong> 纸面更温润、更匀整，纤维感收敛，旧化时更容易显出沉静暖色。
         </li>
-        <li><strong>大小变化:</strong> 金点大小由第二个 Perlin 噪声控制，产生自然的大小变化</li>
-        <li><strong>颜色变化:</strong> 金色亮度随噪声变化，模拟金属的光泽效果</li>
-        <li><strong>形状多样:</strong> 随机选择圆形、不规则圆形或椭圆形，增加真实感</li>
+        <li><strong>颜色预设:</strong> 仍然保留旧 API 的颜色名字，但内部会映射到不同纸性。</li>
       </ul>
 
       <h3>使用方式 / Usage</h3>
@@ -529,6 +510,13 @@ const canvas = XuanPaper.generate({
   font-family: monospace;
 }
 
+.preset-note {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: #6b6258;
+}
+
 .radio-group {
   display: flex;
   gap: 1rem;
@@ -595,8 +583,9 @@ const canvas = XuanPaper.generate({
 
 .preview {
   display: flex;
-  justify-content: center;
+  justify-content: stretch;
   align-items: flex-start;
+  min-width: 0;
 }
 
 .paper-display {
@@ -607,11 +596,15 @@ const canvas = XuanPaper.generate({
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  min-width: 0;
 }
 
 .paper-display :deep(canvas),
 .paper-display :deep(svg) {
-  max-width: 100%;
+  display: block;
+  width: 100%;
+  max-width: none;
   height: auto;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
