@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
 import { GoldFleckColors, XuanPaper, XuanPaperColors } from "./XuanPaper";
+import { renderXuanPaperToCanvas } from "./xuan-paper/canvas-renderer";
 import { buildXuanPaperScene } from "./xuan-paper/model";
+import { DEFAULT_BASE_COLOR } from "./xuan-paper/presets";
+import type { XuanPaperOptions } from "./xuan-paper/types";
 
 function occupiedGoldBuckets(
   width: number,
@@ -206,6 +209,59 @@ describe("XuanPaper", () => {
     expect(svg.querySelector('[data-layer="particles"]')).not.toBeNull();
     expect(svg.querySelector('[data-layer="gold-flecks"]')).not.toBeNull();
     expect(svg.querySelector("clipPath path")).not.toBeNull();
+  });
+
+  it("renderXuanPaperToCanvas on OffscreenCanvas matches the legacy HTMLCanvasElement pathway", () => {
+    // jsdom default env has no OffscreenCanvas and no Canvas2D; skip there.
+    // In browser-capable envs, both pathways call the same renderer against the
+    // same scene, so pixel buffers must match within a tiny tolerance. Allow
+    // ≤1 channel delta on ≤0.1% of pixels to absorb implementation drift
+    // between CanvasRenderingContext2D and OffscreenCanvasRenderingContext2D.
+    if (typeof OffscreenCanvas === "undefined") {
+      return;
+    }
+
+    const opts: XuanPaperOptions = {
+      width: 64,
+      height: 48,
+      seed: 42,
+      goldFlecks: true,
+    };
+    const scene = buildXuanPaperScene({
+      ...opts,
+      baseColor: opts.baseColor ?? DEFAULT_BASE_COLOR,
+      mode: "canvas",
+    });
+
+    const offscreen = new OffscreenCanvas(opts.width!, opts.height!);
+    renderXuanPaperToCanvas(offscreen, scene);
+    const offCtx = offscreen.getContext("2d");
+    if (!offCtx) {
+      return;
+    }
+    const offPixels = offCtx.getImageData(0, 0, opts.width!, opts.height!).data;
+
+    const htmlCanvas = XuanPaper.generate(opts);
+    const htmlCtx = htmlCanvas.getContext("2d");
+    if (!htmlCtx) {
+      return;
+    }
+    const htmlPixels = htmlCtx.getImageData(0, 0, opts.width!, opts.height!).data;
+
+    expect(offPixels.length).toBe(htmlPixels.length);
+
+    let mismatched = 0;
+    for (let i = 0; i < offPixels.length; i += 4) {
+      const dR = Math.abs((offPixels[i] ?? 0) - (htmlPixels[i] ?? 0));
+      const dG = Math.abs((offPixels[i + 1] ?? 0) - (htmlPixels[i + 1] ?? 0));
+      const dB = Math.abs((offPixels[i + 2] ?? 0) - (htmlPixels[i + 2] ?? 0));
+      const dA = Math.abs((offPixels[i + 3] ?? 0) - (htmlPixels[i + 3] ?? 0));
+      if (dR > 1 || dG > 1 || dB > 1 || dA > 1) {
+        mismatched++;
+      }
+    }
+    const totalPixels = opts.width! * opts.height!;
+    expect(mismatched / totalPixels).toBeLessThanOrEqual(0.001);
   });
 
   it("creates reusable SVG patterns", () => {

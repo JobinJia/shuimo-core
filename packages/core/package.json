@@ -1,6 +1,6 @@
 {
   "name": "@jobinjia/shuimo-core",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Core library for procedural Chinese landscape painting generation",
   "files": [
     "dist"
@@ -24,6 +24,14 @@
     "./drawing": {
       "types": "./dist/drawing.d.mts",
       "import": "./dist/drawing.mjs"
+    },
+    "./xuan-paper/worker": {
+      "types": "./dist/xuan-paper-worker.d.mts",
+      "import": "./dist/xuan-paper-worker.mjs"
+    },
+    "./xuan-paper/worker-protocol": {
+      "types": "./dist/xuan-paper-worker-protocol.d.mts",
+      "import": "./dist/xuan-paper-worker-protocol.mjs"
     }
   },
   "scripts": {

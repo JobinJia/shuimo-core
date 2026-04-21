@@ -7,6 +7,8 @@ export default defineConfig({
       foundation: "src/foundation/index.ts",
       elements: "src/elements/index.ts",
       drawing: "src/drawing/index.ts",
+      "xuan-paper-worker": "src/elements/natural/xuan-paper/worker.ts",
+      "xuan-paper-worker-protocol": "src/elements/natural/xuan-paper/worker-protocol.ts",
     },
     format: ["esm"],
     dts: {
