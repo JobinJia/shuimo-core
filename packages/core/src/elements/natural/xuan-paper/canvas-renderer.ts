@@ -1,12 +1,19 @@
 import { PerlinNoise } from "../../../foundation/noise";
 import type { GoldPathCommand, XuanPaperScene } from "./types";
 
+export type XuanPaperCanvas = HTMLCanvasElement | OffscreenCanvas;
+
+// Shared subset of 2D contexts used by the renderer. Matches both
+// CanvasRenderingContext2D and OffscreenCanvasRenderingContext2D so the
+// pipeline works on the main thread and inside workers without branching.
+type XuanPaperContext2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
 function drawCommands(
-  ctx: CanvasRenderingContext2D,
+  ctx: XuanPaperContext2D,
   commands: GoldPathCommand[],
   offsetX: number,
   offsetY: number,
@@ -36,7 +43,7 @@ function drawCommands(
   }
 }
 
-function applyPaperTone(ctx: CanvasRenderingContext2D, scene: XuanPaperScene): void {
+function applyPaperTone(ctx: XuanPaperContext2D, scene: XuanPaperScene): void {
   const { width, height, textureIntensity, grainDensity, age } = scene.options;
   const imageData = ctx.getImageData(0, 0, width, height);
   const data = imageData.data;
@@ -107,7 +114,7 @@ function applyPaperTone(ctx: CanvasRenderingContext2D, scene: XuanPaperScene): v
   ctx.putImageData(imageData, 0, 0);
 }
 
-function drawFibers(ctx: CanvasRenderingContext2D, scene: XuanPaperScene): void {
+function drawFibers(ctx: XuanPaperContext2D, scene: XuanPaperScene): void {
   ctx.save();
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -134,7 +141,7 @@ function drawFibers(ctx: CanvasRenderingContext2D, scene: XuanPaperScene): void 
   ctx.restore();
 }
 
-function drawParticles(ctx: CanvasRenderingContext2D, scene: XuanPaperScene): void {
+function drawParticles(ctx: XuanPaperContext2D, scene: XuanPaperScene): void {
   ctx.save();
 
   for (const particle of scene.particles) {
@@ -152,7 +159,7 @@ function drawParticles(ctx: CanvasRenderingContext2D, scene: XuanPaperScene): vo
   ctx.restore();
 }
 
-function drawGoldFlecks(ctx: CanvasRenderingContext2D, scene: XuanPaperScene): void {
+function drawGoldFlecks(ctx: XuanPaperContext2D, scene: XuanPaperScene): void {
   if (!scene.options.goldFlecks) {
     return;
   }
@@ -171,7 +178,7 @@ function drawGoldFlecks(ctx: CanvasRenderingContext2D, scene: XuanPaperScene): v
   ctx.restore();
 }
 
-function applyDeckleEdge(ctx: CanvasRenderingContext2D, scene: XuanPaperScene): void {
+function applyDeckleEdge(ctx: XuanPaperContext2D, scene: XuanPaperScene): void {
   const outline = scene.deckleOutline;
   if (!outline) {
     return;
@@ -230,12 +237,11 @@ function applyDeckleEdge(ctx: CanvasRenderingContext2D, scene: XuanPaperScene): 
   ctx.restore();
 }
 
-export function renderXuanPaperCanvas(scene: XuanPaperScene): HTMLCanvasElement {
-  const canvas = document.createElement("canvas");
+export function renderXuanPaperToCanvas(canvas: XuanPaperCanvas, scene: XuanPaperScene): void {
   canvas.width = scene.options.width;
   canvas.height = scene.options.height;
 
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d") as XuanPaperContext2D | null;
   if (!ctx) {
     throw new Error("2D canvas context is not available");
   }
@@ -248,6 +254,10 @@ export function renderXuanPaperCanvas(scene: XuanPaperScene): HTMLCanvasElement 
   drawParticles(ctx, scene);
   drawGoldFlecks(ctx, scene);
   applyDeckleEdge(ctx, scene);
+}
 
+export function renderXuanPaperCanvas(scene: XuanPaperScene): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  renderXuanPaperToCanvas(canvas, scene);
   return canvas;
 }
