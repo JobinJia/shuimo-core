@@ -119,3 +119,10 @@ export interface XuanPaperScene {
   goldFlecks: GoldFleck[];
   deckleOutline: DeckleOutline | null;
 }
+
+export interface TileRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
