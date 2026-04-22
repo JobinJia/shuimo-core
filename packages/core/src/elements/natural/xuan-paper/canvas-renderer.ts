@@ -49,9 +49,7 @@ function applyPaperTone(ctx: XuanPaperContext2D, scene: XuanPaperScene): void {
   const imageData = ctx.getImageData(0, 0, width, height);
   const data = imageData.data;
 
-  const t0 = typeof performance !== "undefined" ? performance.now() : 0;
   if (applyPaperToneWasm(data, scene, null)) {
-    if (t0) console.log(`[XuanPaper] WASM paperTone ${width}×${height} ${(performance.now() - t0).toFixed(0)}ms`);
     ctx.putImageData(imageData, 0, 0);
     return;
   }
@@ -279,9 +277,7 @@ function applyPaperToneTile(ctx: XuanPaperContext2D, scene: XuanPaperScene, tile
   const imageData = ctx.getImageData(0, 0, tile.width, tile.height);
   const data = imageData.data;
 
-  const t0 = typeof performance !== "undefined" ? performance.now() : 0;
   if (applyPaperToneWasm(data, scene, tile)) {
-    if (t0) console.log(`[XuanPaper] WASM tile ${tile.width}×${tile.height} @(${tile.x},${tile.y}) ${(performance.now() - t0).toFixed(0)}ms`);
     ctx.putImageData(imageData, 0, 0);
     return;
   }

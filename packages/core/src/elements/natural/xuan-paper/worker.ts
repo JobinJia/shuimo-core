@@ -19,15 +19,12 @@ const workerScope = self as unknown as WorkerScope;
 workerScope.onmessage = async (event: MessageEvent<XuanPaperWorkerRequest>) => {
   const { id, options, tile } = event.data;
   try {
-    const t0 = performance.now();
     await wasmReady;
-    const t1 = performance.now();
     const scene = buildXuanPaperScene({
       ...options,
       baseColor: options.baseColor ?? DEFAULT_BASE_COLOR,
       mode: "canvas",
     });
-    const t2 = performance.now();
 
     let canvas: OffscreenCanvas;
     if (tile) {
@@ -39,12 +36,8 @@ workerScope.onmessage = async (event: MessageEvent<XuanPaperWorkerRequest>) => {
       canvas = new OffscreenCanvas(width, height);
       renderXuanPaperToCanvas(canvas, scene);
     }
-    const t3 = performance.now();
 
     const blob = await canvas.convertToBlob({ type: "image/png" });
-    const t4 = performance.now();
-
-    console.log(`[Worker] wasm:${(t1 - t0).toFixed(0)}ms scene:${(t2 - t1).toFixed(0)}ms render:${(t3 - t2).toFixed(0)}ms blob:${(t4 - t3).toFixed(0)}ms`);
 
     const response: XuanPaperWorkerResponse = { id, blob };
     workerScope.postMessage(response);
