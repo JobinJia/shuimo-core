@@ -63,6 +63,20 @@ const TAG_PLACEMENT: Record<PlanTag, TagPlacement> = {
 const MOUNTAIN_ANCHORED: ReadonlySet<PlanTag> = new Set(["arch01", "arch03"]);
 
 /**
+ * Per-anchored-tag hard caps and per-mountain placement probability. Caps are
+ * enforced in both `plan()` and `fillShortfall` so visual density stays
+ * readable even if upstream passes an aggressive `minCounts`.
+ */
+const ANCHORED_CAP: Record<"arch01" | "arch03", number> = {
+  arch01: 3,
+  arch03: 1,
+};
+const ANCHORED_PROB: Record<"arch01" | "arch03", number> = {
+  arch01: 0.3,
+  arch03: 0.12,
+};
+
+/**
  * MountPlanner - Plan mountain and landscape element placement
  * Generates a plan for where to place mountains, boats, and other elements
  */
@@ -70,25 +84,35 @@ export class MountPlanner {
   /** Column width used to index `planmtx`. Shared by `plan()` and `fillShortfall()`. */
   static readonly XSTEP = 5;
 
-  /**
-   * Return the x coordinate of the `mount` item closest to `x`, or null if
-   * `reg` contains no mountains. Anchored tags (arch01/arch03) use this to
-   * snap onto a real mountain spine instead of relying on the wider
-   * `planmtx > 0` halo (which includes the ±mwid(200) influence band and
-   * produced the "building floating on water" visual bug).
-   */
-  private static nearestMountX(x: number, reg: PlanItem[]): number | null {
-    let best: number | null = null;
-    let bestD = Infinity;
-    for (const item of reg) {
-      if (item.tag !== "mount") continue;
-      const d = Math.abs(item.x - x);
-      if (d < bestD) {
-        bestD = d;
-        best = item.x;
-      }
+  /** In-place Fisher-Yates shuffle driven by `prng` (deterministic per seed). */
+  private static shuffle<T>(arr: T[]): T[] {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(prng.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
     }
-    return best;
+    return a;
+  }
+
+  /**
+   * Compute an x near a mountain spine for anchored placement (±15 around
+   * `mountX`). Keeps the arch visibly on the mountain rather than floating on
+   * flanking water/sky.
+   */
+  private static anchoredX(mountX: number): number {
+    return mountX + (prng.random() - 0.5) * 30;
+  }
+
+  /**
+   * Compute a y offset anchored to the mountain's base y. arch01 sits
+   * mountY+20..+80 (mid-to-lower slope); arch03 sits mountY-40..+20 so the
+   * pagoda base lives inside the spine and its upper stories rise past the
+   * ridge. Keeps anchored buildings attached to the mountain body instead of
+   * lining up on a fixed ~680 horizon.
+   */
+  private static anchoredY(tag: "arch01" | "arch03", mountY: number): number {
+    if (tag === "arch01") return mountY + 20 + prng.random() * 60;
+    return mountY - 40 + prng.random() * 60;
   }
 
   /**
@@ -232,22 +256,27 @@ export class MountPlanner {
       }
     }
 
-    // Place arch buildings (arch01 - simple house).
-    // Snap onto the nearest real mountain spine (not the wider planmtx halo)
-    // so the house sits visibly on the mountain instead of drifting onto water.
-    for (let i = xmin; i < xmax; i += xstep) {
-      const mtxIdx = Math.floor(i / xstep);
-      if ((planmtx[mtxIdx] ?? 0) > 0 && prng.random() < 0.05) {
-        const anchor = this.nearestMountX(i, reg);
-        if (anchor === null) continue;
-        const jx = anchor + (prng.random() - 0.5) * 60;
+    // Place arch01 (simple house) and arch03 (pagoda): iterate the mountain
+    // list directly instead of stepping across x. Per-mount probability and a
+    // hard total cap prevent the "ten pavilions lined up on the horizon"
+    // failure mode that the xstep scan produced (scan density × column count
+    // stacked up arch firings even when `chaddSameTag` prevented per-mount
+    // clustering). y is anchored to each mount's own y so the arch sits on the
+    // mountain body, not on a fixed ground line.
+    const mounts = reg.filter((r) => r.tag === "mount");
+    {
+      const shuffled = this.shuffle(mounts);
+      let count = 0;
+      for (const m of shuffled) {
+        if (count >= ANCHORED_CAP.arch01) break;
+        if (prng.random() >= ANCHORED_PROB.arch01) continue;
         const r: PlanItem = {
           tag: "arch01",
-          x: jx,
-          y: 680 + prng.random() * 50, // Near bottom of scene (ground level)
+          x: this.anchoredX(m.x),
+          y: this.anchoredY("arch01", m.y),
           h: 0,
         };
-        this.chaddSameTag(reg, r, 80);
+        if (this.chaddSameTag(reg, r, 80)) count++;
       }
     }
 
@@ -264,21 +293,19 @@ export class MountPlanner {
       }
     }
 
-    // Place arch03 pagodas (on scenic spots - can be on higher ground).
-    // Also snapped onto the nearest mountain spine, same as arch01.
-    for (let i = xmin; i < xmax; i += xstep) {
-      const mtxIdx = Math.floor(i / xstep);
-      if ((planmtx[mtxIdx] ?? 0) > 0 && prng.random() < 0.015) {
-        const anchor = this.nearestMountX(i, reg);
-        if (anchor === null) continue;
-        const jx = anchor + (prng.random() - 0.5) * 60;
+    {
+      const shuffled = this.shuffle(mounts);
+      let count = 0;
+      for (const m of shuffled) {
+        if (count >= ANCHORED_CAP.arch03) break;
+        if (prng.random() >= ANCHORED_PROB.arch03) continue;
         const r: PlanItem = {
           tag: "arch03",
-          x: jx,
-          y: 620 + prng.random() * 80, // Slightly elevated
+          x: this.anchoredX(m.x),
+          y: this.anchoredY("arch03", m.y),
           h: 0,
         };
-        this.chaddSameTag(reg, r, 120);
+        if (this.chaddSameTag(reg, r, 120)) count++;
       }
     }
 
@@ -329,10 +356,7 @@ export class MountPlanner {
     const ny = y / height;
 
     const inCore =
-      nx >= blankArea.xMin &&
-      nx <= blankArea.xMax &&
-      ny >= blankArea.yMin &&
-      ny <= blankArea.yMax;
+      nx >= blankArea.xMin && nx <= blankArea.xMax && ny >= blankArea.yMin && ny <= blankArea.yMax;
     if (inCore) return true;
 
     const margin = blankArea.margin;
@@ -380,30 +404,37 @@ export class MountPlanner {
       const placement = TAG_PLACEMENT[tag];
       if (!placement || target <= 0) continue;
 
-      let count = plan.reduce((n, p) => (p.tag === tag ? n + 1 : n), 0);
-      if (count >= target) continue;
+      const anchored = MOUNTAIN_ANCHORED.has(tag);
+      // Anchored tags share a hard cap with plan(): never fill past the
+      // visual-density ceiling even if minCounts asks for more.
+      const cap = anchored ? ANCHORED_CAP[tag as "arch01" | "arch03"] : Infinity;
+      const effectiveTarget = Math.min(target, cap);
 
-      const missing = target - count;
+      let count = plan.reduce((n, p) => (p.tag === tag ? n + 1 : n), 0);
+      if (count >= effectiveTarget) continue;
+
+      const missing = effectiveTarget - count;
       const maxAttempts = missing * 20;
 
-      const anchored = MOUNTAIN_ANCHORED.has(tag);
       // Anchored tags snap onto a real mountain; pre-collect them once so we
       // don't re-filter every attempt.
       const mountItems = anchored ? plan.filter((p) => p.tag === "mount") : [];
       if (anchored && mountItems.length === 0) continue;
 
-      for (let attempt = 0; attempt < maxAttempts && count < target; attempt++) {
+      for (let attempt = 0; attempt < maxAttempts && count < effectiveTarget; attempt++) {
         let x: number;
+        let y: number;
         if (anchored) {
           const anchor = mountItems[Math.floor(prng.random() * mountItems.length)];
-          x = anchor.x + (prng.random() - 0.5) * 60;
+          x = this.anchoredX(anchor.x);
+          y = this.anchoredY(tag as "arch01" | "arch03", anchor.y);
         } else {
           x = xmin + prng.random() * (xmax - xmin);
+          y =
+            placement.yJitter === 0
+              ? placement.yBase
+              : placement.yBase + prng.random() * placement.yJitter;
         }
-        const y =
-          placement.yJitter === 0
-            ? placement.yBase
-            : placement.yBase + prng.random() * placement.yJitter;
 
         if (blankArea && this.isInBlankArea(x, y, width, height, blankArea)) {
           continue;

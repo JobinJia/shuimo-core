@@ -195,11 +195,52 @@ describe("MountPlanner.plan anchored buildings", () => {
 
     const anchored = plan.filter((p) => p.tag === "arch01" || p.tag === "arch03");
     for (const a of anchored) {
-      const nearest = mounts.reduce(
-        (best, m) => Math.min(best, Math.abs(m.x - a.x)),
-        Infinity,
-      );
+      const nearest = mounts.reduce((best, m) => Math.min(best, Math.abs(m.x - a.x)), Infinity);
       expect(nearest).toBeLessThanOrEqual(35);
+    }
+  });
+
+  it("caps arch01 count at 3 per plan across several seeds", () => {
+    for (const seed of [42, 123, 58049, 7]) {
+      prng.seed(seed);
+      const planmtx: number[] = [];
+      const plan = MountPlanner.plan(0, 2400, planmtx);
+      const arch01s = plan.filter((p) => p.tag === "arch01");
+      expect(arch01s.length).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it("caps arch03 count at 1 per plan across several seeds", () => {
+    for (const seed of [42, 123, 58049, 7]) {
+      prng.seed(seed);
+      const planmtx: number[] = [];
+      const plan = MountPlanner.plan(0, 2400, planmtx);
+      const arch03s = plan.filter((p) => p.tag === "arch03");
+      expect(arch03s.length).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("places arch01 / arch03 y within [-40, +80] of some mount.y within its x-anchor range (on the mountain body, not on a fixed horizon)", () => {
+    // With mount spacing as tight as ~10px and an x-jitter of ±15, "nearest
+    // mount by x" can shift onto a neighbor of the anchoring mount. The
+    // visually meaningful invariant is: there exists a mount within the
+    // anchor x-range (≤35px) whose y is in [-40, +80] of the arch's y.
+    for (const seed of [42, 123, 58049, 7]) {
+      prng.seed(seed);
+      const planmtx: number[] = [];
+      const plan = MountPlanner.plan(0, 2400, planmtx);
+      const mounts = plan.filter((p) => p.tag === "mount");
+      expect(mounts.length).toBeGreaterThan(0);
+
+      const anchored = plan.filter((p) => p.tag === "arch01" || p.tag === "arch03");
+      for (const a of anchored) {
+        const onMountainBody = mounts.some((m) => {
+          if (Math.abs(m.x - a.x) > 35) return false;
+          const dy = a.y - m.y;
+          return dy >= -40 && dy <= 80;
+        });
+        expect(onMountainBody).toBe(true);
+      }
     }
   });
 });
