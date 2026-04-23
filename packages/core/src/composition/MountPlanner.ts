@@ -59,11 +59,23 @@ const TAG_PLACEMENT: Record<PlanTag, TagPlacement> = {
   tower: { yBase: 720, yJitter: 30, mind: 500 },
 };
 
+/** Tags whose placement must land within the `planmtx > 0` mountain footprint. */
+const MOUNTAIN_ANCHORED: ReadonlySet<PlanTag> = new Set(["arch01", "arch03"]);
+
 /**
  * MountPlanner - Plan mountain and landscape element placement
  * Generates a plan for where to place mountains, boats, and other elements
  */
 export class MountPlanner {
+  /** Column width used to index `planmtx`. Shared by `plan()` and `fillShortfall()`. */
+  static readonly XSTEP = 5;
+
+  /** Test whether an x coordinate lands on a mountain column in `planmtx`. */
+  private static onMount(x: number, planmtx: number[]): boolean {
+    const idx = Math.floor(x / MountPlanner.XSTEP);
+    return (planmtx[idx] ?? 0) > 0;
+  }
+
   /**
    * Check if a point is a local maximum in the noise field
    */
@@ -125,7 +137,7 @@ export class MountPlanner {
       return noise.noise(x * 0.01, Math.PI);
     };
 
-    const xstep = 5;
+    const xstep = MountPlanner.XSTEP;
     const mwid = 200;
 
     // Initialize planning matrix
@@ -194,10 +206,13 @@ export class MountPlanner {
     for (let i = xmin; i < xmax; i += xstep) {
       const mtxIdx = Math.floor(i / xstep);
       if ((planmtx[mtxIdx] ?? 0) > 0 && prng.random() < 0.05) {
-        // Place houses on mountain foothills (high y = low on screen = ground level)
+        const jx = i + (prng.random() - 0.5) * 200;
+        // Re-check: the ±100 jitter can push the house off the mountain footprint
+        // and onto open water. Skip when that happens.
+        if (!this.onMount(jx, planmtx)) continue;
         const r: PlanItem = {
           tag: "arch01",
-          x: i + (prng.random() - 0.5) * 200,
+          x: jx,
           y: 680 + prng.random() * 50, // Near bottom of scene (ground level)
           h: 0,
         };
@@ -222,10 +237,12 @@ export class MountPlanner {
     for (let i = xmin; i < xmax; i += xstep) {
       const mtxIdx = Math.floor(i / xstep);
       if ((planmtx[mtxIdx] ?? 0) > 0 && prng.random() < 0.015) {
-        // Place pagodas on elevated positions near mountains
+        const jx = i + (prng.random() - 0.5) * 100;
+        // Jitter can push the pagoda off the mountain footprint; skip those.
+        if (!this.onMount(jx, planmtx)) continue;
         const r: PlanItem = {
           tag: "arch03",
-          x: i + (prng.random() - 0.5) * 100,
+          x: jx,
           y: 620 + prng.random() * 80, // Slightly elevated
           h: 0,
         };
@@ -337,12 +354,18 @@ export class MountPlanner {
       const missing = target - count;
       const maxAttempts = missing * 20;
 
+      const anchored = MOUNTAIN_ANCHORED.has(tag);
+
       for (let attempt = 0; attempt < maxAttempts && count < target; attempt++) {
         const x = xmin + prng.random() * (xmax - xmin);
         const y =
           placement.yJitter === 0
             ? placement.yBase
             : placement.yBase + prng.random() * placement.yJitter;
+
+        // Mountain-anchored tags (arch01/arch03) must land on a planmtx>0 column,
+        // otherwise minCounts backfill would reintroduce the "building on water" bug.
+        if (anchored && !this.onMount(x, planmtx)) continue;
 
         if (blankArea && this.isInBlankArea(x, y, width, height, blankArea)) {
           continue;
