@@ -139,4 +139,67 @@ describe("MountPlanner.fillShortfall", () => {
     });
     expect(plan).toEqual(snapshot);
   });
+
+  it("anchors fillShortfall arch03 onto an existing mount (within jitter radius)", () => {
+    const plan: PlanItem[] = [
+      { tag: "mount", x: 400, y: 300, h: 0.5 },
+      { tag: "mount", x: 900, y: 300, h: 0.5 },
+    ];
+    const planmtx: number[] = [];
+
+    MountPlanner.fillShortfall(plan, {
+      xmin: 0,
+      xmax: 1200,
+      planmtx,
+      minCounts: { arch03: 1 },
+      width: 1200,
+      height: 800,
+    });
+
+    const archs = plan.filter((p) => p.tag === "arch03");
+    expect(archs.length).toBeGreaterThanOrEqual(1);
+    for (const a of archs) {
+      const nearest = Math.min(Math.abs(a.x - 400), Math.abs(a.x - 900));
+      // ±30 jitter radius leaves a small margin for float math.
+      expect(nearest).toBeLessThanOrEqual(35);
+    }
+  });
+
+  it("skips anchored tags when no mounts exist (rather than looping on dead ground)", () => {
+    const plan: PlanItem[] = [];
+    const planmtx: number[] = [];
+
+    MountPlanner.fillShortfall(plan, {
+      xmin: 0,
+      xmax: 1200,
+      planmtx,
+      minCounts: { arch01: 3 },
+      width: 1200,
+      height: 800,
+    });
+
+    expect(plan.filter((p) => p.tag === "arch01").length).toBe(0);
+  });
+});
+
+describe("MountPlanner.plan anchored buildings", () => {
+  it("places every arch01 / arch03 within ±35px of the nearest mount spine", () => {
+    prng.seed(123);
+    const planmtx: number[] = [];
+    const plan = MountPlanner.plan(0, 2400, planmtx);
+
+    const mounts = plan.filter((p) => p.tag === "mount");
+    // Sanity: plan() on this seed must yield some mountains for the test to be
+    // meaningful. If this ever fires, pick another seed.
+    expect(mounts.length).toBeGreaterThan(0);
+
+    const anchored = plan.filter((p) => p.tag === "arch01" || p.tag === "arch03");
+    for (const a of anchored) {
+      const nearest = mounts.reduce(
+        (best, m) => Math.min(best, Math.abs(m.x - a.x)),
+        Infinity,
+      );
+      expect(nearest).toBeLessThanOrEqual(35);
+    }
+  });
 });

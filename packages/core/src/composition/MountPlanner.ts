@@ -52,14 +52,14 @@ const TAG_PLACEMENT: Record<PlanTag, TagPlacement> = {
   flatmount: { yBase: 550, yJitter: 150, mind: 10 },
   distmount: { yBase: 230, yJitter: 50, mind: 10 },
   boat: { yBase: 300, yJitter: 390, mind: 400 },
-  arch01: { yBase: 680, yJitter: 50, mind: 150 },
+  arch01: { yBase: 680, yJitter: 50, mind: 80 },
   arch02: { yBase: 700, yJitter: 30, mind: 200 },
-  arch03: { yBase: 620, yJitter: 80, mind: 300 },
+  arch03: { yBase: 620, yJitter: 80, mind: 120 },
   arch04: { yBase: 690, yJitter: 40, mind: 250 },
   tower: { yBase: 720, yJitter: 30, mind: 500 },
 };
 
-/** Tags whose placement must land within the `planmtx > 0` mountain footprint. */
+/** Tags that must be snapped onto the nearest real mountain spine. */
 const MOUNTAIN_ANCHORED: ReadonlySet<PlanTag> = new Set(["arch01", "arch03"]);
 
 /**
@@ -70,10 +70,25 @@ export class MountPlanner {
   /** Column width used to index `planmtx`. Shared by `plan()` and `fillShortfall()`. */
   static readonly XSTEP = 5;
 
-  /** Test whether an x coordinate lands on a mountain column in `planmtx`. */
-  private static onMount(x: number, planmtx: number[]): boolean {
-    const idx = Math.floor(x / MountPlanner.XSTEP);
-    return (planmtx[idx] ?? 0) > 0;
+  /**
+   * Return the x coordinate of the `mount` item closest to `x`, or null if
+   * `reg` contains no mountains. Anchored tags (arch01/arch03) use this to
+   * snap onto a real mountain spine instead of relying on the wider
+   * `planmtx > 0` halo (which includes the ±mwid(200) influence band and
+   * produced the "building floating on water" visual bug).
+   */
+  private static nearestMountX(x: number, reg: PlanItem[]): number | null {
+    let best: number | null = null;
+    let bestD = Infinity;
+    for (const item of reg) {
+      if (item.tag !== "mount") continue;
+      const d = Math.abs(item.x - x);
+      if (d < bestD) {
+        bestD = d;
+        best = item.x;
+      }
+    }
+    return best;
   }
 
   /**
@@ -114,6 +129,22 @@ export class MountPlanner {
       }
     }
     console.log("+");
+    reg.push(r);
+    return true;
+  }
+
+  /**
+   * Variant of `chadd` that only enforces min distance against items of the
+   * same tag. Anchored placements (arch01/arch03) sit within ±30 of a mount
+   * by design — the generic `chadd` would then reject every candidate for
+   * being too close to its own anchor. Same-tag checks still prevent two
+   * buildings of the same type from clustering on one spine.
+   */
+  private static chaddSameTag(reg: PlanItem[], r: PlanItem, mind: number): boolean {
+    for (const p of reg) {
+      if (p.tag !== r.tag) continue;
+      if (Math.abs(p.x - r.x) < mind) return false;
+    }
     reg.push(r);
     return true;
   }
@@ -201,22 +232,22 @@ export class MountPlanner {
       }
     }
 
-    // Place arch buildings (arch01 - simple house)
-    // y coordinate: higher value = lower on screen (closer to bottom/ground)
+    // Place arch buildings (arch01 - simple house).
+    // Snap onto the nearest real mountain spine (not the wider planmtx halo)
+    // so the house sits visibly on the mountain instead of drifting onto water.
     for (let i = xmin; i < xmax; i += xstep) {
       const mtxIdx = Math.floor(i / xstep);
       if ((planmtx[mtxIdx] ?? 0) > 0 && prng.random() < 0.05) {
-        const jx = i + (prng.random() - 0.5) * 200;
-        // Re-check: the ±100 jitter can push the house off the mountain footprint
-        // and onto open water. Skip when that happens.
-        if (!this.onMount(jx, planmtx)) continue;
+        const anchor = this.nearestMountX(i, reg);
+        if (anchor === null) continue;
+        const jx = anchor + (prng.random() - 0.5) * 60;
         const r: PlanItem = {
           tag: "arch01",
           x: jx,
           y: 680 + prng.random() * 50, // Near bottom of scene (ground level)
           h: 0,
         };
-        this.chadd(reg, r, 150, planmtx);
+        this.chaddSameTag(reg, r, 80);
       }
     }
 
@@ -233,20 +264,21 @@ export class MountPlanner {
       }
     }
 
-    // Place arch03 pagodas (on scenic spots - can be on higher ground)
+    // Place arch03 pagodas (on scenic spots - can be on higher ground).
+    // Also snapped onto the nearest mountain spine, same as arch01.
     for (let i = xmin; i < xmax; i += xstep) {
       const mtxIdx = Math.floor(i / xstep);
       if ((planmtx[mtxIdx] ?? 0) > 0 && prng.random() < 0.015) {
-        const jx = i + (prng.random() - 0.5) * 100;
-        // Jitter can push the pagoda off the mountain footprint; skip those.
-        if (!this.onMount(jx, planmtx)) continue;
+        const anchor = this.nearestMountX(i, reg);
+        if (anchor === null) continue;
+        const jx = anchor + (prng.random() - 0.5) * 60;
         const r: PlanItem = {
           tag: "arch03",
           x: jx,
           y: 620 + prng.random() * 80, // Slightly elevated
           h: 0,
         };
-        this.chadd(reg, r, 300, planmtx);
+        this.chaddSameTag(reg, r, 120);
       }
     }
 
@@ -355,24 +387,33 @@ export class MountPlanner {
       const maxAttempts = missing * 20;
 
       const anchored = MOUNTAIN_ANCHORED.has(tag);
+      // Anchored tags snap onto a real mountain; pre-collect them once so we
+      // don't re-filter every attempt.
+      const mountItems = anchored ? plan.filter((p) => p.tag === "mount") : [];
+      if (anchored && mountItems.length === 0) continue;
 
       for (let attempt = 0; attempt < maxAttempts && count < target; attempt++) {
-        const x = xmin + prng.random() * (xmax - xmin);
+        let x: number;
+        if (anchored) {
+          const anchor = mountItems[Math.floor(prng.random() * mountItems.length)];
+          x = anchor.x + (prng.random() - 0.5) * 60;
+        } else {
+          x = xmin + prng.random() * (xmax - xmin);
+        }
         const y =
           placement.yJitter === 0
             ? placement.yBase
             : placement.yBase + prng.random() * placement.yJitter;
-
-        // Mountain-anchored tags (arch01/arch03) must land on a planmtx>0 column,
-        // otherwise minCounts backfill would reintroduce the "building on water" bug.
-        if (anchored && !this.onMount(x, planmtx)) continue;
 
         if (blankArea && this.isInBlankArea(x, y, width, height, blankArea)) {
           continue;
         }
 
         const item: PlanItem = { tag, x, y, h: 0 };
-        if (this.chadd(plan, item, placement.mind, planmtx)) {
+        const added = anchored
+          ? this.chaddSameTag(plan, item, placement.mind)
+          : this.chadd(plan, item, placement.mind, planmtx);
+        if (added) {
           count++;
         }
       }
