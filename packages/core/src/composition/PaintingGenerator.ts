@@ -8,7 +8,7 @@
  * - Configurable blank space (留白) positioning - affects element generation
  */
 
-import { MountPlanner, type PlanItem } from "./MountPlanner";
+import { MountPlanner, type BlankArea, type PlanItem, type PlanTag } from "./MountPlanner";
 import { Mount } from "../elements/natural/Mount";
 import { water } from "../elements/natural/Water";
 import { Arch } from "../elements/objects/Arch";
@@ -87,6 +87,16 @@ export interface PaintingOptions {
   /** Random seed for reproducible generation */
   seed?: number;
 
+  /**
+   * Optional per-tag minimum counts for landscape planning.
+   *
+   * After the natural planner runs and blank-area filtering removes items,
+   * shortfalls for any tag listed here are filled with jittered positions
+   * that still pass distance and blank-area checks. Useful for guaranteeing
+   * a non-empty scene regardless of seed.
+   */
+  minCounts?: Partial<Record<PlanTag, number>>;
+
   // Flower-bird specific options
   /** Flower type: 'woody', 'herbal', or 'random' */
   flowerType?: "woody" | "herbal" | "random";
@@ -107,17 +117,6 @@ export interface PaintingResult {
 
   /** Seed used for generation */
   seed: number;
-}
-
-/**
- * Blank area definition with margin
- */
-interface BlankArea {
-  xMin: number; // 0-1 normalized
-  xMax: number;
-  yMin: number;
-  yMax: number;
-  margin: number; // Extra margin for elements near the edge
 }
 
 /**
@@ -165,52 +164,6 @@ function getBlankArea(position: BlankPosition): BlankArea | null {
 }
 
 /**
- * Check if a point is in the blank area (with margin consideration)
- */
-function isInBlankArea(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  blankArea: BlankArea | null,
-): boolean {
-  if (!blankArea) return false;
-
-  const normalizedX = x / width;
-  const normalizedY = y / height;
-
-  // Check if in core blank area
-  const inCore =
-    normalizedX >= blankArea.xMin &&
-    normalizedX <= blankArea.xMax &&
-    normalizedY >= blankArea.yMin &&
-    normalizedY <= blankArea.yMax;
-
-  if (inCore) return true;
-
-  // Check margin area with probability-based filtering
-  const margin = blankArea.margin;
-  const inMargin =
-    normalizedX >= blankArea.xMin - margin &&
-    normalizedX <= blankArea.xMax + margin &&
-    normalizedY >= blankArea.yMin - margin &&
-    normalizedY <= blankArea.yMax + margin;
-
-  if (inMargin) {
-    // Calculate distance from blank area
-    const distX = Math.max(0, blankArea.xMin - normalizedX, normalizedX - blankArea.xMax);
-    const distY = Math.max(0, blankArea.yMin - normalizedY, normalizedY - blankArea.yMax);
-    const dist = Math.sqrt(distX * distX + distY * distY);
-
-    // Probability increases as we get closer to blank area
-    const probability = 1 - dist / margin;
-    return prng.random() < probability * 0.8;
-  }
-
-  return false;
-}
-
-/**
  * Filter plan items based on blank area
  */
 function filterPlanByBlankArea(
@@ -222,7 +175,7 @@ function filterPlanByBlankArea(
   if (!blankArea) return plan;
 
   return plan.filter((item) => {
-    return !isInBlankArea(item.x, item.y, width, height, blankArea);
+    return !MountPlanner.isInBlankArea(item.x, item.y, width, height, blankArea);
   });
 }
 
@@ -298,6 +251,7 @@ function generateLandscapeContent(
   height: number,
   seed: number,
   blankPosition: BlankPosition,
+  minCounts?: Partial<Record<PlanTag, number>>,
 ): string {
   // Initialize PRNG
   prng.seed(seed);
@@ -315,6 +269,19 @@ function generateLandscapeContent(
   // Filter plan based on blank area
   plan = filterPlanByBlankArea(plan, width, height, blankArea);
 
+  // Fill any requested tag shortfalls (safety net for empty-scene seeds).
+  if (minCounts) {
+    plan = MountPlanner.fillShortfall(plan, {
+      xmin,
+      xmax,
+      planmtx,
+      minCounts,
+      blankArea,
+      width,
+      height,
+    });
+  }
+
   // Sort by y coordinate (painter's algorithm - far to near)
   plan.sort((a, b) => a.y - b.y);
 
@@ -324,7 +291,7 @@ function generateLandscapeContent(
   // Add water for mounts (filter by blank area too)
   for (const item of plan) {
     if (item.tag === "mount") {
-      if (!isInBlankArea(item.x, item.y, width, height, blankArea)) {
+      if (!MountPlanner.isInBlankArea(item.x, item.y, width, height, blankArea)) {
         content += water(item.x, item.y, seed + item.x);
       }
     }
@@ -446,6 +413,7 @@ export class PaintingGenerator {
       xuanPaperOptions = {},
       blankPosition = "none",
       seed = Date.now(),
+      minCounts,
     } = options;
 
     // SVG defs
@@ -462,7 +430,7 @@ export class PaintingGenerator {
     // Generate painting content based on type
     let paintingContent = "";
     if (type === "landscape") {
-      paintingContent = generateLandscapeContent(width, height, seed, blankPosition);
+      paintingContent = generateLandscapeContent(width, height, seed, blankPosition, minCounts);
     } else if (type === "flowerBird") {
       paintingContent = generateFlowerBirdContent(width, height, seed, options);
     }

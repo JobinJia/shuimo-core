@@ -1,6 +1,20 @@
 import { noise } from "../foundation/noise";
 import { prng } from "../foundation/random";
 
+/**
+ * Tag identifying the element class of a plan item.
+ */
+export type PlanTag =
+  | "mount"
+  | "flatmount"
+  | "distmount"
+  | "boat"
+  | "arch01"
+  | "arch02"
+  | "arch03"
+  | "arch04"
+  | "tower";
+
 export interface PlanItem {
   /** Element type tag */
   tag: string;
@@ -11,6 +25,39 @@ export interface PlanItem {
   /** Height/intensity parameter */
   h: number;
 }
+
+/**
+ * Rectangular region (in normalized 0..1 coordinates) that should remain
+ * empty during composition. Consumed by `filterPlanByBlankArea` and by
+ * `MountPlanner.fillShortfall` to reject placements that would land in it.
+ */
+export interface BlankArea {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+  /** Extra margin band where elements are probabilistically rejected. */
+  margin: number;
+}
+
+/** Per-tag natural placement ranges matching the constants used in `plan()`. */
+interface TagPlacement {
+  yBase: number;
+  yJitter: number;
+  mind: number;
+}
+
+const TAG_PLACEMENT: Record<PlanTag, TagPlacement> = {
+  mount: { yBase: 300, yJitter: 0, mind: 10 },
+  flatmount: { yBase: 550, yJitter: 150, mind: 10 },
+  distmount: { yBase: 230, yJitter: 50, mind: 10 },
+  boat: { yBase: 300, yJitter: 390, mind: 400 },
+  arch01: { yBase: 680, yJitter: 50, mind: 150 },
+  arch02: { yBase: 700, yJitter: 30, mind: 200 },
+  arch03: { yBase: 620, yJitter: 80, mind: 300 },
+  arch04: { yBase: 690, yJitter: 40, mind: 250 },
+  tower: { yBase: 720, yJitter: 30, mind: 500 },
+};
 
 /**
  * MountPlanner - Plan mountain and landscape element placement
@@ -213,5 +260,101 @@ export class MountPlanner {
     }
 
     return reg;
+  }
+
+  /**
+   * Test whether a pixel coordinate falls inside a normalized blank area.
+   * The margin band around the core is rejected probabilistically, so that
+   * edges fade rather than hard-cut.
+   */
+  static isInBlankArea(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    blankArea: BlankArea | null,
+  ): boolean {
+    if (!blankArea) return false;
+
+    const nx = x / width;
+    const ny = y / height;
+
+    const inCore =
+      nx >= blankArea.xMin &&
+      nx <= blankArea.xMax &&
+      ny >= blankArea.yMin &&
+      ny <= blankArea.yMax;
+    if (inCore) return true;
+
+    const margin = blankArea.margin;
+    const inMargin =
+      nx >= blankArea.xMin - margin &&
+      nx <= blankArea.xMax + margin &&
+      ny >= blankArea.yMin - margin &&
+      ny <= blankArea.yMax + margin;
+    if (!inMargin) return false;
+
+    const distX = Math.max(0, blankArea.xMin - nx, nx - blankArea.xMax);
+    const distY = Math.max(0, blankArea.yMin - ny, ny - blankArea.yMax);
+    const dist = Math.sqrt(distX * distX + distY * distY);
+    const probability = 1 - dist / margin;
+    return prng.random() < probability * 0.8;
+  }
+
+  /**
+   * Ensure each tag named in `minCounts` appears at least the requested
+   * number of times in `plan`. Shortfalls are filled by sampling jittered
+   * positions in the tag's natural range; each candidate must survive both
+   * the blank-area rejection and the same `chadd` minimum-distance check
+   * used by `plan()`. Attempts are capped so unsatisfiable requests return
+   * rather than looping forever.
+   *
+   * Mutates `plan` in place and returns the same array for chainability.
+   */
+  static fillShortfall(
+    plan: PlanItem[],
+    ctx: {
+      xmin: number;
+      xmax: number;
+      planmtx: number[];
+      minCounts: Partial<Record<PlanTag, number>>;
+      blankArea?: BlankArea | null;
+      width: number;
+      height: number;
+    },
+  ): PlanItem[] {
+    const { xmin, xmax, planmtx, minCounts, blankArea, width, height } = ctx;
+
+    for (const [key, rawTarget] of Object.entries(minCounts)) {
+      const tag = key as PlanTag;
+      const target = rawTarget ?? 0;
+      const placement = TAG_PLACEMENT[tag];
+      if (!placement || target <= 0) continue;
+
+      let count = plan.reduce((n, p) => (p.tag === tag ? n + 1 : n), 0);
+      if (count >= target) continue;
+
+      const missing = target - count;
+      const maxAttempts = missing * 20;
+
+      for (let attempt = 0; attempt < maxAttempts && count < target; attempt++) {
+        const x = xmin + prng.random() * (xmax - xmin);
+        const y =
+          placement.yJitter === 0
+            ? placement.yBase
+            : placement.yBase + prng.random() * placement.yJitter;
+
+        if (blankArea && this.isInBlankArea(x, y, width, height, blankArea)) {
+          continue;
+        }
+
+        const item: PlanItem = { tag, x, y, h: 0 };
+        if (this.chadd(plan, item, placement.mind, planmtx)) {
+          count++;
+        }
+      }
+    }
+
+    return plan;
   }
 }
