@@ -192,6 +192,75 @@ export class Man {
   }
 
   /**
+   * Generate rod01 - a fishing rod with line dropping to water.
+   *
+   * Same signature as `stick01` so it can be swapped in via `ManOptions.ite`.
+   * The rod is built in the p0→p1 local frame (like stick01) and then the
+   * line is dropped in screen-space from the rod tip, so it always hangs
+   * straight down regardless of the figure's pose or flip.
+   */
+  static rod01(p0: number[], p1: number[], options: StickOptions = {}): string {
+    const fli = options.fli ?? false;
+
+    let canv = "";
+    const seed = prng.random();
+    const f = fli ? (x: Polygon) => Man.flipper(x) : (x: Polygon) => x;
+
+    // Rod: extends further than stick01 (0..~4.5 in local y) with a steady
+    // rise in -x (which is screen "up") so it reads as an angled fishing pole.
+    const rodQ: Polygon = [];
+    const l = 14;
+    for (let i = 0; i < l; i++) {
+      const t = i / (l - 1);
+      rodQ.push([
+        -1.3 * t - noise.noise(i * 0.1, seed) * 0.08 * Math.sin(t * Math.PI) * 4,
+        i * 0.35,
+      ]);
+    }
+    const rodGlobal = Man.tranpoly(p0, p1, f(rodQ));
+    canv += poly(rodGlobal, {
+      str: "rgba(100,100,100,0.65)",
+      wid: 1.2,
+    });
+
+    // Fishing line: thin and nearly straight, dropping in screen-space from
+    // the rod tip. A tiny noise wobble keeps it from looking printed.
+    const tip = rodGlobal[rodGlobal.length - 1];
+    const lineLen = 14 + prng.random() * 4;
+    const lineSegs = 8;
+    const linePts: Polygon = [];
+    for (let i = 0; i < lineSegs; i++) {
+      const t = i / (lineSegs - 1);
+      const wobble = noise.noise(i * 0.3, seed + 13) * 0.6 * Math.sin(t * Math.PI);
+      linePts.push([tip[0] + wobble, tip[1] + t * lineLen]);
+    }
+    canv += poly(linePts, {
+      str: "rgba(100,100,100,0.55)",
+      wid: 0.5,
+    });
+
+    // Tiny water ripple where the line meets the surface — two nested dashes.
+    const wx = linePts[linePts.length - 1][0];
+    const wy = linePts[linePts.length - 1][1];
+    canv += poly(
+      [
+        [wx - 2.5, wy],
+        [wx + 2.5, wy],
+      ],
+      { str: "rgba(100,100,100,0.4)", wid: 0.6 },
+    );
+    canv += poly(
+      [
+        [wx - 4, wy + 1],
+        [wx + 4, wy + 1],
+      ],
+      { str: "rgba(100,100,100,0.25)", wid: 0.4 },
+    );
+
+    return canv;
+  }
+
+  /**
    * Generate a human figure
    * Body part indices:
    *      2 (head)

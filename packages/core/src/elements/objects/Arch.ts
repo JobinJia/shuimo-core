@@ -993,7 +993,7 @@ export class Arch {
     const dir = fli ? -1 : 1;
 
     canv += Man.man(xoff + 20 * sca * dir, yoff, {
-      ite: Man.stick01,
+      ite: Man.rod01,
       hat: Man.hat02,
       sca: 0.5 * sca,
       fli: !fli,
