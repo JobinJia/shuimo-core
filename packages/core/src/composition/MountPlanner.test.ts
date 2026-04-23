@@ -220,6 +220,32 @@ describe("MountPlanner.plan anchored buildings", () => {
     }
   });
 
+  it("places every arch03 strictly below its anchoring mount.y with dy ∈ [5, 40] (so y-sort draws pagoda on top of the spine)", () => {
+    // arch03 must render after the mount in y-sort so the pagoda body isn't
+    // overpainted by mountain ink. Sort is ascending → larger y draws last →
+    // arch03.y must be strictly greater than the anchoring mount.y. Range cap
+    // (40px) keeps the base visually attached to the spine.
+    for (const seed of [42, 123, 52362, 58049, 91724, 7]) {
+      prng.seed(seed);
+      const planmtx: number[] = [];
+      const plan = MountPlanner.plan(0, 2400, planmtx);
+      const mounts = plan.filter((p) => p.tag === "mount");
+      expect(mounts.length).toBeGreaterThan(0);
+
+      const arch03s = plan.filter((p) => p.tag === "arch03");
+      for (const a of arch03s) {
+        const anchoring = mounts.filter((m) => Math.abs(m.x - a.x) <= 35);
+        // The anchor was within ±15 of some mount when emitted; that mount
+        // must still be present and dy must be in the new tight range.
+        const onSpine = anchoring.some((m) => {
+          const dy = a.y - m.y;
+          return dy >= 5 && dy <= 40;
+        });
+        expect(onSpine).toBe(true);
+      }
+    }
+  });
+
   it("places arch01 / arch03 y within [-40, +80] of some mount.y within its x-anchor range (on the mountain body, not on a fixed horizon)", () => {
     // With mount spacing as tight as ~10px and an x-jitter of ±15, "nearest
     // mount by x" can shift onto a neighbor of the anchoring mount. The

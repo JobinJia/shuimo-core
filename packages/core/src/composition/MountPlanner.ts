@@ -104,15 +104,16 @@ export class MountPlanner {
   }
 
   /**
-   * Compute a y offset anchored to the mountain's base y. arch01 sits
-   * mountY+20..+80 (mid-to-lower slope); arch03 sits mountY-40..+20 so the
-   * pagoda base lives inside the spine and its upper stories rise past the
-   * ridge. Keeps anchored buildings attached to the mountain body instead of
-   * lining up on a fixed ~680 horizon.
+   * Compute a y offset anchored to the mountain's base y. Both anchored tags
+   * sit strictly below the mountain base so y-sort renders them on top of the
+   * spine ink (sort is ascending — larger y draws later). arch01 sits
+   * mountY+20..+80 (mid-to-lower slope, full body in front). arch03 sits
+   * mountY+5..+40 — base hugs the spine, the ~100-150px tower extends upward
+   * past the ridge so the upper stories crown the mountain.
    */
   private static anchoredY(tag: "arch01" | "arch03", mountY: number): number {
     if (tag === "arch01") return mountY + 20 + prng.random() * 60;
-    return mountY - 40 + prng.random() * 60;
+    return mountY + 5 + prng.random() * 35;
   }
 
   /**
