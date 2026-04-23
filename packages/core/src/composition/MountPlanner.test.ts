@@ -183,7 +183,7 @@ describe("MountPlanner.fillShortfall", () => {
 });
 
 describe("MountPlanner.plan anchored buildings", () => {
-  it("places every arch01 / arch03 within ±35px of the nearest mount spine", () => {
+  it("places every arch01 / arch02 / arch03 / arch04 within ±35px of the nearest mount spine", () => {
     prng.seed(123);
     const planmtx: number[] = [];
     const plan = MountPlanner.plan(0, 2400, planmtx);
@@ -193,7 +193,9 @@ describe("MountPlanner.plan anchored buildings", () => {
     // meaningful. If this ever fires, pick another seed.
     expect(mounts.length).toBeGreaterThan(0);
 
-    const anchored = plan.filter((p) => p.tag === "arch01" || p.tag === "arch03");
+    const anchored = plan.filter(
+      (p) => p.tag === "arch01" || p.tag === "arch02" || p.tag === "arch03" || p.tag === "arch04",
+    );
     for (const a of anchored) {
       const nearest = mounts.reduce((best, m) => Math.min(best, Math.abs(m.x - a.x)), Infinity);
       expect(nearest).toBeLessThanOrEqual(35);
@@ -210,6 +212,16 @@ describe("MountPlanner.plan anchored buildings", () => {
     }
   });
 
+  it("caps arch02 count at 2 per plan across several seeds", () => {
+    for (const seed of [42, 123, 58049, 7]) {
+      prng.seed(seed);
+      const planmtx: number[] = [];
+      const plan = MountPlanner.plan(0, 2400, planmtx);
+      const arch02s = plan.filter((p) => p.tag === "arch02");
+      expect(arch02s.length).toBeLessThanOrEqual(2);
+    }
+  });
+
   it("caps arch03 count at 1 per plan across several seeds", () => {
     for (const seed of [42, 123, 58049, 7]) {
       prng.seed(seed);
@@ -217,6 +229,16 @@ describe("MountPlanner.plan anchored buildings", () => {
       const plan = MountPlanner.plan(0, 2400, planmtx);
       const arch03s = plan.filter((p) => p.tag === "arch03");
       expect(arch03s.length).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("caps arch04 count at 2 per plan across several seeds", () => {
+    for (const seed of [42, 123, 58049, 7]) {
+      prng.seed(seed);
+      const planmtx: number[] = [];
+      const plan = MountPlanner.plan(0, 2400, planmtx);
+      const arch04s = plan.filter((p) => p.tag === "arch04");
+      expect(arch04s.length).toBeLessThanOrEqual(2);
     }
   });
 
@@ -240,6 +262,52 @@ describe("MountPlanner.plan anchored buildings", () => {
         const onSpine = anchoring.some((m) => {
           const dy = a.y - m.y;
           return dy >= 5 && dy <= 40;
+        });
+        expect(onSpine).toBe(true);
+      }
+    }
+  });
+
+  it("places every arch02 strictly below its anchoring mount.y with dy ∈ [30, 80]", () => {
+    // Same y-sort invariant as arch03: buildings must render after the
+    // mountain so the structure isn't overpainted. arch02 sits lower on the
+    // slope (mountY+30..+80) because it has a larger footprint that wants
+    // flatter ground.
+    for (const seed of [42, 123, 52362, 58049, 91724, 7]) {
+      prng.seed(seed);
+      const planmtx: number[] = [];
+      const plan = MountPlanner.plan(0, 2400, planmtx);
+      const mounts = plan.filter((p) => p.tag === "mount");
+      expect(mounts.length).toBeGreaterThan(0);
+
+      const arch02s = plan.filter((p) => p.tag === "arch02");
+      for (const a of arch02s) {
+        const anchoring = mounts.filter((m) => Math.abs(m.x - a.x) <= 35);
+        const onSpine = anchoring.some((m) => {
+          const dy = a.y - m.y;
+          return dy >= 30 && dy <= 80;
+        });
+        expect(onSpine).toBe(true);
+      }
+    }
+  });
+
+  it("places every arch04 strictly below its anchoring mount.y with dy ∈ [25, 80]", () => {
+    // Same contract as arch02 — semi-transparent multi-story, slightly
+    // lighter footprint so it hugs the slope a touch higher (mountY+25..+80).
+    for (const seed of [42, 123, 52362, 58049, 91724, 7]) {
+      prng.seed(seed);
+      const planmtx: number[] = [];
+      const plan = MountPlanner.plan(0, 2400, planmtx);
+      const mounts = plan.filter((p) => p.tag === "mount");
+      expect(mounts.length).toBeGreaterThan(0);
+
+      const arch04s = plan.filter((p) => p.tag === "arch04");
+      for (const a of arch04s) {
+        const anchoring = mounts.filter((m) => Math.abs(m.x - a.x) <= 35);
+        const onSpine = anchoring.some((m) => {
+          const dy = a.y - m.y;
+          return dy >= 25 && dy <= 80;
         });
         expect(onSpine).toBe(true);
       }

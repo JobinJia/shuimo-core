@@ -60,20 +60,32 @@ const TAG_PLACEMENT: Record<PlanTag, TagPlacement> = {
 };
 
 /** Tags that must be snapped onto the nearest real mountain spine. */
-const MOUNTAIN_ANCHORED: ReadonlySet<PlanTag> = new Set(["arch01", "arch03"]);
+const MOUNTAIN_ANCHORED: ReadonlySet<PlanTag> = new Set([
+  "arch01",
+  "arch02",
+  "arch03",
+  "arch04",
+]);
+
+type AnchoredTag = "arch01" | "arch02" | "arch03" | "arch04";
 
 /**
  * Per-anchored-tag hard caps and per-mountain placement probability. Caps are
  * enforced in both `plan()` and `fillShortfall` so visual density stays
- * readable even if upstream passes an aggressive `minCounts`.
+ * readable even if upstream passes an aggressive `minCounts`. Buildings
+ * (arch02/arch04) are rarer than small pavilions — they read as landmarks.
  */
-const ANCHORED_CAP: Record<"arch01" | "arch03", number> = {
+const ANCHORED_CAP: Record<AnchoredTag, number> = {
   arch01: 3,
+  arch02: 2,
   arch03: 1,
+  arch04: 2,
 };
-const ANCHORED_PROB: Record<"arch01" | "arch03", number> = {
+const ANCHORED_PROB: Record<AnchoredTag, number> = {
   arch01: 0.3,
+  arch02: 0.15,
   arch03: 0.12,
+  arch04: 0.15,
 };
 
 /**
@@ -104,15 +116,22 @@ export class MountPlanner {
   }
 
   /**
-   * Compute a y offset anchored to the mountain's base y. Both anchored tags
+   * Compute a y offset anchored to the mountain's base y. All anchored tags
    * sit strictly below the mountain base so y-sort renders them on top of the
-   * spine ink (sort is ascending — larger y draws later). arch01 sits
-   * mountY+20..+80 (mid-to-lower slope, full body in front). arch03 sits
-   * mountY+5..+40 — base hugs the spine, the ~100-150px tower extends upward
-   * past the ridge so the upper stories crown the mountain.
+   * spine ink (sort is ascending — larger y draws later).
+   *
+   * - arch01 (pavilion): mountY+20..+80 — mid-to-lower slope, full body in front.
+   * - arch02 (multi-story building): mountY+30..+80 — larger footprint, sits
+   *   lower on the slope / at the foot where there's room for the mass.
+   * - arch03 (pagoda): mountY+5..+40 — base hugs the spine, the ~100-150px
+   *   tower extends upward past the ridge so the upper stories crown the mountain.
+   * - arch04 (semi-transparent building): mountY+25..+80 — lighter than arch02
+   *   but still a sizeable structure, same general band.
    */
-  private static anchoredY(tag: "arch01" | "arch03", mountY: number): number {
+  private static anchoredY(tag: AnchoredTag, mountY: number): number {
     if (tag === "arch01") return mountY + 20 + prng.random() * 60;
+    if (tag === "arch02") return mountY + 30 + prng.random() * 50;
+    if (tag === "arch04") return mountY + 25 + prng.random() * 55;
     return mountY + 5 + prng.random() * 35;
   }
 
@@ -257,13 +276,14 @@ export class MountPlanner {
       }
     }
 
-    // Place arch01 (simple house) and arch03 (pagoda): iterate the mountain
-    // list directly instead of stepping across x. Per-mount probability and a
-    // hard total cap prevent the "ten pavilions lined up on the horizon"
-    // failure mode that the xstep scan produced (scan density × column count
-    // stacked up arch firings even when `chaddSameTag` prevented per-mount
-    // clustering). y is anchored to each mount's own y so the arch sits on the
-    // mountain body, not on a fixed ground line.
+    // Place anchored buildings (arch01/arch02/arch03/arch04): iterate the
+    // mountain list directly instead of stepping across x. Per-mount
+    // probability and a hard total cap prevent the "ten pavilions lined up on
+    // the horizon" failure mode that the xstep scan produced (scan density ×
+    // column count stacked up arch firings even when `chaddSameTag` prevented
+    // per-mount clustering). y is anchored to each mount's own y so the arch
+    // sits on the mountain body, not on a fixed ground line — and buildings
+    // never float on open water.
     const mounts = reg.filter((r) => r.tag === "mount");
     {
       const shuffled = this.shuffle(mounts);
@@ -281,16 +301,24 @@ export class MountPlanner {
       }
     }
 
-    // Place arch02 buildings (multi-story buildings)
-    for (let i = xmin; i < xmax; i += xstep) {
-      if (prng.random() < 0.02) {
+    // Place arch02 (multi-story buildings): anchor onto mountains, same
+    // contract as arch01 — buildings belong on the mountain body, never
+    // floating on open water. xstep-scan placement let arch02 spawn in
+    // middle-of-lake columns (user report: seed 4678 → three-story pavilion
+    // standing on water with no land in sight).
+    {
+      const shuffled = this.shuffle(mounts);
+      let count = 0;
+      for (const m of shuffled) {
+        if (count >= ANCHORED_CAP.arch02) break;
+        if (prng.random() >= ANCHORED_PROB.arch02) continue;
         const r: PlanItem = {
           tag: "arch02",
-          x: i + (prng.random() - 0.5) * 100,
-          y: 700 + prng.random() * 30, // Ground level
+          x: this.anchoredX(m.x),
+          y: this.anchoredY("arch02", m.y),
           h: 0,
         };
-        this.chadd(reg, r, 200, planmtx);
+        if (this.chaddSameTag(reg, r, 100)) count++;
       }
     }
 
@@ -310,16 +338,21 @@ export class MountPlanner {
       }
     }
 
-    // Place arch04 buildings (transparent multi-story)
-    for (let i = xmin; i < xmax; i += xstep) {
-      if (prng.random() < 0.015) {
+    // Place arch04 (semi-transparent multi-story): same anchoring contract as
+    // arch02. Never free-floating on water.
+    {
+      const shuffled = this.shuffle(mounts);
+      let count = 0;
+      for (const m of shuffled) {
+        if (count >= ANCHORED_CAP.arch04) break;
+        if (prng.random() >= ANCHORED_PROB.arch04) continue;
         const r: PlanItem = {
           tag: "arch04",
-          x: i + (prng.random() - 0.5) * 100,
-          y: 690 + prng.random() * 40, // Ground level
+          x: this.anchoredX(m.x),
+          y: this.anchoredY("arch04", m.y),
           h: 0,
         };
-        this.chadd(reg, r, 250, planmtx);
+        if (this.chaddSameTag(reg, r, 100)) count++;
       }
     }
 
@@ -408,7 +441,7 @@ export class MountPlanner {
       const anchored = MOUNTAIN_ANCHORED.has(tag);
       // Anchored tags share a hard cap with plan(): never fill past the
       // visual-density ceiling even if minCounts asks for more.
-      const cap = anchored ? ANCHORED_CAP[tag as "arch01" | "arch03"] : Infinity;
+      const cap = anchored ? ANCHORED_CAP[tag as AnchoredTag] : Infinity;
       const effectiveTarget = Math.min(target, cap);
 
       let count = plan.reduce((n, p) => (p.tag === tag ? n + 1 : n), 0);
@@ -428,7 +461,7 @@ export class MountPlanner {
         if (anchored) {
           const anchor = mountItems[Math.floor(prng.random() * mountItems.length)];
           x = this.anchoredX(anchor.x);
-          y = this.anchoredY(tag as "arch01" | "arch03", anchor.y);
+          y = this.anchoredY(tag as AnchoredTag, anchor.y);
         } else {
           x = xmin + prng.random() * (xmax - xmin);
           y =
