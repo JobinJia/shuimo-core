@@ -46,7 +46,7 @@ describe("PaintingGenerator transparent mode", () => {
     expect(rootTag).not.toMatch(/mix-blend-mode/);
   });
 
-  it('replaces every fill:white / fill="white" with a transparent fill', () => {
+  it("preserves fill:white occlusions so mountain layering stays intact", () => {
     const result = PaintingGenerator.landscape({
       width: 1200,
       height: 800,
@@ -56,9 +56,7 @@ describe("PaintingGenerator transparent mode", () => {
       minCounts: { mount: 3, distmount: 1 },
     });
 
-    expect(result.svg).not.toContain("fill:white");
-    expect(result.svg).not.toContain('fill="white"');
-    expect(result.svg).not.toContain("fill='white'");
+    expect(result.svg).toMatch(/fill:white|fill="white"|fill='white'/);
   });
 
   it("is opt-in: default generate() still produces opaque multiply output", () => {
@@ -86,6 +84,6 @@ describe("PaintingGenerator transparent mode", () => {
 
     const rootTag = result.svg.match(/<svg\b[^>]*>/)?.[0] ?? "";
     expect(rootTag).not.toMatch(/mix-blend-mode/);
-    expect(result.svg).not.toContain("fill:white");
+    expect(result.svg).toMatch(/fill:white|fill="white"|fill='white'/);
   });
 });

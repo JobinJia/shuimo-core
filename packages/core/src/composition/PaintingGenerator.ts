@@ -82,13 +82,13 @@ export interface PaintingOptions {
   xuanPaperOptions?: PaintingXuanPaperOptions;
 
   /**
-   * Emit a transparent SVG suitable for stacking over an external paper texture.
+   * Emit an SVG whose root `<svg>` omits `style="mix-blend-mode:multiply"`.
    *
-   * When true, the root `<svg>` omits `mix-blend-mode:multiply` (so callers can
-   * apply their own blend mode without double-multiplying) and every
-   * `fill:white` / `fill="white"` occlusion is rewritten to a transparent fill.
-   * Callers become responsible for any occlusion they need (e.g. painting
-   * their own paper beneath the output).
+   * Use when the caller applies its own `mix-blend-mode: multiply` at a higher
+   * layer (e.g. wrapping the rasterized output), so the blend mode isn't
+   * doubled. Internal `fill:white` occlusions are preserved — they keep the
+   * layered mountain composition intact; the outer multiply makes them
+   * transparent over paper while leaving ink strokes to multiply normally.
    *
    * Defaults to `false`, preserving the historical opaque behavior.
    */
@@ -391,22 +391,6 @@ function generateXuanPaperBackground(
 }
 
 /**
- * Rewrite opaque white fills to transparent for the `transparent` output mode.
- *
- * Internal elements use `fill:white` (inside `style='...'`) or `fill="white"`
- * as occlusion layers meant to hide whatever is behind a mountain front or
- * architecture silhouette. In transparent mode we drop the occlusion so the
- * caller's paper texture (e.g. xuan paper served by the host page) shows
- * through — accepting that far-ground elements may poke through.
- */
-function stripWhiteFills(svg: string): string {
-  return svg
-    .replace(/fill:white\b/g, "fill:none")
-    .replace(/fill="white"/g, 'fill="none"')
-    .replace(/fill='white'/g, "fill='none'");
-}
-
-/**
  * PaintingGenerator - Main class for generating Chinese paintings
  */
 export class PaintingGenerator {
@@ -463,14 +447,6 @@ export class PaintingGenerator {
       paintingContent = generateLandscapeContent(width, height, seed, blankPosition, minCounts);
     } else if (type === "flowerBird") {
       paintingContent = generateFlowerBirdContent(width, height, seed, options);
-    }
-
-    // In transparent mode, strip inline white occlusions so the caller's paper
-    // (or whatever sits beneath) shows through. We touch only the generated
-    // painting content — the xuan paper background is already gated by
-    // onXuanPaper and is typically disabled together with this mode.
-    if (transparent) {
-      paintingContent = stripWhiteFills(paintingContent);
     }
 
     const rootStyleAttr = transparent ? "" : ' style="mix-blend-mode:multiply;"';
