@@ -60,12 +60,7 @@ const TAG_PLACEMENT: Record<PlanTag, TagPlacement> = {
 };
 
 /** Tags that must be snapped onto the nearest real mountain spine. */
-const MOUNTAIN_ANCHORED: ReadonlySet<PlanTag> = new Set([
-  "arch01",
-  "arch02",
-  "arch03",
-  "arch04",
-]);
+const MOUNTAIN_ANCHORED: ReadonlySet<PlanTag> = new Set(["arch01", "arch02", "arch03", "arch04"]);
 
 type AnchoredTag = "arch01" | "arch02" | "arch03" | "arch04";
 
@@ -87,6 +82,19 @@ const ANCHORED_PROB: Record<AnchoredTag, number> = {
   arch03: 0.12,
   arch04: 0.15,
 };
+
+/**
+ * Upper y bound (inclusive) for a mount to qualify as an arch anchor. Mounts
+ * with y above this are foreground bumps sitting near the waterline — the
+ * mountain body is short, so a +20..+80 arch offset drops the arch below the
+ * body into open water/blank space. Restricting anchors to background and
+ * mid-range mountains keeps pavilions/pagodas on the mountain body.
+ *
+ * Mount y comes from `plan()` at `j + 300` with `j ∈ [0, yr(x) * 480)` step
+ * 30, so the natural range is [300, ~600+]. 380 cuts at background+mid-range
+ * (anchored arch y ends at ≤ 380 + 80 = 460, still well within the scene).
+ */
+const ARCH_ANCHOR_MAX_Y = 380;
 
 /**
  * MountPlanner - Plan mountain and landscape element placement
@@ -284,9 +292,14 @@ export class MountPlanner {
     // per-mount clustering). y is anchored to each mount's own y so the arch
     // sits on the mountain body, not on a fixed ground line — and buildings
     // never float on open water.
+    //
+    // `anchorMounts` filters out foreground bumps (y > ARCH_ANCHOR_MAX_Y).
+    // Those are too short to host a +20..+80 arch offset without the arch
+    // dropping below the drawn mountain body into water. See constant doc.
     const mounts = reg.filter((r) => r.tag === "mount");
+    const anchorMounts = mounts.filter((m) => m.y <= ARCH_ANCHOR_MAX_Y);
     {
-      const shuffled = this.shuffle(mounts);
+      const shuffled = this.shuffle(anchorMounts);
       let count = 0;
       for (const m of shuffled) {
         if (count >= ANCHORED_CAP.arch01) break;
@@ -307,7 +320,7 @@ export class MountPlanner {
     // middle-of-lake columns (user report: seed 4678 → three-story pavilion
     // standing on water with no land in sight).
     {
-      const shuffled = this.shuffle(mounts);
+      const shuffled = this.shuffle(anchorMounts);
       let count = 0;
       for (const m of shuffled) {
         if (count >= ANCHORED_CAP.arch02) break;
@@ -323,7 +336,7 @@ export class MountPlanner {
     }
 
     {
-      const shuffled = this.shuffle(mounts);
+      const shuffled = this.shuffle(anchorMounts);
       let count = 0;
       for (const m of shuffled) {
         if (count >= ANCHORED_CAP.arch03) break;
@@ -341,7 +354,7 @@ export class MountPlanner {
     // Place arch04 (semi-transparent multi-story): same anchoring contract as
     // arch02. Never free-floating on water.
     {
-      const shuffled = this.shuffle(mounts);
+      const shuffled = this.shuffle(anchorMounts);
       let count = 0;
       for (const m of shuffled) {
         if (count >= ANCHORED_CAP.arch04) break;
@@ -451,8 +464,14 @@ export class MountPlanner {
       const maxAttempts = missing * 20;
 
       // Anchored tags snap onto a real mountain; pre-collect them once so we
-      // don't re-filter every attempt.
-      const mountItems = anchored ? plan.filter((p) => p.tag === "mount") : [];
+      // don't re-filter every attempt. Same y-filter as `plan()`: reject
+      // foreground bumps (y > ARCH_ANCHOR_MAX_Y) that can't host an arch
+      // without dropping it into water. If the filtered pool is empty, skip
+      // the tag entirely — better to miss `minCounts` than to place a
+      // pavilion on open water.
+      const mountItems = anchored
+        ? plan.filter((p) => p.tag === "mount" && p.y <= ARCH_ANCHOR_MAX_Y)
+        : [];
       if (anchored && mountItems.length === 0) continue;
 
       for (let attempt = 0; attempt < maxAttempts && count < effectiveTarget; attempt++) {

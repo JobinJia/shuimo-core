@@ -180,6 +180,60 @@ describe("MountPlanner.fillShortfall", () => {
 
     expect(plan.filter((p) => p.tag === "arch01").length).toBe(0);
   });
+
+  it("only anchors arch01 to mounts with y <= 380 (filters out shallow foreground bumps)", () => {
+    // Mixed pool: a tall background mountain at y=320 and a shallow foreground
+    // bump at y=540. Before the y-filter fix, fillShortfall sampled from both,
+    // and an anchor on the y=540 bump produced arch01.y = 560..620 — which is
+    // below the bump's drawn body, i.e. floating on water/blank space. The
+    // arch must only snap onto the deep mountain.
+    const plan: PlanItem[] = [
+      { tag: "mount", x: 400, y: 320, h: 0.5 },
+      { tag: "mount", x: 900, y: 540, h: 0.5 },
+    ];
+    const planmtx: number[] = [];
+
+    MountPlanner.fillShortfall(plan, {
+      xmin: 0,
+      xmax: 1200,
+      planmtx,
+      minCounts: { arch01: 3 },
+      width: 1200,
+      height: 800,
+    });
+
+    const arch01s = plan.filter((p) => p.tag === "arch01");
+    expect(arch01s.length).toBeGreaterThanOrEqual(1);
+    for (const a of arch01s) {
+      // Must snap onto the y=320 mount at x=400, never the shallow one at x=900.
+      expect(Math.abs(a.x - 400)).toBeLessThanOrEqual(35);
+    }
+  });
+
+  it("skips anchored tags when every mount is too shallow (y > 380) rather than placing on water", () => {
+    // All mounts are foreground bumps. There is no valid anchor, so
+    // fillShortfall must refuse to place — better to miss the minCount than
+    // to draw a pavilion on open water.
+    const plan: PlanItem[] = [
+      { tag: "mount", x: 400, y: 540, h: 0.5 },
+      { tag: "mount", x: 900, y: 520, h: 0.5 },
+    ];
+    const planmtx: number[] = [];
+
+    MountPlanner.fillShortfall(plan, {
+      xmin: 0,
+      xmax: 1200,
+      planmtx,
+      minCounts: { arch01: 3, arch02: 2, arch03: 1, arch04: 2 },
+      width: 1200,
+      height: 800,
+    });
+
+    expect(plan.filter((p) => p.tag === "arch01").length).toBe(0);
+    expect(plan.filter((p) => p.tag === "arch02").length).toBe(0);
+    expect(plan.filter((p) => p.tag === "arch03").length).toBe(0);
+    expect(plan.filter((p) => p.tag === "arch04").length).toBe(0);
+  });
 });
 
 describe("MountPlanner.plan anchored buildings", () => {
@@ -310,6 +364,29 @@ describe("MountPlanner.plan anchored buildings", () => {
           return dy >= 25 && dy <= 80;
         });
         expect(onSpine).toBe(true);
+      }
+    }
+  });
+
+  it("only anchors arch01..04 to mounts with y <= 380 (background/mid-range mountains, never shallow foreground bumps)", () => {
+    // Anchored buildings must snap to mountains tall enough to host them.
+    // A mount at y=540 is a foreground bump whose drawn body sits near the
+    // waterline — a pavilion offset of +20..+80 would fall below the body
+    // into open water. Pick background mountains only.
+    for (const seed of [42, 123, 52362, 58049, 91724, 7]) {
+      prng.seed(seed);
+      const planmtx: number[] = [];
+      const plan = MountPlanner.plan(0, 2400, planmtx);
+      const mounts = plan.filter((p) => p.tag === "mount");
+
+      const anchored = plan.filter(
+        (p) => p.tag === "arch01" || p.tag === "arch02" || p.tag === "arch03" || p.tag === "arch04",
+      );
+      for (const a of anchored) {
+        // Must be a background/mid-range mountain (y <= 380) within the
+        // anchor x-range that's actually hosting this arch.
+        const hostedBy = mounts.some((m) => Math.abs(m.x - a.x) <= 35 && m.y <= 380);
+        expect(hostedBy).toBe(true);
       }
     }
   });
