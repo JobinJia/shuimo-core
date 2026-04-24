@@ -81,6 +81,19 @@ export interface PaintingOptions {
   /** Xuan paper options (only used when onXuanPaper is true) */
   xuanPaperOptions?: PaintingXuanPaperOptions;
 
+  /**
+   * Emit a transparent SVG suitable for stacking over an external paper texture.
+   *
+   * When true, the root `<svg>` omits `mix-blend-mode:multiply` (so callers can
+   * apply their own blend mode without double-multiplying) and every
+   * `fill:white` / `fill="white"` occlusion is rewritten to a transparent fill.
+   * Callers become responsible for any occlusion they need (e.g. painting
+   * their own paper beneath the output).
+   *
+   * Defaults to `false`, preserving the historical opaque behavior.
+   */
+  transparent?: boolean;
+
   /** Blank space position for composition (留白位置) - affects element generation */
   blankPosition?: BlankPosition;
 
@@ -378,6 +391,22 @@ function generateXuanPaperBackground(
 }
 
 /**
+ * Rewrite opaque white fills to transparent for the `transparent` output mode.
+ *
+ * Internal elements use `fill:white` (inside `style='...'`) or `fill="white"`
+ * as occlusion layers meant to hide whatever is behind a mountain front or
+ * architecture silhouette. In transparent mode we drop the occlusion so the
+ * caller's paper texture (e.g. xuan paper served by the host page) shows
+ * through — accepting that far-ground elements may poke through.
+ */
+function stripWhiteFills(svg: string): string {
+  return svg
+    .replace(/fill:white\b/g, "fill:none")
+    .replace(/fill="white"/g, 'fill="none"')
+    .replace(/fill='white'/g, "fill='none'");
+}
+
+/**
  * PaintingGenerator - Main class for generating Chinese paintings
  */
 export class PaintingGenerator {
@@ -414,6 +443,7 @@ export class PaintingGenerator {
       blankPosition = "none",
       seed = Date.now(),
       minCounts,
+      transparent = false,
     } = options;
 
     // SVG defs
@@ -435,8 +465,18 @@ export class PaintingGenerator {
       paintingContent = generateFlowerBirdContent(width, height, seed, options);
     }
 
+    // In transparent mode, strip inline white occlusions so the caller's paper
+    // (or whatever sits beneath) shows through. We touch only the generated
+    // painting content — the xuan paper background is already gated by
+    // onXuanPaper and is typically disabled together with this mode.
+    if (transparent) {
+      paintingContent = stripWhiteFills(paintingContent);
+    }
+
+    const rootStyleAttr = transparent ? "" : ' style="mix-blend-mode:multiply;"';
+
     // Assemble final SVG
-    const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="mix-blend-mode:multiply;">
+    const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"${rootStyleAttr}>
       <defs>
         ${svgDefs}
       </defs>
