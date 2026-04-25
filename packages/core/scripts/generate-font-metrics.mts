@@ -1,6 +1,6 @@
 /**
  * Build-time script: extract glyph metrics from the seal script font (峄山碑篆体)
- * using opentype.js and generate a TypeScript data module.
+ * using fontkit and generate a TypeScript data module.
  *
  * Usage: node --import tsx scripts/generate-font-metrics.mts
  */
@@ -8,7 +8,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import opentype from "opentype.js";
+import * as fontkit from "fontkit";
+import type { Font, FontCollection } from "fontkit";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FONT_PATH = resolve(__dirname, "../../../playground/src/assets/fonts/yishanbeizhuanti.ttf");
@@ -26,13 +27,19 @@ function isInCJKRange(codePoint: number): boolean {
   return CJK_RANGES.some(([start, end]) => codePoint >= start && codePoint <= end);
 }
 
+function isCollection(obj: Font | FontCollection): obj is FontCollection {
+  return Array.isArray((obj as FontCollection).fonts);
+}
+
 function main() {
   const fontBuffer = readFileSync(FONT_PATH);
-  const font = opentype.parse(fontBuffer.buffer as ArrayBuffer);
+  const parsed = fontkit.create(fontBuffer);
+  const font = isCollection(parsed) ? parsed.fonts[0] : parsed;
+  if (!font) throw new Error("font: failed to load");
 
   const unitsPerEm = font.unitsPerEm;
-  const ascender = font.ascender / unitsPerEm;
-  const descender = font.descender / unitsPerEm;
+  const ascender = font.ascent / unitsPerEm;
+  const descender = font.descent / unitsPerEm;
 
   // Collect glyph metrics
   const glyphData: Record<string, { aw: number; h: number }> = {};
@@ -40,15 +47,15 @@ function main() {
   let monoWidthCount = 0;
   let firstAdvanceWidth: number | null = null;
 
-  for (let i = 0; i < font.glyphs.length; i++) {
-    const glyph = font.glyphs.get(i);
-    if (!glyph.unicode) continue;
-    if (!isInCJKRange(glyph.unicode)) continue;
+  for (const codePoint of font.characterSet) {
+    if (!isInCJKRange(codePoint)) continue;
+    const glyph = font.glyphForCodePoint(codePoint);
+    if (!glyph) continue;
 
-    const char = String.fromCodePoint(glyph.unicode);
+    const char = String.fromCodePoint(codePoint);
     const aw = glyph.advanceWidth / unitsPerEm;
-    const bbox = glyph.getBoundingBox();
-    const h = (bbox.y2 - bbox.y1) / unitsPerEm;
+    const bbox = glyph.bbox;
+    const h = (bbox.maxY - bbox.minY) / unitsPerEm;
 
     if (firstAdvanceWidth === null) firstAdvanceWidth = aw;
     if (Math.abs(aw - (firstAdvanceWidth ?? 0)) < 0.001) monoWidthCount++;

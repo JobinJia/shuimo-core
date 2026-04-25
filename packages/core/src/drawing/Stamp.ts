@@ -5,10 +5,16 @@
  * to simulate authentic seal stamps used in traditional Chinese art.
  */
 
-import * as opentype from "opentype.js";
 import { createStampNoise } from "./StampNoise";
 import { dsin, dcos, fmtNum } from "../utils/math";
 import { calculateStampTextMetrics } from "./StampMetrics";
+import {
+  commandsToSvgPathData,
+  getBoundingBox,
+  loadFont,
+  type GlyphFont,
+  type NormalizedCommand,
+} from "./internal/glyphPath";
 
 // ─── Reference constants ────────────────────────────────────────────
 // All distance defaults are expressed as ratios of fontSize.
@@ -190,7 +196,7 @@ interface StampResult {
 // ─── Internal helpers ───────────────────────────────────────────────
 
 const PI = Math.PI;
-const FONT_CACHE = new Map<string, Promise<opentype.Font | null>>();
+const FONT_CACHE = new Map<string, Promise<GlyphFont | null>>();
 
 interface CornerRadii {
   topLeft: number;
@@ -223,18 +229,7 @@ interface TextLayout {
   columnWidths: number[];
 }
 
-interface GlyphPathCommand {
-  type: string;
-  x?: number;
-  y?: number;
-  x1?: number;
-  y1?: number;
-  x2?: number;
-  y2?: number;
-}
-
 interface VerticalGlyphColumnMetrics {
-  path: opentype.Path;
   box: MeasuredColumnBox;
   width: number;
   height: number;
@@ -607,10 +602,13 @@ function quantize(value: number, step: number): number {
   return Math.round(value / step) * step;
 }
 
-function translateGlyphPath(path: opentype.Path, dx: number, dy: number): opentype.Path {
-  const translated = new opentype.Path();
-  translated.commands = path.commands.map((command) => {
-    const next = { ...command } as GlyphPathCommand;
+function translateGlyphPath(
+  commands: NormalizedCommand[],
+  dx: number,
+  dy: number,
+): NormalizedCommand[] {
+  return commands.map((command) => {
+    const next: NormalizedCommand = { ...command };
 
     if (typeof next.x === "number") next.x += dx;
     if (typeof next.y === "number") next.y += dy;
@@ -621,22 +619,20 @@ function translateGlyphPath(path: opentype.Path, dx: number, dy: number): openty
 
     return next;
   });
-  return translated;
 }
 
 function angularizeGlyphPath(
-  path: opentype.Path,
+  commands: NormalizedCommand[],
   seed: number,
   columnIndex: number,
   charIndex: number,
-): opentype.Path {
-  const angularPath = new opentype.Path();
+): NormalizedCommand[] {
   const grid = 1.4;
   const jitter = 0.9;
   let previousPoint = { x: 0, y: 0 };
 
-  angularPath.commands = path.commands.map((command, commandIndex) => {
-    const next = { ...command } as GlyphPathCommand;
+  return commands.map((command, commandIndex) => {
+    const next: NormalizedCommand = { ...command };
     const localSeed = seed + columnIndex * 131 + charIndex * 17 + commandIndex * 7;
 
     const moveCoord = (value: number, axisSalt: number) => {
@@ -686,8 +682,6 @@ function angularizeGlyphPath(
 
     return next;
   });
-
-  return angularPath;
 }
 
 function extractFillFromStyle(styleText: string | null): string | null {
@@ -698,17 +692,15 @@ function extractFillFromStyle(styleText: string | null): string | null {
 }
 
 function measureVerticalGlyphColumn(
-  font: opentype.Font,
+  font: GlyphFont,
   line: string,
   fontSize: number,
   characterSpacingPx: number,
 ): VerticalGlyphColumnMetrics {
   const chars = Array.from(line);
-  const combinedPath = new opentype.Path();
 
   if (chars.length === 0) {
     return {
-      path: combinedPath,
       box: { x: 0, y: 0, width: 0, height: 0 },
       width: 0,
       height: 0,
@@ -716,8 +708,8 @@ function measureVerticalGlyphColumn(
   }
 
   const glyphMetrics = chars.map((char) => {
-    const basePath = font.getPath(char, 0, 0, fontSize);
-    const bbox = basePath.getBoundingBox();
+    const baseCommands = font.getPath(char, 0, 0, fontSize);
+    const bbox = getBoundingBox(baseCommands);
     return {
       char,
       width: Math.max(1, bbox.x2 - bbox.x1),
@@ -730,23 +722,24 @@ function measureVerticalGlyphColumn(
   // the stamp border is sized proportionally to how characters are spaced.
   // Ink bounds are much narrower than advance width for CJK characters.
   const advanceWidths = chars.map((char) => {
-    const glyph = font.charToGlyph(char);
-    return glyph.advanceWidth ? (glyph.advanceWidth / font.unitsPerEm) * fontSize : fontSize;
+    const aw = font.getAdvanceWidth(char);
+    return aw ? (aw / font.unitsPerEm) * fontSize : fontSize;
   });
   const maxAdvanceWidth = Math.max(...advanceWidths);
   const maxInkWidth = Math.max(...glyphMetrics.map((item) => item.width));
 
   let currentTop = 0;
+  const combinedCommands: NormalizedCommand[] = [];
 
   glyphMetrics.forEach((glyph) => {
     const translateX = -glyph.bbox.x1 + (maxInkWidth - glyph.width) / 2;
     const translateY = currentTop - glyph.bbox.y1;
-    const rawPath = font.getPath(glyph.char, translateX, translateY, fontSize);
-    combinedPath.commands.push(...rawPath.commands);
+    const rawCommands = font.getPath(glyph.char, translateX, translateY, fontSize);
+    combinedCommands.push(...rawCommands);
     currentTop += glyph.height + characterSpacingPx;
   });
 
-  const bbox = combinedPath.getBoundingBox();
+  const bbox = getBoundingBox(combinedCommands);
   const inkWidth = Math.max(0, bbox.x2 - bbox.x1);
   const width = Math.max(maxAdvanceWidth, inkWidth);
   const height = Math.max(0, bbox.y2 - bbox.y1);
@@ -754,7 +747,6 @@ function measureVerticalGlyphColumn(
   const centeringShift = (width - inkWidth) / 2;
 
   return {
-    path: combinedPath,
     box: {
       x: -(bbox.x2 + centeringShift),
       y: bbox.y1,
@@ -768,7 +760,7 @@ function measureVerticalGlyphColumn(
 
 function measureStampTextWithGlyphFont(
   options: StampOptions,
-  font: opentype.Font,
+  font: GlyphFont,
 ): {
   width: number;
   height: number;
@@ -794,7 +786,7 @@ function measureStampTextWithGlyphFont(
 }
 
 function buildVerticalGlyphPath(
-  font: opentype.Font,
+  font: GlyphFont,
   line: string,
   fontSize: number,
   characterSpacingPx: number,
@@ -804,11 +796,11 @@ function buildVerticalGlyphPath(
   seed: number,
   columnIndex: number,
 ): string {
-  const combinedPath = new opentype.Path();
+  const combinedCommands: NormalizedCommand[] = [];
   const chars = Array.from(line);
   const glyphMetrics = chars.map((char) => {
-    const basePath = font.getPath(char, 0, 0, fontSize);
-    const bbox = basePath.getBoundingBox();
+    const baseCommands = font.getPath(char, 0, 0, fontSize);
+    const bbox = getBoundingBox(baseCommands);
     return {
       char,
       width: Math.max(1, bbox.x2 - bbox.x1),
@@ -823,29 +815,29 @@ function buildVerticalGlyphPath(
   glyphMetrics.forEach((glyph, charIndex) => {
     const translateX = -glyph.bbox.x1 + (maxWidth - glyph.width) / 2;
     const translateY = currentTop - glyph.bbox.y1;
-    const rawPath = font.getPath(glyph.char, translateX, translateY, fontSize);
-    const angularPath = angularizeGlyphPath(rawPath, seed, columnIndex, charIndex);
-    combinedPath.commands.push(...angularPath.commands);
+    const rawCommands = font.getPath(glyph.char, translateX, translateY, fontSize);
+    const angularCommands = angularizeGlyphPath(rawCommands, seed, columnIndex, charIndex);
+    combinedCommands.push(...angularCommands);
     currentTop += glyph.height + characterSpacingPx;
   });
 
-  const bbox = combinedPath.getBoundingBox();
+  const bbox = getBoundingBox(combinedCommands);
   const inkWidth = Math.max(0, bbox.x2 - bbox.x1);
   // Center ink within the desired box (advance width may be wider than ink)
   const centeringOffset = desiredBox ? (desiredBox.width - inkWidth) / 2 : 0;
   const desiredLeft = x + (desiredBox?.x ?? -bbox.x2) + centeringOffset;
   const desiredTop = y + (desiredBox?.y ?? bbox.y1);
-  const translated = translateGlyphPath(combinedPath, desiredLeft - bbox.x1, desiredTop - bbox.y1);
-  return translated.toPathData(2);
+  const translated = translateGlyphPath(
+    combinedCommands,
+    desiredLeft - bbox.x1,
+    desiredTop - bbox.y1,
+  );
+  return commandsToSvgPathData(translated, 2);
 }
 
-async function loadGlyphFont(options: StampOptions): Promise<opentype.Font | null> {
+async function loadGlyphFont(options: StampOptions): Promise<GlyphFont | null> {
   if (options.fontData) {
-    try {
-      return opentype.parse(options.fontData);
-    } catch {
-      return null;
-    }
+    return loadFont(options.fontData);
   }
 
   if (!options.fontUrl || typeof fetch === "undefined") return null;
@@ -859,7 +851,7 @@ async function loadGlyphFont(options: StampOptions): Promise<opentype.Font | nul
       if (!response.ok) return null;
 
       const fontBuffer = await response.arrayBuffer();
-      return opentype.parse(fontBuffer);
+      return loadFont(fontBuffer);
     } catch {
       return null;
     }
@@ -873,7 +865,7 @@ function replaceTextElementsWithGlyphPaths(
   svg: string,
   options: StampOptions,
   measured: { columnBoxes: MeasuredColumnBox[] },
-  font: opentype.Font,
+  font: GlyphFont,
 ): string {
   if (typeof DOMParser === "undefined" || typeof XMLSerializer === "undefined") return svg;
 
@@ -1872,7 +1864,7 @@ ${stampContent}
 }
 
 export async function generateStampAsync(options: StampOptions): Promise<string> {
-  let font: opentype.Font | null = null;
+  let font: GlyphFont | null = null;
   let usesGlyphMetrics = false;
 
   const measured =

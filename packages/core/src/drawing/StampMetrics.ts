@@ -1,7 +1,7 @@
 /**
  * Cross-platform text measurement for stamps using pre-computed font metrics.
  *
- * Uses opentype.js-extracted glyph data so layout is identical on every OS,
+ * Uses fontkit-extracted glyph data so layout is identical on every OS,
  * and works in Node.js / SSR without any DOM dependency.
  */
 

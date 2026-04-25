@@ -196,6 +196,25 @@ describe("Stamp layout", () => {
     expect(svg).not.toContain("<text");
   });
 
+  it("renders glyph paths from a woff2 font (fontkit auto-detects format)", async () => {
+    const fontPath = resolve(process.cwd(), "../../playground/public/fonts/yishanbeizhuanti.woff2");
+    const fontBuffer = readFileSync(fontPath);
+    const svg = await generateStampAsync({
+      text: ["墨"],
+      type: "yin",
+      fontFamily: "峄山碑篆体",
+      fontSize: 70,
+      fontData: fontBuffer.buffer.slice(
+        fontBuffer.byteOffset,
+        fontBuffer.byteOffset + fontBuffer.byteLength,
+      ),
+      seed: 1,
+    });
+
+    expect(svg).toContain("<path");
+    expect(svg).not.toContain("<text");
+  });
+
   it("uses font glyph metrics for async layout even without browser text measurement", async () => {
     const fontPath = resolve(process.cwd(), "../../playground/public/fonts/yishanbeizhuanti.ttf");
     const fontBuffer = readFileSync(fontPath);
