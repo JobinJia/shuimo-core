@@ -5,6 +5,7 @@ node_modules/
 # Build outputs
 dist/
 *.tsbuildinfo
+packages/core/wasm/*/target/
 
 # Logs
 *.log
