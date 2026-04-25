@@ -192,24 +192,21 @@ export const v3 = {
     const [l, m, n] = axis;
     const [x, y, z] = vec;
     const [costh, sinth] = [Math.cos(th), Math.sin(th)];
-
-    const mat: Record<number, number> = {};
-    mat[11] = l * l * (1 - costh) + costh;
-    mat[12] = m * l * (1 - costh) - n * sinth;
-    mat[13] = n * l * (1 - costh) + m * sinth;
-
-    mat[21] = l * m * (1 - costh) + n * sinth;
-    mat[22] = m * m * (1 - costh) + costh;
-    mat[23] = n * m * (1 - costh) - l * sinth;
-
-    mat[31] = l * n * (1 - costh) - m * sinth;
-    mat[32] = m * n * (1 - costh) + l * sinth;
-    mat[33] = n * n * (1 - costh) + costh;
+    const t = 1 - costh;
+    const m11 = l * l * t + costh;
+    const m12 = m * l * t - n * sinth;
+    const m13 = n * l * t + m * sinth;
+    const m21 = l * m * t + n * sinth;
+    const m22 = m * m * t + costh;
+    const m23 = n * m * t - l * sinth;
+    const m31 = l * n * t - m * sinth;
+    const m32 = m * n * t + l * sinth;
+    const m33 = n * n * t + costh;
 
     return [
-      x * mat[11] + y * mat[12] + z * mat[13],
-      x * mat[21] + y * mat[22] + z * mat[23],
-      x * mat[31] + y * mat[32] + z * mat[33],
+      x * m11 + y * m12 + z * m13,
+      x * m21 + y * m22 + z * m23,
+      x * m31 + y * m32 + z * m33,
     ];
   },
 
@@ -280,25 +277,14 @@ export const v3 = {
 
   /** Convert vector to Euler angles */
   toeuler(v0: Vec3): Vec3 {
-    const ep = 5;
-    let ma = 2 * PI;
-    let mr: Vec3 = [0, 0, 0];
-
-    for (let x = -180; x < 180; x += ep) {
-      for (let y = -90; y < 90; y += ep) {
-        const r: Vec3 = [rad(x), rad(y), 0];
-        const v = v3.roteuler([0, 0, 1], r);
-        const a = v3.ang(v0, v);
-        if (a < rad(ep)) {
-          return r;
-        }
-        if (a < ma) {
-          ma = a;
-          mr = r;
-        }
-      }
+    const length = v3.mag(v0);
+    if (length === 0) {
+      return [0, 0, 0];
     }
-    return mr;
+
+    const x = Math.asin(Math.max(-1, Math.min(1, -v0[1] / length)));
+    const y = Math.atan2(v0[0], v0[2]);
+    return [x, y, 0];
   },
 
   /** Linear interpolation between two vectors */

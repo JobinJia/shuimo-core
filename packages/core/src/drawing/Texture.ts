@@ -63,6 +63,7 @@ export class Texture {
     const reso = [ptlist.length, ptlist[0].length];
     const texlist: Polygon[] = [];
     const layerDepths: number[] = []; // Track layer depth for each stroke
+    let canv = "";
 
     // Generate texture strokes
     for (let i = 0; i < tex; i++) {
@@ -76,10 +77,9 @@ export class Texture {
 
       const layer = (i / tex) * (reso[0] - 1);
 
-      // Store normalized layer depth (0=top/first layer, 1=bottom/last layer)
-      layerDepths.push(layer / (reso[0] - 1));
+      const layerDepth = layer / (reso[0] - 1);
 
-      texlist.push([]);
+      const strokePoints: Polygon = [];
       for (let j = start; j < end; j++) {
         const p = layer - Math.floor(layer);
 
@@ -92,31 +92,35 @@ export class Texture {
           noi(layer + 1) * (noise.noise(y, j * 0.5) - 0.5),
         ];
 
-        texlist[texlist.length - 1].push([x + ns[0], y + ns[1]]);
+        strokePoints.push([x + ns[0], y + ns[1]]);
       }
+
+      layerDepths.push(layerDepth);
+      texlist.push(strokePoints);
     }
 
-    let canv = "";
+    if (ret) {
+      return texlist;
+    }
 
     // SHADE
     if (sha) {
       for (let j = 0; j < texlist.length; j += 1 + (sha !== 0 ? 1 : 0)) {
-        canv += stroke(
-          texlist[j].map((x) => [x[0] + xof, x[1] + yof]),
-          { col: "rgba(100,100,100,0.1)", wid: sha },
-        );
+        canv += stroke(texlist[j], { xof, yof, col: "rgba(100,100,100,0.1)", wid: sha });
       }
     }
 
     // TEXTURE
     for (let j = 0 + sha; j < texlist.length; j += 1 + sha) {
-      canv += stroke(
-        texlist[j].map((x) => [x[0] + xof, x[1] + yof]),
-        { col: col(j / texlist.length, layerDepths[j]), wid: wid },
-      );
+      canv += stroke(texlist[j], {
+        xof,
+        yof,
+        col: col(j / texlist.length, layerDepths[j]),
+        wid: wid,
+      });
     }
 
-    return ret ? texlist : canv;
+    return canv;
   }
 }
 

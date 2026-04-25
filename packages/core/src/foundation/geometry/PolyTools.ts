@@ -220,9 +220,7 @@ export class PolyTools {
           return shatter([plist[ind], mid, plist[lind]], a).concat(
             shatter([plist[lind], plist[nind], mid], a),
           );
-        } catch (err) {
-          console.log(plist);
-          console.log(err);
+        } catch {
           return [];
         }
       }

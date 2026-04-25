@@ -180,7 +180,6 @@ export class MountPlanner {
         return false;
       }
     }
-    console.log("+");
     reg.push(r);
     return true;
   }
@@ -256,8 +255,6 @@ export class MountPlanner {
         this.chadd(reg, r, 10, planmtx);
       }
     }
-
-    console.log([xmin, xmax]);
 
     // Fill empty areas with flat mountains
     for (let i = xmin; i < xmax; i += xstep) {

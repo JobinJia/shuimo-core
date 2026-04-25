@@ -124,15 +124,14 @@ function foot(ptlist: Polygon[], options: FootOptions = {}): string | Polygon[] 
     });
   }
 
-  for (let j = 0; j < ftlist.length; j++) {
-    canv += stroke(
-      ftlist[j].map((x) => [x[0] + xof, x[1] + yof]),
-      {
+    for (let j = 0; j < ftlist.length; j++) {
+      canv += stroke(ftlist[j], {
+        xof,
+        yof,
         col: "rgba(100,100,100," + (0.1 + prng.random() * 0.1).toFixed(3) + ")",
         wid: 1,
-      },
-    );
-  }
+      });
+    }
 
   return ret ? ftlist : canv;
 }
@@ -225,10 +224,13 @@ export class Mount {
     });
 
     // OUTLINE
-    canv += stroke(
-      ptlist[0].map((x) => [x[0] + xoff, x[1] + yoff]),
-      { col: "rgba(100,100,100,0.3)", noi: 1, wid: 3 },
-    );
+    canv += stroke(ptlist[0], {
+      xof: xoff,
+      yof: yoff,
+      col: "rgba(100,100,100,0.3)",
+      noi: 1,
+      wid: 3,
+    });
 
     canv += foot(ptlist, { xof: xoff, yof: yoff }) as string;
     canv += texture(ptlist, {
@@ -406,10 +408,13 @@ export class Mount {
     });
 
     // OUTLINE
-    canv += stroke(
-      ptlist[0].map((x) => [x[0] + xoff, x[1] + yoff]),
-      { col: "rgba(100,100,100,0.3)", noi: 1, wid: 3 },
-    );
+    canv += stroke(ptlist[0], {
+      xof: xoff,
+      yof: yoff,
+      col: "rgba(100,100,100,0.3)",
+      noi: 1,
+      wid: 3,
+    });
 
     canv += texture(ptlist, {
       xof: xoff,
@@ -470,13 +475,12 @@ export class Mount {
       wid: 2,
     });
 
-    canv += stroke(
-      grlist.map((x) => [x[0] + xoff, x[1] + yoff]),
-      {
-        wid: 3,
-        col: "rgba(100,100,100,0.2)",
-      },
-    );
+    canv += stroke(grlist, {
+      xof: xoff,
+      yof: yoff,
+      wid: 3,
+      col: "rgba(100,100,100,0.2)",
+    });
 
     function bound(plist: Polygon): Bounds {
       let xmin: number | undefined;

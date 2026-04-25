@@ -29,14 +29,14 @@ export function poly(plist: Polygon, options: PolyOptions = {}): string {
   const wid = options.wid ?? 0;
   const filter = options.filter;
 
-  let canv = "<polyline points='";
+  const parts: string[] = ["<polyline points='"];
   for (let i = 0; i < plist.length; i++) {
-    canv += " " + (plist[i][0] + xof).toFixed(1) + "," + (plist[i][1] + yof).toFixed(1);
+    parts.push(" ", (plist[i][0] + xof).toFixed(1), ",", (plist[i][1] + yof).toFixed(1));
   }
-  canv += "' style='fill:" + fil + ";stroke:" + str + ";stroke-width:" + wid + "'";
+  parts.push("' style='fill:", fil, ";stroke:", str, ";stroke-width:", String(wid), "'");
   if (filter) {
-    canv += " filter='" + filter + "'";
+    parts.push(" filter='", filter, "'");
   }
-  canv += "/>";
-  return canv;
+  parts.push("/>");
+  return parts.join("");
 }

@@ -34,7 +34,6 @@ export class FlowerPRNG {
     } else {
       // Fallback: use simple encoding if btoa not available
       // This maintains some consistency but won't match original exactly
-      console.warn("btoa not available, using fallback hash");
       encoded = jsonStr;
     }
 
@@ -67,7 +66,6 @@ export class FlowerPRNG {
     }
 
     this.s = y;
-    console.log(["int seed", this.s]);
 
     // Warm up the generator
     for (let i = 0; i < 10; i++) {
@@ -88,15 +86,12 @@ export class FlowerPRNG {
    */
   test(f?: () => number): number[] {
     const F = f || (() => this.next());
-    const t0 = new Date().getTime();
     const chart = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
     for (let i = 0; i < 10000000; i++) {
       chart[Math.floor(F() * 10)] += 1;
     }
 
-    console.log(chart);
-    console.log(`finished in ${new Date().getTime() - t0}`);
     return chart;
   }
 }

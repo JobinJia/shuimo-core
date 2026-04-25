@@ -75,8 +75,6 @@ export class SceneManager {
   private addChunk(nch: Chunk): void {
     // Handle NaN values (only for string canv)
     if (typeof nch.canv === "string" && nch.canv.includes("NaN")) {
-      console.log("gotcha:");
-      console.log(nch.tag);
       nch.canv = nch.canv.replace(/NaN/g, "-1000");
     }
 
@@ -99,10 +97,6 @@ export class SceneManager {
         }
       }
     }
-
-    console.log("EH?WTF!");
-    console.log(this.state.chunks);
-    console.log(nch);
   }
 
   /**
@@ -110,8 +104,6 @@ export class SceneManager {
    */
   chunkLoader(xmin: number, xmax: number): void {
     while (xmax > this.state.xmax - this.state.cwid || xmin < this.state.xmin + this.state.cwid) {
-      console.log("generating new chunk...");
-
       let plan: PlanItem[];
       if (xmax > this.state.xmax - this.state.cwid) {
         plan = MountPlanner.plan(
@@ -252,18 +244,10 @@ export class SceneManager {
    */
   private cleanupDistantChunks(xmin: number, xmax: number): void {
     const maxDistance = this.state.cwid * 10; // Keep chunks within 10 chunk widths (~5120px)
-    const beforeCount = this.state.chunks.length;
 
     this.state.chunks = this.state.chunks.filter((chunk) => {
       return chunk.x > xmin - maxDistance && chunk.x < xmax + maxDistance;
     });
-
-    const removed = beforeCount - this.state.chunks.length;
-    if (removed > 0) {
-      console.log(
-        `Cleaned up ${removed} distant chunks (${beforeCount} -> ${this.state.chunks.length})`,
-      );
-    }
   }
 
   /**

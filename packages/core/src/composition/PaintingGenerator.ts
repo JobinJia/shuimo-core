@@ -15,7 +15,9 @@ import { Arch } from "../elements/objects/Arch";
 import { randChoice } from "../utils/random";
 import { prng } from "../foundation/random";
 import { generateFlower } from "../drawing/Flower";
-import { XuanPaper, XuanPaperColors, GoldFleckColors } from "../elements/natural/XuanPaper";
+import { XuanPaperColors, GoldFleckColors } from "../elements/natural/XuanPaper";
+import { buildXuanPaperScene } from "../elements/natural/xuan-paper/model";
+import { renderXuanPaperSVGParts } from "../elements/natural/xuan-paper/svg-renderer";
 
 /**
  * Blank space position for composition
@@ -99,6 +101,14 @@ export interface PaintingOptions {
 
   /** Random seed for reproducible generation */
   seed?: number;
+
+  /**
+   * Landscape detail multiplier for procedural ink texture.
+   *
+   * Defaults to `1`, which keeps the historical dense texture. Lower values
+   * are opt-in and trade texture density for faster generation.
+   */
+  detail?: number;
 
   /**
    * Optional per-tag minimum counts for landscape planning.
@@ -195,18 +205,22 @@ function filterPlanByBlankArea(
 /**
  * Render a plan item to SVG string
  */
-function renderPlanItem(item: PlanItem, seed: number): string {
+function renderPlanItem(item: PlanItem, seed: number, detail: number): string {
   const randomSeed = seed + item.x + item.y;
+  const textureDetail = Math.max(0.25, Math.min(1, detail));
 
   switch (item.tag) {
     case "mount":
       // ret defaults to 0, which returns string
-      return Mount.mountain(item.x, item.y, randomSeed * prng.random()) as string;
+      return Mount.mountain(item.x, item.y, randomSeed * prng.random(), {
+        tex: Math.round(200 * textureDetail),
+      }) as string;
 
     case "flatmount":
       return Mount.flatMount(item.x, item.y, randomSeed * Math.PI, {
         wid: 600 + prng.random() * 400,
         hei: 100,
+        tex: Math.round(80 * textureDetail),
         cho: 0.5 + prng.random() * 0.2,
       });
 
@@ -265,6 +279,7 @@ function generateLandscapeContent(
   seed: number,
   blankPosition: BlankPosition,
   minCounts?: Partial<Record<PlanTag, number>>,
+  detail: number = 1,
 ): string {
   // Initialize PRNG
   prng.seed(seed);
@@ -312,7 +327,7 @@ function generateLandscapeContent(
 
   // Add all other elements
   for (const item of plan) {
-    content += renderPlanItem(item, seed);
+    content += renderPlanItem(item, seed, detail);
   }
 
   return content;
@@ -360,8 +375,7 @@ function generateXuanPaperBackground(
   const fiberDensity = options.fiberDensity ?? 1.0;
   const grainDensity = options.grainDensity ?? 0.5;
 
-  // Generate Xuan paper SVG
-  const paperSvg = XuanPaper.generateSVG({
+  const scene = buildXuanPaperScene({
     width,
     height,
     baseColor,
@@ -373,19 +387,10 @@ function generateXuanPaperBackground(
     goldFlecks,
     goldDensity,
     goldColor,
+    mode: "svg",
   });
 
-  // Extract defs and content from generated SVG
-  const defsElement = paperSvg.querySelector("defs");
-  const defs = defsElement ? defsElement.innerHTML : "";
-
-  // Get all content except defs
-  let background = "";
-  for (const child of Array.from(paperSvg.children)) {
-    if (child.tagName.toLowerCase() !== "defs") {
-      background += child.outerHTML;
-    }
-  }
+  const { defs, body: background } = renderXuanPaperSVGParts(scene);
 
   return { defs, background };
 }
@@ -427,6 +432,7 @@ export class PaintingGenerator {
       blankPosition = "none",
       seed = Date.now(),
       minCounts,
+      detail = 1,
       transparent = false,
     } = options;
 
@@ -444,7 +450,14 @@ export class PaintingGenerator {
     // Generate painting content based on type
     let paintingContent = "";
     if (type === "landscape") {
-      paintingContent = generateLandscapeContent(width, height, seed, blankPosition, minCounts);
+      paintingContent = generateLandscapeContent(
+        width,
+        height,
+        seed,
+        blankPosition,
+        minCounts,
+        detail,
+      );
     } else if (type === "flowerBird") {
       paintingContent = generateFlowerBirdContent(width, height, seed, options);
     }

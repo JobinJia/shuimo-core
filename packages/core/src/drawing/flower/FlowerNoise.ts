@@ -37,13 +37,10 @@ export class FlowerNoise {
    */
   noise(x: number, y: number = 0, z: number = 0): number {
     if (this.perlin == null) {
-      console.log("🔧 Noise: Initializing perlin array (4096 prng.random calls)");
-      console.trace("🔧 Noise: Call stack:");
       this.perlin = Array.from({ length: this.PERLIN_SIZE + 1 });
       for (let i = 0; i < this.PERLIN_SIZE + 1; i++) {
         this.perlin[i] = prng.random();
       }
-      console.log("🔧 Noise: Perlin array initialized");
     }
 
     if (x < 0) x = -x;
@@ -168,7 +165,6 @@ export class FlowerNoise {
    * This should be called when changing the global PRNG seed
    */
   reset(): void {
-    console.log("🔧 Noise: Reset called, perlin array will be re-initialized");
     this.perlin = null;
   }
 }
@@ -178,9 +174,7 @@ export class FlowerNoise {
 // ============================================================================
 
 /** Global noise generator instance */
-console.log("🔧 Creating global FlowerNoise instance");
 export const flowerNoise = new FlowerNoise();
-console.log("🔧 Global FlowerNoise instance created:", flowerNoise);
 
 /**
  * Generate Perlin noise (convenience function)

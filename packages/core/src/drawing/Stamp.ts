@@ -2057,7 +2057,6 @@ export function measureStampText(options: StampOptions): {
 } | null {
   // Only works in browser environment
   if (typeof document === "undefined") {
-    console.warn("measureStampText only works in browser environment");
     return null;
   }
 

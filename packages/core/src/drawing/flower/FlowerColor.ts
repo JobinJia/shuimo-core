@@ -5,7 +5,6 @@
  */
 
 import { abs } from "./FlowerMath";
-import { mapval } from "./FlowerMath";
 
 // ============================================================================
 // RGBA Color
@@ -40,17 +39,36 @@ export function hsv(h: number, s: number, v: number, a: number = 1.0): string {
   const x = c * (1 - abs(((h / 60) % 2) - 1));
   const m = v - c;
 
-  const hueSegment = Math.floor(h / 60);
-  const rgbPrimes = [
-    [c, x, 0],
-    [x, c, 0],
-    [0, c, x],
-    [0, x, c],
-    [x, 0, c],
-    [c, 0, x],
-  ];
+  let rv = 0;
+  let gv = 0;
+  let bv = 0;
+  switch (Math.floor(h / 60)) {
+    case 0:
+      rv = c;
+      gv = x;
+      break;
+    case 1:
+      rv = x;
+      gv = c;
+      break;
+    case 2:
+      gv = c;
+      bv = x;
+      break;
+    case 3:
+      gv = x;
+      bv = c;
+      break;
+    case 4:
+      rv = x;
+      bv = c;
+      break;
+    case 5:
+      rv = c;
+      bv = x;
+      break;
+  }
 
-  const [rv, gv, bv] = rgbPrimes[hueSegment] || [0, 0, 0];
   const r = (rv + m) * 255;
   const g = (gv + m) * 255;
   const b = (bv + m) * 255;
@@ -70,14 +88,18 @@ export function hsv(h: number, s: number, v: number, a: number = 1.0): string {
  * @param p - Progress (0-1)
  */
 export function lerpHue(h0: number, h1: number, p: number): number {
-  const methods: [number, number][] = [
-    [abs(h1 - h0), mapval(p, 0, 1, h0, h1)],
-    [abs(h1 + 360 - h0), mapval(p, 0, 1, h0, h1 + 360)],
-    [abs(h1 - 360 - h0), mapval(p, 0, 1, h0, h1 - 360)],
-  ];
+  const d0 = abs(h1 - h0);
+  const d1 = abs(h1 + 360 - h0);
+  const d2 = abs(h1 - 360 - h0);
 
-  methods.sort((x, y) => x[0] - y[0]);
-  return (methods[0][1] + 720) % 360;
+  let target = h1;
+  if (d1 < d0 && d1 <= d2) {
+    target = h1 + 360;
+  } else if (d2 < d0 && d2 < d1) {
+    target = h1 - 360;
+  }
+
+  return (h0 + (target - h0) * p + 720) % 360;
 }
 
 // ============================================================================
@@ -200,17 +222,36 @@ export function hsvFiltered(
   const xv = c * (1 - abs(((h / 60) % 2) - 1));
   const m = v - c;
 
-  const hueSegment = Math.floor(h / 60);
-  const rgbPrimes = [
-    [c, xv, 0],
-    [xv, c, 0],
-    [0, c, xv],
-    [0, xv, c],
-    [xv, 0, c],
-    [c, 0, xv],
-  ];
+  let rv = 0;
+  let gv = 0;
+  let bv = 0;
+  switch (Math.floor(h / 60)) {
+    case 0:
+      rv = c;
+      gv = xv;
+      break;
+    case 1:
+      rv = xv;
+      gv = c;
+      break;
+    case 2:
+      gv = c;
+      bv = xv;
+      break;
+    case 3:
+      gv = xv;
+      bv = c;
+      break;
+    case 4:
+      rv = xv;
+      bv = c;
+      break;
+    case 5:
+      rv = c;
+      bv = xv;
+      break;
+  }
 
-  const [rv, gv, bv] = rgbPrimes[hueSegment] || [0, 0, 0];
   let r = (rv + m) * 255;
   let g = (gv + m) * 255;
   let b = (bv + m) * 255;

@@ -129,23 +129,21 @@ const v3 = {
     const [x, y, z] = vec;
     const costh = Math.cos(th);
     const sinth = Math.sin(th);
-
-    const mat = {
-      11: l * l * (1 - costh) + costh,
-      12: m * l * (1 - costh) - n * sinth,
-      13: n * l * (1 - costh) + m * sinth,
-      21: l * m * (1 - costh) + n * sinth,
-      22: m * m * (1 - costh) + costh,
-      23: n * m * (1 - costh) - l * sinth,
-      31: l * n * (1 - costh) - m * sinth,
-      32: m * n * (1 - costh) + l * sinth,
-      33: n * n * (1 - costh) + costh,
-    };
+    const t = 1 - costh;
+    const m11 = l * l * t + costh;
+    const m12 = m * l * t - n * sinth;
+    const m13 = n * l * t + m * sinth;
+    const m21 = l * m * t + n * sinth;
+    const m22 = m * m * t + costh;
+    const m23 = n * m * t - l * sinth;
+    const m31 = l * n * t - m * sinth;
+    const m32 = m * n * t + l * sinth;
+    const m33 = n * n * t + costh;
 
     return [
-      x * mat[11] + y * mat[12] + z * mat[13],
-      x * mat[21] + y * mat[22] + z * mat[23],
-      x * mat[31] + y * mat[32] + z * mat[33],
+      x * m11 + y * m12 + z * m13,
+      x * m21 + y * m22 + z * m23,
+      x * m31 + y * m32 + z * m33,
     ];
   },
 
@@ -195,24 +193,11 @@ const v3 = {
   },
 
   toeuler(v0: Vec3): Vec3 {
-    const ep = 5;
-    let ma = 2 * PI;
-    let mr: Vec3 = [0, 0, 0];
-    for (let x = -180; x < 180; x += ep) {
-      for (let y = -90; y < 90; y += ep) {
-        const r: Vec3 = [rad(x), rad(y), 0];
-        const v = v3.roteuler([0, 0, 1], r);
-        const a = v3.ang(v0, v);
-        if (a < rad(ep)) {
-          return r;
-        }
-        if (a < ma) {
-          ma = a;
-          mr = r;
-        }
-      }
-    }
-    return mr;
+    const length = v3.mag(v0);
+    if (length === 0) return [0, 0, 0];
+    const x = Math.asin(Math.max(-1, Math.min(1, -v0[1] / length)));
+    const y = Math.atan2(v0[0], v0[2]);
+    return [x, y, 0];
   },
 
   lerp(u: Vec3, v: Vec3, p: number): Vec3 {
@@ -232,27 +217,54 @@ function hsv(h: number, s: number, v: number, a: number = 1): string {
   const c = v * s;
   const x = c * (1 - abs(((h / 60) % 2) - 1));
   const m = v - c;
-  const idx = Math.floor(h / 60);
-  const [rv, gv, bv] = [
-    [c, x, 0],
-    [x, c, 0],
-    [0, c, x],
-    [0, x, c],
-    [x, 0, c],
-    [c, 0, x],
-  ][idx] || [0, 0, 0];
-  const [r, g, b] = [(rv + m) * 255, (gv + m) * 255, (bv + m) * 255];
+  let rv = 0;
+  let gv = 0;
+  let bv = 0;
+  switch (Math.floor(h / 60)) {
+    case 0:
+      rv = c;
+      gv = x;
+      break;
+    case 1:
+      rv = x;
+      gv = c;
+      break;
+    case 2:
+      gv = c;
+      bv = x;
+      break;
+    case 3:
+      gv = x;
+      bv = c;
+      break;
+    case 4:
+      rv = x;
+      bv = c;
+      break;
+    case 5:
+      rv = c;
+      bv = x;
+      break;
+  }
+  const r = (rv + m) * 255;
+  const g = (gv + m) * 255;
+  const b = (bv + m) * 255;
   return rgba(r, g, b, a);
 }
 
 function lerpHue(h0: number, h1: number, p: number): number {
-  const methods = [
-    [abs(h1 - h0), mapval(p, 0, 1, h0, h1)],
-    [abs(h1 + 360 - h0), mapval(p, 0, 1, h0, h1 + 360)],
-    [abs(h1 - 360 - h0), mapval(p, 0, 1, h0, h1 - 360)],
-  ];
-  methods.sort((x, y) => x[0] - y[0]);
-  return (methods[0][1] + 720) % 360;
+  const d0 = abs(h1 - h0);
+  const d1 = abs(h1 + 360 - h0);
+  const d2 = abs(h1 - 360 - h0);
+
+  let target = h1;
+  if (d1 < d0 && d1 <= d2) {
+    target = h1 + 360;
+  } else if (d2 < d0 && d2 < d1) {
+    target = h1 - 360;
+  }
+
+  return (h0 + (target - h0) * p + 720) % 360;
 }
 
 // ============================================================================
@@ -375,6 +387,19 @@ function paper(args: PaperArgs = {}): HTMLCanvasElement {
   canvas.height = 512;
   const ctx = canvas.getContext("2d")!;
   const reso = 512;
+  const imageData = ctx.createImageData(reso, reso);
+  const data = imageData.data;
+
+  const writePixel = (x: number, y: number, r: number, g: number, b: number): void => {
+    if (x < 0 || x >= reso || y < 0 || y >= reso) {
+      return;
+    }
+    const index = (y * reso + x) * 4;
+    data[index] = r;
+    data[index + 1] = g;
+    data[index + 2] = b;
+    data[index + 3] = 255;
+  };
 
   for (let i = 0; i < reso / 2 + 1; i++) {
     for (let j = 0; j < reso / 2 + 1; j++) {
@@ -391,13 +416,16 @@ function paper(args: PaperArgs = {}): HTMLCanvasElement {
         g = c * 0.5;
         b = c * 0.2;
       }
-      ctx.fillStyle = rgba(r, g, b);
-      ctx.fillRect(i, j, 1, 1);
-      ctx.fillRect(reso - i, j, 1, 1);
-      ctx.fillRect(i, reso - j, 1, 1);
-      ctx.fillRect(reso - i, reso - j, 1, 1);
+      const ri = Math.floor(r);
+      const gi = Math.floor(g);
+      const bi = Math.floor(b);
+      writePixel(i, j, ri, gi, bi);
+      writePixel(reso - i, j, ri, gi, bi);
+      writePixel(i, reso - j, ri, gi, bi);
+      writePixel(reso - i, reso - j, ri, gi, bi);
     }
   }
+  ctx.putImageData(imageData, 0, 0);
   return canvas;
 }
 
@@ -608,15 +636,10 @@ function stem(args: StemArgs = {}): Vec3[] {
       const p3 = v3.lerp(L[i], R[i], n);
 
       const lt = n / p;
-      const h =
-        lerpHue(col.min[0], col.max[0], lt) *
-        mapval(Noise.noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1);
-      const s =
-        mapval(lt, 0, 1, col.max[1], col.min[1]) *
-        mapval(Noise.noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1);
-      const v =
-        mapval(lt, 0, 1, col.min[2], col.max[2]) *
-        mapval(Noise.noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1);
+      const shade = mapval(Noise.noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1);
+      const h = lerpHue(col.min[0], col.max[0], lt) * shade;
+      const s = mapval(lt, 0, 1, col.max[1], col.min[1]) * shade;
+      const v = mapval(lt, 0, 1, col.min[2], col.max[2]) * shade;
       const a = mapval(lt, 0, 1, col.min[3], col.max[3]);
 
       polygon({ ctx, pts: [p0, p1, p3, p2], xof, yof, fil: true, str: true, col: hsv(h, s, v, a) });
@@ -1268,6 +1291,7 @@ export function generateFlowerCanvas(options: FlowerCanvasOptions = {}): HTMLCan
   prng.seed(finalSeed);
 
   // Reset noise - it will reinitialize on first use
+  Noise.reset();
 
   // Simulate makeBG() - consumes randoms for noise initialization
   paper({ col: PAPER_COL0, tex: 10, spr: 0 });

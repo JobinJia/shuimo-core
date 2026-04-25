@@ -876,11 +876,117 @@ function buildDeckleOutline(
 // entry point
 // ---------------------------------------------------------------------------
 
+const SCENE_CACHE_LIMIT = 8;
+const sceneCache = new Map<string, XuanPaperScene>();
+
+function sceneCacheKey(options: NormalizedXuanPaperOptions): string {
+  return [
+    options.width,
+    options.height,
+    options.baseColor.join(","),
+    options.fiberDensity,
+    options.fiberScale,
+    options.textureIntensity,
+    options.grainDensity,
+    options.age,
+    options.deckleEdge ? 1 : 0,
+    options.deckleRoughness,
+    options.seed,
+    options.mode,
+    options.goldFlecks ? 1 : 0,
+    options.goldDensity,
+    options.goldSize.join(","),
+    options.goldColor.join(","),
+    options.goldClustering,
+    options.goldDistribution,
+  ].join("|");
+}
+
+function clonePoint(point: PaperPoint): PaperPoint {
+  return { x: point.x, y: point.y };
+}
+
+function cloneColor(color: [number, number, number]): [number, number, number] {
+  return [color[0], color[1], color[2]];
+}
+
+function cloneGoldCommand(command: GoldPathCommand): GoldPathCommand {
+  switch (command.type) {
+    case "M":
+      return { type: "M", x: command.x, y: command.y };
+    case "L":
+      return { type: "L", x: command.x, y: command.y };
+    case "Q":
+      return { type: "Q", cpx: command.cpx, cpy: command.cpy, x: command.x, y: command.y };
+    case "Z":
+      return { type: "Z" };
+  }
+}
+
+function cloneScene(scene: XuanPaperScene): XuanPaperScene {
+  return {
+    options: {
+      ...scene.options,
+      baseColor: cloneColor(scene.options.baseColor),
+      goldSize: [scene.options.goldSize[0], scene.options.goldSize[1]],
+      goldColor: cloneColor(scene.options.goldColor),
+    },
+    profile: { ...scene.profile },
+    seeds: { ...scene.seeds },
+    fibers: scene.fibers.map((fiber) => ({
+      points: fiber.points.map(clonePoint),
+      width: fiber.width,
+      color: cloneColor(fiber.color),
+      alpha: fiber.alpha,
+    })),
+    particles: scene.particles.map((particle) => ({
+      x: particle.x,
+      y: particle.y,
+      rx: particle.rx,
+      ry: particle.ry,
+      rotation: particle.rotation,
+      color: cloneColor(particle.color),
+      alpha: particle.alpha,
+    })),
+    goldFlecks: scene.goldFlecks.map((fleck) => ({
+      commands: fleck.commands.map(cloneGoldCommand),
+      copies: fleck.copies.map(clonePoint),
+      color: cloneColor(fleck.color),
+      alpha: fleck.alpha,
+    })),
+    deckleOutline: scene.deckleOutline
+      ? {
+          top: scene.deckleOutline.top.slice(),
+          right: scene.deckleOutline.right.slice(),
+          bottom: scene.deckleOutline.bottom.slice(),
+          left: scene.deckleOutline.left.slice(),
+        }
+      : null,
+  };
+}
+
+function rememberScene(key: string, scene: XuanPaperScene): void {
+  sceneCache.set(key, cloneScene(scene));
+  if (sceneCache.size > SCENE_CACHE_LIMIT) {
+    const oldestKey = sceneCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      sceneCache.delete(oldestKey);
+    }
+  }
+}
+
 export function buildXuanPaperScene(options: XuanPaperOptions = {}): XuanPaperScene {
   const normalized = normalizeXuanPaperOptions(options);
   const profile = buildXuanPaperProfile(normalized);
+  const cacheKey = sceneCacheKey(normalized);
+  const cached = sceneCache.get(cacheKey);
+  if (cached) {
+    sceneCache.delete(cacheKey);
+    sceneCache.set(cacheKey, cached);
+    return cloneScene(cached);
+  }
 
-  return {
+  const scene: XuanPaperScene = {
     options: normalized,
     profile,
     seeds: {
@@ -898,4 +1004,7 @@ export function buildXuanPaperScene(options: XuanPaperOptions = {}): XuanPaperSc
     goldFlecks: generateGoldFlecks(normalized, profile),
     deckleOutline: buildDeckleOutline(normalized, profile),
   };
+
+  rememberScene(cacheKey, scene);
+  return scene;
 }

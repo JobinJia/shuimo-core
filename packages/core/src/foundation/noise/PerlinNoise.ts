@@ -161,6 +161,13 @@ export class PerlinNoise {
       this.perlin[i] = lcg.rand();
     }
   }
+
+  /**
+   * Reset the noise table so the next noise call initializes from current PRNG state.
+   */
+  reset(): void {
+    this.perlin = null;
+  }
 }
 
 // Global instance

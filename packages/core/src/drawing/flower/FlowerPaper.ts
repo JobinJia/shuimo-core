@@ -44,18 +44,26 @@ export function generatePaperCanvas(options: PaperOptions = {}): HTMLCanvasEleme
     reso = 512,
   } = options;
 
-  console.log("📄 Paper: Starting generation with reso:", reso);
-
   const canvas = document.createElement("canvas");
   canvas.width = reso;
   canvas.height = reso;
   const ctx = canvas.getContext("2d")!;
+  const imageData = ctx.createImageData(reso, reso);
+  const data = imageData.data;
+
+  const writePixel = (x: number, y: number, r: number, g: number, b: number): void => {
+    if (x < 0 || x >= reso || y < 0 || y >= reso) {
+      return;
+    }
+    const index = (y * reso + x) * 4;
+    data[index] = r;
+    data[index + 1] = g;
+    data[index + 2] = b;
+    data[index + 3] = 255;
+  };
 
   // Generate texture pixel by pixel
   // Only generate 1/4 of the texture, then mirror to create tileable pattern
-  const loopCount = reso / 2 + 1;
-  console.log("📄 Paper: Loop iterations:", loopCount, "x", loopCount, "=", loopCount * loopCount);
-
   for (let i = 0; i < reso / 2 + 1; i++) {
     for (let j = 0; j < reso / 2 + 1; j++) {
       // Base brightness from Perlin noise
@@ -75,15 +83,19 @@ export function generatePaperCanvas(options: PaperOptions = {}): HTMLCanvasEleme
         b = c * 0.2;
       }
 
+      const ri = Math.floor(r);
+      const gi = Math.floor(g);
+      const bi = Math.floor(b);
+
       // Draw to all four quadrants (creates tileable texture)
-      ctx.fillStyle = rgba(r, g, b);
-      ctx.fillRect(i, j, 1, 1);
-      ctx.fillRect(reso - i, j, 1, 1);
-      ctx.fillRect(i, reso - j, 1, 1);
-      ctx.fillRect(reso - i, reso - j, 1, 1);
+      writePixel(i, j, ri, gi, bi);
+      writePixel(reso - i, j, ri, gi, bi);
+      writePixel(i, reso - j, ri, gi, bi);
+      writePixel(reso - i, reso - j, ri, gi, bi);
     }
   }
 
+  ctx.putImageData(imageData, 0, 0);
   return canvas;
 }
 
@@ -95,7 +107,6 @@ export function generatePaperCanvas(options: PaperOptions = {}): HTMLCanvasEleme
  * @returns Base64 data URL string
  */
 export function generatePaperDataURL(options: PaperOptions = {}): string {
-  console.log("📄 generatePaperDataURL called");
   const canvas = generatePaperCanvas(options);
   return canvas.toDataURL("image/png");
 }

@@ -14,14 +14,6 @@ import { noise } from "./FlowerNoise";
  * Creates all the configuration needed for woody or herbal plants
  */
 export function genParams(): FlowerParams {
-  console.log("🌺 SVG genParams: First 5 random:", [
-    prng.random(),
-    prng.random(),
-    prng.random(),
-    prng.random(),
-    prng.random(),
-  ]);
-
   const randint = (x: number, y: number) => Math.floor(normRand(x, y));
 
   // Flower shape masks
@@ -204,8 +196,6 @@ export function genParams(): FlowerParams {
     branchFork,
     branchColor,
   };
-
-  console.log("Generated flower parameters:", params);
 
   return params;
 }

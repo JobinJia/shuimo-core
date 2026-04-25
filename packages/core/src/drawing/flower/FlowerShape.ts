@@ -36,13 +36,18 @@ export function createSVGElement<K extends keyof SVGElementTagNameMap>(
 /**
  * Convert array of points to SVG path d attribute
  */
-export function pointsToPath(pts: Vec2[], closed: boolean = true): string {
+export function pointsToPath(
+  pts: Vec2[],
+  closed: boolean = true,
+  xof: number = 0,
+  yof: number = 0,
+): string {
   if (pts.length === 0) return "";
 
-  let d = `M ${pts[0][0]} ${pts[0][1]}`;
+  let d = `M ${pts[0][0] + xof} ${pts[0][1] + yof}`;
 
   for (let i = 1; i < pts.length; i++) {
-    d += ` L ${pts[i][0]} ${pts[i][1]}`;
+    d += ` L ${pts[i][0] + xof} ${pts[i][1] + yof}`;
   }
 
   if (closed) {
@@ -65,11 +70,7 @@ export function pointsToPath(pts: Vec2[], closed: boolean = true): string {
 export function polygon(args: PolygonArgs): SVGPathElement {
   const { pts = [], col = "black", fil = true, str = false, xof = 0, yof = 0 } = args;
 
-  // Apply offset to points
-  const offsetPts: Vec2[] = pts.map((pt) => [pt[0] + xof, pt[1] + yof]);
-
-  // Generate path data
-  const d = pointsToPath(offsetPts, true);
+  const d = pointsToPath(pts, true, xof, yof);
 
   // Create path element
   const path = createSVGElement("path", { d });

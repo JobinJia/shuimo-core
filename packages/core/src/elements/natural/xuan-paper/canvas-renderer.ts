@@ -272,7 +272,11 @@ export function renderXuanPaperCanvas(scene: XuanPaperScene): HTMLCanvasElement 
 // Tiled rendering — split the heavy per-pixel work across multiple Workers
 // ---------------------------------------------------------------------------
 
-function applyPaperToneTile(ctx: XuanPaperContext2D, scene: XuanPaperScene, tile: TileRegion): void {
+function applyPaperToneTile(
+  ctx: XuanPaperContext2D,
+  scene: XuanPaperScene,
+  tile: TileRegion,
+): void {
   const { textureIntensity, grainDensity, age } = scene.options;
   const imageData = ctx.getImageData(0, 0, tile.width, tile.height);
   const data = imageData.data;
@@ -351,7 +355,11 @@ function applyPaperToneTile(ctx: XuanPaperContext2D, scene: XuanPaperScene, tile
   ctx.putImageData(imageData, 0, 0);
 }
 
-function applyDeckleEdgeTile(ctx: XuanPaperContext2D, scene: XuanPaperScene, tile: TileRegion): void {
+function applyDeckleEdgeTile(
+  ctx: XuanPaperContext2D,
+  scene: XuanPaperScene,
+  tile: TileRegion,
+): void {
   const outline = scene.deckleOutline;
   if (!outline) {
     return;
@@ -422,7 +430,11 @@ function applyDeckleEdgeTile(ctx: XuanPaperContext2D, scene: XuanPaperScene, til
   ctx.restore();
 }
 
-export function renderXuanPaperTileToCanvas(canvas: XuanPaperCanvas, scene: XuanPaperScene, tile: TileRegion): void {
+export function renderXuanPaperTileToCanvas(
+  canvas: XuanPaperCanvas,
+  scene: XuanPaperScene,
+  tile: TileRegion,
+): void {
   canvas.width = tile.width;
   canvas.height = tile.height;
 

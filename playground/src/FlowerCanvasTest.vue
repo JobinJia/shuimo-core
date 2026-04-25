@@ -27,8 +27,8 @@ function generate(seed?: string) {
     });
 
     canvasContainer.value.appendChild(canvas);
-  } catch (error) {
-    console.error("Failed to generate flower:", error);
+  } catch {
+    canvasContainer.value.innerHTML = "";
   } finally {
     isGenerating.value = false;
   }
@@ -52,8 +52,8 @@ function generateWoody() {
     });
 
     canvasContainer.value.appendChild(canvas);
-  } catch (error) {
-    console.error("Failed to generate woody flower:", error);
+  } catch {
+    canvasContainer.value.innerHTML = "";
   } finally {
     isGenerating.value = false;
   }
@@ -77,8 +77,8 @@ function generateHerbal() {
     });
 
     canvasContainer.value.appendChild(canvas);
-  } catch (error) {
-    console.error("Failed to generate herbal flower:", error);
+  } catch {
+    canvasContainer.value.innerHTML = "";
   } finally {
     isGenerating.value = false;
   }

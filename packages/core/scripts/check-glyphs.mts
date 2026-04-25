@@ -9,26 +9,28 @@ const buf = readFileSync(
 );
 const font = opentype.parse(buf.buffer as ArrayBuffer);
 const upm = font.unitsPerEm;
+const metrics: Array<{
+  aw: string;
+  height: string;
+  xMax: string;
+  xMin: string;
+  yMax: string;
+  yMin: string;
+}> = [];
 
 for (const ch of ["水", "墨", "兰", "梅", "落", "月", "风", "听", "雪", "乌"]) {
   const g = font.charToGlyph(ch);
   const bb = g.getBoundingBox();
-  console.log(
-    ch,
-    "yMin:",
-    (bb.y1 / upm).toFixed(4),
-    "yMax:",
-    (bb.y2 / upm).toFixed(4),
-    "height:",
-    ((bb.y2 - bb.y1) / upm).toFixed(4),
-    "xMin:",
-    (bb.x1 / upm).toFixed(4),
-    "xMax:",
-    (bb.x2 / upm).toFixed(4),
-    "aw:",
-    (g.advanceWidth / upm).toFixed(4),
-  );
+  metrics.push({
+    aw: (g.advanceWidth / upm).toFixed(4),
+    height: ((bb.y2 - bb.y1) / upm).toFixed(4),
+    xMax: (bb.x2 / upm).toFixed(4),
+    xMin: (bb.x1 / upm).toFixed(4),
+    yMax: (bb.y2 / upm).toFixed(4),
+    yMin: (bb.y1 / upm).toFixed(4),
+  });
 }
-console.log("ascender:", font.ascender / upm, "descender:", font.descender / upm);
-console.log("\nFor baseline: glyph yMax = top of ink above baseline");
-console.log("Average yMax should be used as effective ascender for positioning");
+
+void metrics;
+void font.ascender;
+void font.descender;

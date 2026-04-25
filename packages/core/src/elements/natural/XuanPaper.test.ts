@@ -75,6 +75,29 @@ describe("XuanPaper", () => {
     expect(a).toEqual(b);
   });
 
+  it("keeps cached scene data isolated from caller mutation", () => {
+    const options = {
+      width: 160,
+      height: 96,
+      seed: 199,
+      goldFlecks: true,
+      age: 0.2,
+    } as const;
+
+    const baseline = buildXuanPaperScene(options);
+    const mutated = buildXuanPaperScene(options);
+
+    mutated.options.baseColor[0] = 0;
+    mutated.fibers[0]?.points.splice(0, 1);
+    mutated.particles[0]!.x = -1;
+    mutated.goldFlecks[0]?.commands.splice(0, 1);
+    if (mutated.deckleOutline) {
+      mutated.deckleOutline.top[0] = -1;
+    }
+
+    expect(buildXuanPaperScene(options)).toEqual(baseline);
+  });
+
   it("maps preset families to distinct paper profiles", () => {
     const rawScene = buildXuanPaperScene({
       width: 120,
