@@ -1,6 +1,13 @@
 export { Stroke, stroke, type StrokeOptions } from "./Stroke";
 export { Blob, blob, type BlobOptions } from "./Blob";
 export { Brush, brushStroke, brushDot, naturalBrushStroke, type BrushStrokeOptions } from "./Brush";
+export { Goldfish, generateGoldfishCanvas, type GoldfishCanvasOptions } from "./Goldfish";
+export {
+  generateShuimoLoadingSVG,
+  shuimoLoading,
+  type ShuimoLoadingOptions,
+} from "./ShuimoLoading";
+export { generateCalligraphyLoadingSVG, calligraphyLoading } from "./LoadingCalligraphy";
 export { div } from "./div";
 export { Texture, texture, type TextureOptions } from "./Texture";
 export {
