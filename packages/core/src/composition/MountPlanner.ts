@@ -205,9 +205,29 @@ export class MountPlanner {
    * @param xmin - Minimum x coordinate
    * @param xmax - Maximum x coordinate
    * @param planmtx - Planning matrix (modified in place)
+   * @param landRegistry - Optional cross-chunk accumulator of placed
+   *   `mount` / `flatmount` / `boat` items. Mutated in place: every land and
+   *   boat placed in this chunk is appended so subsequent chunks can see it.
+   *   Used in two directions:
+   *     - boat placement reads it to reject anchors inside a prior land's
+   *       footprint (mountain centered in chunk N seen by chunk N+1's boats).
+   *     - mountain & flatmount placement reads it to skip a candidate that
+   *       would land on a prior chunk's boat (the chunk N+1 mountain whose
+   *       jittered x falls back into chunk N where a boat already sits).
+   *   Without this both-ways check, fishermen still appear on the ridge at
+   *   chunk seams. SceneManager calls plan() per cwid=512 chunk but mountains
+   *   can be 600+ wide and flatmounts up to 1000, so cross-chunk overlap is
+   *   common. Defaults to an empty array; callers that don't need
+   *   cross-chunk coherence (e.g. PaintingGenerator with a single full-width
+   *   plan) can omit it.
    * @returns Array of planned items
    */
-  static plan(xmin: number, xmax: number, planmtx: number[]): PlanItem[] {
+  static plan(
+    xmin: number,
+    xmax: number,
+    planmtx: number[],
+    landRegistry: PlanItem[] = [],
+  ): PlanItem[] {
     const reg: PlanItem[] = [];
     const samp = 0.03;
 
@@ -222,6 +242,15 @@ export class MountPlanner {
     const xstep = MountPlanner.XSTEP;
     const mwid = 200;
 
+    // Reject lands that would land on a boat already placed in an earlier
+    // chunk. Within a single chunk's plan(), mountains are placed before
+    // boats so `reg` has no boats yet — only `landRegistry` matters here.
+    // Same fisherman-vs-mountain-body thresholds as boat placement, applied
+    // in reverse: keep the new land far enough from the existing boat that
+    // its body wouldn't engulf the figure.
+    const wouldCoverBoat = (lx: number, lhalfWid: number): boolean =>
+      landRegistry.some((p) => p.tag === "boat" && Math.abs(p.x - lx) < lhalfWid);
+
     // Initialize planning matrix
     for (let i = xmin; i < xmax; i += xstep) {
       const i1 = Math.floor(i / xstep);
@@ -234,6 +263,7 @@ export class MountPlanner {
         if (this.locmax(i, j, ns, 2)) {
           const xof = i + 2 * (prng.random() - 0.5) * 500;
           const yof = j + 300;
+          if (wouldCoverBoat(xof, 350)) continue; // skip — boat from a prior chunk lives here
           const r: PlanItem = { tag: "mount", x: xof, y: yof, h: ns(i, j) };
           const res = this.chadd(reg, r, 10, planmtx);
           if (res) {
@@ -261,9 +291,11 @@ export class MountPlanner {
       if (planmtx[Math.floor(i / xstep)] === 0) {
         if (prng.random() < 0.01) {
           for (let j = 0; j < 4 * prng.random(); j++) {
+            const fx = i + 2 * (prng.random() - 0.5) * 700;
+            if (wouldCoverBoat(fx, 550)) continue;
             const r: PlanItem = {
               tag: "flatmount",
-              x: i + 2 * (prng.random() - 0.5) * 700,
+              x: fx,
               y: 700 - j * 50,
               h: ns(i, j),
             };
@@ -273,11 +305,48 @@ export class MountPlanner {
       }
     }
 
-    // Place boats
+    // Place boats — must sit on open water, never on a mountain body. The
+    // boat carries a fishing person via `Arch.boat01`; if its x falls inside
+    // a mountain's horizontal span the fisherman appears to stand on the
+    // ridge.
+    //
+    // Half-width thresholds protect the FISHERMAN figure (the visible
+    // anomaly) from overlapping the land's drawn body. The figure sits at
+    // boat.x + 20*sca*dir (≤ 17px). Hull may clip the mountain *edge* up to
+    // ~100px when dir points toward it, but at boat-y > mountain.y the hull
+    // sits below the mountain base in canvas-y, so the visible result is a
+    // boat next to the mountain, not a fisherman atop it.
+    //   mount:     body half-width up to 300 + tree-rim halo + figure offset = 350
+    //   flatmount: body half-width up to 500 + halo + figure offset = 550
+    //
+    // Cross-chunk: SceneManager calls plan() per cwid=512 chunk, so a
+    // mountain centered near a chunk boundary is invisible to the next
+    // chunk's `reg`. `landRegistry` accumulates lands across chunks; checking
+    // it here prevents fisherman-on-ridge artifacts at chunk seams. prng
+    // draws are made before the rejection so the seed→output mapping stays
+    // deterministic for chunks that ultimately accept the boat.
+    const isOnLand = (m: PlanItem, bx: number): boolean => {
+      if (m.tag !== "mount" && m.tag !== "flatmount") return false;
+      const halfWid = m.tag === "flatmount" ? 550 : 350;
+      return Math.abs(m.x - bx) < halfWid;
+    };
     for (let i = xmin; i < xmax; i += xstep) {
       if (prng.random() < 0.2) {
         const r: PlanItem = { tag: "boat", x: i, y: 300 + prng.random() * 390, h: 0 };
+        if (reg.some((m) => isOnLand(m, r.x))) continue;
+        if (landRegistry.some((m) => isOnLand(m, r.x))) continue;
         this.chadd(reg, r, 400, planmtx);
+      }
+    }
+
+    // Accumulate this chunk's lands AND boats so subsequent chunks can see
+    // them. Lands are checked by the next chunk's boat placement; boats are
+    // checked by the next chunk's mountain placement (mountains in chunk N+1
+    // can land back in chunk N because the noise-driven xof has ±500 jitter).
+    // No-op when caller passes the default empty array.
+    for (const item of reg) {
+      if (item.tag === "mount" || item.tag === "flatmount" || item.tag === "boat") {
+        landRegistry.push(item);
       }
     }
 
@@ -488,6 +557,19 @@ export class MountPlanner {
 
         if (blankArea && this.isInBlankArea(x, y, width, height, blankArea)) {
           continue;
+        }
+
+        // Boats must sit on open water — same invariant plan() enforces.
+        // Without this guard, callers passing minCounts.boat get fishermen
+        // anchored on mountain bodies whenever the random x lands inside a
+        // mount/flatmount footprint.
+        if (tag === "boat") {
+          const onLand = plan.some((m) => {
+            if (m.tag !== "mount" && m.tag !== "flatmount") return false;
+            const halfWid = m.tag === "flatmount" ? 550 : 350;
+            return Math.abs(m.x - x) < halfWid;
+          });
+          if (onLand) continue;
         }
 
         const item: PlanItem = { tag, x, y, h: 0 };

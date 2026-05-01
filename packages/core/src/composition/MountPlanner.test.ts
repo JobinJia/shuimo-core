@@ -205,7 +205,7 @@ describe("MountPlanner.fillShortfall", () => {
     const arch01s = plan.filter((p) => p.tag === "arch01");
     expect(arch01s.length).toBeGreaterThanOrEqual(1);
     for (const a of arch01s) {
-      // Must snap onto the y=320 mount at x=400, never the shallow one at x=900.
+      // Must snap onto mount A at x=400, never mount B at x=900.
       expect(Math.abs(a.x - 400)).toBeLessThanOrEqual(35);
     }
   });
@@ -364,6 +364,69 @@ describe("MountPlanner.plan anchored buildings", () => {
           return dy >= 25 && dy <= 80;
         });
         expect(onSpine).toBe(true);
+      }
+    }
+  });
+
+  it("never places a boat where its x falls under a mountain or flatmount body (no fisherman on the ridge)", () => {
+    // The fishing-person boat (`Arch.boat01`) sits in y-sort behind/in-front
+    // of mountains by y order; if its x overlaps a mountain's horizontal span
+    // and its y is greater than the mountain's, it renders on top of the
+    // spine ink — so a fisherman appears to stand on the mountain.
+    //
+    // Threshold = land body half-width + boat-hull buffer. Mount bodies reach
+    // ±300 (wid 400-600); flatmount bodies reach ±500 (wid 600-1000); the
+    // boat hull extends from its anchor by up to len*sca = 120*0.86 ≈ 103px
+    // in one direction (dir is randomized at render). 130 buffer covers
+    // hull + fisherman offset.
+    for (const seed of [42, 123, 4678, 52362, 58049, 91724, 7]) {
+      prng.seed(seed);
+      const planmtx: number[] = [];
+      const plan = MountPlanner.plan(0, 4800, planmtx);
+
+      const boats = plan.filter((p) => p.tag === "boat");
+      const lands = plan.filter((p) => p.tag === "mount" || p.tag === "flatmount");
+      for (const b of boats) {
+        for (const m of lands) {
+          const halfWid = m.tag === "flatmount" ? 550 : 350;
+          expect(Math.abs(m.x - b.x)).toBeGreaterThanOrEqual(halfWid);
+        }
+      }
+    }
+  });
+
+  it("preserves the boat-on-water invariant across chunk boundaries when caller threads landRegistry", () => {
+    // SceneManager loads chunks of cwid=512, but mountains can be 600+ wide
+    // and flatmounts up to 1000 — both can span chunk seams. Without
+    // landRegistry, a boat in chunk N+1 doesn't see chunk N's mountain and
+    // can land squarely on it. With landRegistry threaded through every
+    // plan() call, the cross-chunk view is consistent.
+    //
+    // The user-visible bug is "fisherman on the ridge", which only manifests
+    // when the boat is rendered ON TOP of the land (boat.y > land.y in the
+    // ascending y-sort SceneManager uses). The reverse case (land drawn on
+    // top, boat hidden behind) is wasteful but not visually wrong, so this
+    // test asserts only the visible invariant.
+    for (const seed of [0, 42, 123, 4678]) {
+      prng.seed(seed);
+      const planmtx: number[] = [];
+      const landRegistry: PlanItem[] = [];
+      const all: PlanItem[] = [];
+      // Walk 12 contiguous 512-wide chunks (~6 viewport widths) the way
+      // SceneManager.chunkLoader does.
+      for (let c = 0; c < 12; c++) {
+        const chunkPlan = MountPlanner.plan(c * 512, (c + 1) * 512, planmtx, landRegistry);
+        all.push(...chunkPlan);
+      }
+
+      const boats = all.filter((p) => p.tag === "boat");
+      const lands = all.filter((p) => p.tag === "mount" || p.tag === "flatmount");
+      for (const b of boats) {
+        for (const m of lands) {
+          if (b.y <= m.y) continue; // boat hidden behind land — not the user-visible bug
+          const halfWid = m.tag === "flatmount" ? 550 : 350;
+          expect(Math.abs(m.x - b.x)).toBeGreaterThanOrEqual(halfWid);
+        }
       }
     }
   });

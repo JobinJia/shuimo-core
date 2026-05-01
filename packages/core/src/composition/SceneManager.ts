@@ -37,6 +37,14 @@ export interface SceneState {
   windy: number;
   /** Planning matrix for tracking mountain placement */
   planmtx: number[];
+  /**
+   * Cross-chunk accumulator of placed `mount` / `flatmount` items. Threaded
+   * through every `MountPlanner.plan()` call so boat placement in a new
+   * chunk can reject candidates that would land on a mountain whose center
+   * lives in a previous chunk (mountains are up to 600 wide, flatmounts up
+   * to 1000 — both can span well past `cwid=512` chunk boundaries).
+   */
+  landRegistry: PlanItem[];
 }
 
 /**
@@ -59,6 +67,7 @@ export class SceneManager {
       windx: windx,
       windy: windy,
       planmtx: [],
+      landRegistry: [],
     };
   }
 
@@ -110,6 +119,7 @@ export class SceneManager {
           this.state.xmax,
           this.state.xmax + this.state.cwid,
           this.state.planmtx,
+          this.state.landRegistry,
         );
         this.state.xmax = this.state.xmax + this.state.cwid;
       } else {
@@ -117,6 +127,7 @@ export class SceneManager {
           this.state.xmin - this.state.cwid,
           this.state.xmin,
           this.state.planmtx,
+          this.state.landRegistry,
         );
         this.state.xmin = this.state.xmin - this.state.cwid;
       }
