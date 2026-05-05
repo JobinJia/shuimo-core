@@ -1,4 +1,11 @@
-export { MountPlanner, type BlankArea, type PlanItem, type PlanTag } from "./MountPlanner";
+export {
+  MountPlanner,
+  type BlankArea,
+  type ExplicitWaterBandOptions,
+  type LandscapePlacementOptions,
+  type PlanItem,
+  type PlanTag,
+} from "./MountPlanner";
 export { SceneManager, type Chunk, type SceneState } from "./SceneManager";
 export {
   PaintingGenerator,
@@ -12,4 +19,5 @@ export {
   type PaintingResult,
   type PaintingType,
   type BlankPosition,
+  type RenderElementControls,
 } from "./PaintingGenerator";

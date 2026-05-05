@@ -11,6 +11,9 @@ import XuanPaperDemo from "../demos/XuanPaperDemo.vue";
 import PaintingGeneratorDemo from "../demos/PaintingGeneratorDemo.vue";
 import FourGentlemenDemo from "../demos/FourGentlemenDemo.vue";
 import InkMountDemo from "../demos/InkMountDemo.vue";
+import LoadingShowcase from "../demos/LoadingShowcase.vue";
+import GoldfishDemo from "../demos/GoldfishDemo.vue";
+import LotusDemo from "../demos/LotusDemo.vue";
 
 const routes = [
   {
@@ -67,6 +70,21 @@ const routes = [
     path: "/painting-generator",
     name: "PaintingGenerator",
     component: PaintingGeneratorDemo,
+  },
+  {
+    path: "/loading-showcase",
+    name: "LoadingShowcase",
+    component: LoadingShowcase,
+  },
+  {
+    path: "/goldfish",
+    name: "Goldfish",
+    component: GoldfishDemo,
+  },
+  {
+    path: "/lotus",
+    name: "Lotus",
+    component: LotusDemo,
   },
   {
     path: "/four-gentlemen",

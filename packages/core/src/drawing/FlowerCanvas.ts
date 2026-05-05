@@ -140,11 +140,7 @@ const v3 = {
     const m32 = m * n * t + l * sinth;
     const m33 = n * n * t + costh;
 
-    return [
-      x * m11 + y * m12 + z * m13,
-      x * m21 + y * m22 + z * m23,
-      x * m31 + y * m32 + z * m33,
-    ];
+    return [x * m11 + y * m12 + z * m13, x * m21 + y * m22 + z * m23, x * m31 + y * m32 + z * m33];
   },
 
   roteuler(vec: Vec3, rot: Vec3): Vec3 {

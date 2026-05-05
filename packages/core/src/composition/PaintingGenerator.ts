@@ -8,8 +8,14 @@
  * - Configurable blank space (留白) positioning - affects element generation
  */
 
-import { MountPlanner, type BlankArea, type PlanItem, type PlanTag } from "./MountPlanner";
-import { Mount } from "../elements/natural/Mount";
+import {
+  MountPlanner,
+  type BlankArea,
+  type LandscapePlacementOptions,
+  type PlanItem,
+  type PlanTag,
+} from "./MountPlanner";
+import { Mount, type LayeredMountSVG } from "../elements/natural/Mount";
 import { water } from "../elements/natural/Water";
 import { Arch } from "../elements/objects/Arch";
 import { randChoice } from "../utils/random";
@@ -41,6 +47,9 @@ export type BlankPosition =
 export type PaintingType =
   | "landscape" // 山水画
   | "flowerBird"; // 花鸟画
+
+export type RenderElementControls = Partial<Record<PlanTag, boolean>>;
+export type { LandscapePlacementOptions };
 
 /**
  * Xuan paper configuration for painting
@@ -120,9 +129,32 @@ export interface PaintingOptions {
    */
   minCounts?: Partial<Record<PlanTag, number>>;
 
+  /**
+   * Optional per-element render switch for landscape output.
+   *
+   * All known element tags render by default. Set a tag to `false` to keep it
+   * in the generated plan but omit its SVG output, preserving seed/layout
+   * stability while letting callers hide selected visual classes.
+   */
+  renderElements?: RenderElementControls;
+
+  /**
+   * Optional placement tuning for explicit shortfall-driven landscape elements
+   * such as guaranteed water bands / boats.
+   */
+  placement?: LandscapePlacementOptions;
+
   // Flower-bird specific options
   /** Flower type: 'woody', 'herbal', or 'random' */
   flowerType?: "woody" | "herbal" | "random";
+}
+
+function shouldRenderElement(tag: string, controls?: RenderElementControls): boolean {
+  return controls?.[tag as PlanTag] !== false;
+}
+
+function wrapPlanLayer(tag: string, layer: "underlay" | "base" | "overlay", svg: string): string {
+  return svg ? `<g data-shuimo-element="${tag}" data-shuimo-layer="${layer}">${svg}</g>` : "";
 }
 
 /**
@@ -205,68 +237,113 @@ function filterPlanByBlankArea(
 /**
  * Render a plan item to SVG string
  */
-function renderPlanItem(item: PlanItem, seed: number, detail: number): string {
+function renderPlanItem(
+  item: PlanItem,
+  seed: number,
+  detail: number,
+  renderElements?: RenderElementControls,
+): LayeredMountSVG {
   const randomSeed = seed + item.x + item.y;
   const textureDetail = Math.max(0.25, Math.min(1, detail));
+  const inkOnly = (svg: string): LayeredMountSVG => ({ base: svg, overlay: "" });
+  const visible = shouldRenderElement(item.tag, renderElements);
 
   switch (item.tag) {
     case "mount":
       // ret defaults to 0, which returns string
-      return Mount.mountain(item.x, item.y, randomSeed * prng.random(), {
-        tex: Math.round(200 * textureDetail),
-      }) as string;
+      {
+        const rendered = Mount.mountain(item.x, item.y, randomSeed * prng.random(), {
+          tex: Math.round(200 * textureDetail),
+          layers: true,
+        }) as LayeredMountSVG;
+        return visible ? rendered : inkOnly("");
+      }
 
     case "flatmount":
-      return Mount.flatMount(item.x, item.y, randomSeed * Math.PI, {
-        wid: 600 + prng.random() * 400,
-        hei: 100,
-        tex: Math.round(80 * textureDetail),
-        cho: 0.5 + prng.random() * 0.2,
-      });
+      {
+        const rendered = Mount.flatMount(item.x, item.y, randomSeed * Math.PI, {
+          wid: 600 + prng.random() * 400,
+          hei: 100,
+          tex: Math.round(80 * textureDetail),
+          cho: 0.5 + prng.random() * 0.2,
+          layers: true,
+        }) as LayeredMountSVG;
+        return visible ? rendered : inkOnly("");
+      }
 
     case "distmount":
-      return Mount.distMount(item.x, item.y, randomSeed, {
-        hei: 150,
-        len: randChoice([500, 1000, 1500]),
-      });
+      {
+        const svg = Mount.distMount(item.x, item.y, randomSeed, {
+          hei: 150,
+          len: randChoice([500, 1000, 1500]),
+        });
+        return inkOnly(visible ? svg : "");
+      }
+
+    case "water":
+      {
+        const svg = water(item.x, item.y, randomSeed, { len: item.h || 360, clu: 8 });
+        return inkOnly(visible ? svg : "");
+      }
 
     case "boat":
-      return Arch.boat01(item.x, item.y, prng.random(), {
-        sca: item.y / 800,
-        fli: randChoice([true, false]),
-      });
+      {
+        const ripple = water(item.x, item.y + 18, randomSeed, { len: 260, clu: 5 });
+        const boat = Arch.boat01(item.x, item.y, prng.random(), {
+          sca: item.y / 800,
+          fli: randChoice([true, false]),
+        });
+        return inkOnly(
+          visible ? (shouldRenderElement("water", renderElements) ? ripple : "") + boat : "",
+        );
+      }
 
     case "arch01":
-      return Arch.arch01(item.x, item.y, randomSeed, {
-        hei: 60 + prng.random() * 40,
-        wid: 80 + prng.random() * 40,
-        per: 3 + prng.random() * 2,
-      });
+      {
+        const svg = Arch.arch01(item.x, item.y, randomSeed, {
+          hei: 60 + prng.random() * 40,
+          wid: 80 + prng.random() * 40,
+          per: 3 + prng.random() * 2,
+        });
+        return inkOnly(visible ? svg : "");
+      }
 
     case "arch02":
-      return Arch.arch02(item.x, item.y, randomSeed, {
-        wid: 40 + prng.random() * 30,
-        sto: 2 + Math.floor(prng.random() * 3),
-      });
+      {
+        const svg = Arch.arch02(item.x, item.y, randomSeed, {
+          wid: 40 + prng.random() * 30,
+          sto: 2 + Math.floor(prng.random() * 3),
+        });
+        return inkOnly(visible ? svg : "");
+      }
 
     case "arch03":
-      return Arch.arch03(item.x, item.y, randomSeed, {
-        wid: 40 + prng.random() * 30,
-        sto: 5 + Math.floor(prng.random() * 4),
-      });
+      {
+        const svg = Arch.arch03(item.x, item.y, randomSeed, {
+          wid: 40 + prng.random() * 30,
+          sto: 5 + Math.floor(prng.random() * 4),
+        });
+        return inkOnly(visible ? svg : "");
+      }
 
     case "arch04":
-      return Arch.arch04(item.x, item.y, randomSeed, {
-        sto: 1 + Math.floor(prng.random() * 3),
-      });
+      {
+        const svg = Arch.arch04(item.x, item.y, randomSeed, {
+          sto: 1 + Math.floor(prng.random() * 3),
+        });
+        return inkOnly(visible ? svg : "");
+      }
 
     case "tower":
-      return Arch.transmissionTower01(item.x, item.y, randomSeed, {
-        hei: 150 + prng.random() * 100,
-      });
+      {
+        const svg = Arch.transmissionTower01(item.x, item.y, randomSeed, {
+          hei: 150 + prng.random() * 100,
+        });
+        return inkOnly(visible ? svg : "");
+      }
 
     default:
-      return "";
+      return inkOnly("");
   }
 }
 
@@ -280,6 +357,8 @@ function generateLandscapeContent(
   blankPosition: BlankPosition,
   minCounts?: Partial<Record<PlanTag, number>>,
   detail: number = 1,
+  renderElements?: RenderElementControls,
+  placement?: LandscapePlacementOptions,
 ): string {
   // Initialize PRNG
   prng.seed(seed);
@@ -307,30 +386,40 @@ function generateLandscapeContent(
       blankArea,
       width,
       height,
+      placement,
     });
   }
 
   // Sort by y coordinate (painter's algorithm - far to near)
   plan.sort((a, b) => a.y - b.y);
 
-  // Render all items
-  let content = "";
+  // Render water underneath terrain, then terrain bodies, then vegetation and
+  // mount decorations. Keeping tree ink out of mountain body chunks prevents
+  // a later mountain's white occlusion polygon from erasing foreground trees.
+  let underlay = "";
+  let base = "";
+  let overlay = "";
 
   // Add water for mounts (filter by blank area too)
   for (const item of plan) {
     if (item.tag === "mount") {
       if (!MountPlanner.isInBlankArea(item.x, item.y, width, height, blankArea)) {
-        content += water(item.x, item.y, seed + item.x);
+        const mountWater = water(item.x, item.y, seed + item.x);
+        if (shouldRenderElement("water", renderElements)) {
+          underlay += wrapPlanLayer("water", "underlay", mountWater);
+        }
       }
     }
   }
 
   // Add all other elements
   for (const item of plan) {
-    content += renderPlanItem(item, seed, detail);
+    const rendered = renderPlanItem(item, seed, detail, renderElements);
+    base += wrapPlanLayer(item.tag, "base", rendered.base);
+    overlay += wrapPlanLayer(item.tag, "overlay", rendered.overlay);
   }
 
-  return content;
+  return `${underlay}<g data-shuimo-layer="terrain-base">${base}</g><g data-shuimo-layer="terrain-overlay">${overlay}</g>`;
 }
 
 /**
@@ -434,6 +523,8 @@ export class PaintingGenerator {
       minCounts,
       detail = 1,
       transparent = false,
+      renderElements,
+      placement,
     } = options;
 
     // SVG defs
@@ -457,6 +548,8 @@ export class PaintingGenerator {
         blankPosition,
         minCounts,
         detail,
+        renderElements,
+        placement,
       );
     } else if (type === "flowerBird") {
       paintingContent = generateFlowerBirdContent(width, height, seed, options);

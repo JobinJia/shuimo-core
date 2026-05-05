@@ -27,6 +27,8 @@ export {
   type XuanPaperOptions,
 } from "./XuanPaper";
 
+export { Whale, whale, type WhaleOptions } from "./Whale";
+
 // Four Gentlemen (四君子)
 export { Bamboo, bamboo, bambooLeaves, type BambooOptions } from "./Bamboo";
 export { Orchid, orchid, orchidLeaves, type OrchidOptions } from "./Orchid";
@@ -37,3 +39,4 @@ export {
   chrysanthemumFlower,
   type ChrysanthemumOptions,
 } from "./Chrysanthemum";
+export { Lotus, lotus, lotusFlower, lotusLeaf, type LotusOptions } from "./Lotus";

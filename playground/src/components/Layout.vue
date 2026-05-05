@@ -45,7 +45,11 @@ const expandedGroups = ref(["Generator", "Flower", "Shanshui", "Stamp"]);
 const menuItems = [
   {
     name: "Generator",
-    children: [{ path: "/painting-generator", name: "Painting Generator" }],
+    children: [
+      { path: "/painting-generator", name: "Painting Generator" },
+      { path: "/loading-showcase", name: "Loading Showcase" },
+      { path: "/goldfish", name: "Goldfish" },
+    ],
   },
   {
     name: "Flower",
@@ -63,6 +67,7 @@ const menuItems = [
       { path: "/misty-mount", name: "Misty Mount" },
       { path: "/ink-mount", name: "Ink Mount" },
       { path: "/cloud", name: "Cloud" },
+      { path: "/lotus", name: "Lotus" },
       { path: "/xuan-paper", name: "Xuan Paper" },
     ],
   },

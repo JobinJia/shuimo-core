@@ -1,33 +1,83 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## Toolchain
 
-This repository is a `pnpm` workspace centered on `packages/core` and `playground`. `packages/core/src` is the publishable TypeScript library: `foundation` holds math/noise primitives, `drawing` contains brush and flower generators, `elements` defines scene objects, `composition` handles layout logic, and `webgpu` contains GPU renderers and WGSL shaders. `playground/src` is the Vue + Vite demo app for manual verification. Keep reference material in `reference-code/`, `cloud.html`, and root guides as read-only support assets.
+This repo uses **vite-plus** (`vp`) for building, testing, linting, and formatting — not plain `vite`/`vitest`/`eslint`. All configuration is in `vite.config.ts` files.
 
-## Build, Test, and Development Commands
+- **Format + lint**: `vp check` (not `eslint`). Root `vite.config.ts` controls this.
+- **Build core**: `tsc --noEmit && vp pack` (not `tsdown` or `tsup`).
+- **Test**: `vp test` (not `vitest` directly). Vitest config lives inline in `packages/core/vite.config.ts` under `defineConfig({ test: {...} })` — there is no separate `vitest.config.ts`.
+- **Dev server**: `vp dev`.
 
-- `pnpm install`: install all workspace dependencies.
-- `pnpm build`: type-check and build `@shuimo/core`.
-- `pnpm build:all`: build every package under `packages/`.
-- `pnpm playground`: start the local demo app.
-- `pnpm build:playground`: build the library first, then the playground bundle.
-- `pnpm test`: run Vitest for `@shuimo/core`.
-- `pnpm lint`: run ESLint across the repo.
+Workspace deps use a `catalog:` — `vite`, `vite-plus`, and `vitest` resolve to `@voidzero-dev` packages. Do not change the catalog entries.
 
-Use package-scoped scripts for deeper checks, for example `pnpm --filter @shuimo/core test:coverage` or `pnpm --filter @shuimo/playground preview`.
+## Commands
 
-## Coding Style & Naming Conventions
+```bash
+pnpm install              # install all workspace deps (pnpm@10.33.0 required)
+pnpm dev                  # start playground dev server (Vue 3 + Vite)
+pnpm build                # type-check + bundle @jobinjia/shuimo-core
+pnpm build:all            # build all packages under packages/
+pnpm build:playground     # build core then playground
+pnpm test                 # run vitest for core (pass -- --run for CI/single-run)
+pnpm lint                 # alias for `vp check` (fmt + lint)
+```
 
-Use TypeScript ES modules and keep public exports routed through local `index.ts` files. Follow existing naming patterns: `PascalCase` for classes and major primitives such as `Mount.ts`, `camelCase` for functions and helpers, and kebab-case only for non-code assets. Linting is driven by `eslint.config.ts` with `@jobinjia/eslint-config`. Do not reformat unrelated files; the codebase currently mixes semicolon styles, so match the surrounding file.
+Package-scoped variants:
 
-## Testing Guidelines
+```bash
+pnpm --filter @jobinjia/shuimo-core test:coverage
+pnpm --filter @jobinjia/shuimo-core test:ui
+pnpm --filter @shuimo/playground build
+```
 
-Vitest is configured in `packages/core/vitest.config.ts` with `jsdom` and V8 coverage reporters (`text`, `json`, `html`). There are currently no committed test files, so new behavior changes should add focused `*.test.ts` or `*.spec.ts` coverage near the changed module. Prefer deterministic tests for seeded generation, geometry helpers, and render output shape. Run `pnpm test` before opening a PR.
+Run a single test file:
 
-## Commit & Pull Request Guidelines
+```bash
+pnpm --filter @jobinjia/shuimo-core exec vp test -- --run path/to/file.test.ts
+```
 
-Recent commits use concise conventional prefixes such as `feat:`, `fix:`, and `refactor:`. Keep messages imperative and specific, for example `feat: add generate image demo`. PRs should describe scope, affected package(s), validation commands, and screenshots or GIFs for playground-visible changes. If behavior changes touch automation, mention related workflows in `.github/workflows/`.
+## Monorepo Structure (pnpm workspace)
 
-## Security & Configuration Tips
+| Path            | Package name            | Purpose                                               |
+| --------------- | ----------------------- | ----------------------------------------------------- |
+| `packages/core` | `@jobinjia/shuimo-core` | The library. ESM-only (`.mjs`), multiple entry points |
+| `playground`    | `@shuimo/playground`    | Vue 3 + Vue Router demo app                           |
 
-Target Node.js `>=18` and `pnpm >=10` from the workspace config. Do not commit `dist/`, temporary experiment outputs, or bulky generated assets. Put static demo assets in `playground/public/` and keep third-party reference files clearly separated from source code.
+Core exports: `.` (everything), `./foundation`, `./elements`, `./drawing`, `./xuan-paper/worker`, `./xuan-paper/worker-protocol`.
+
+## Architecture
+
+Layered bottom-up in `packages/core/src/`:
+
+| Directory      | Role                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------ |
+| `foundation/`  | Seeded PRNG, noise generators (Perlin, Simplex, Worley), Vector2, PolyTools                |
+| `utils/`       | SVG helpers, math, bezier curves, random utilities                                         |
+| `drawing/`     | Stroke, Blob, Brush, Texture (皴法), Stamp, Flower/FlowerCanvas                            |
+| `elements/`    | Mount, Tree, Water, Cloud, Bamboo, Orchid, Chrysanthemum, WinterPlum, XuanPaper, Arch, Man |
+| `composition/` | PaintingGenerator (`generateLandscape`, `generateFlowerBird`), SceneManager, MountPlanner  |
+| `renderer/`    | (currently empty)                                                                          |
+
+## TypeScript Quirks
+
+- Root `tsconfig.json` has `strict: true`, but **`packages/core/tsconfig.json` overrides it with `strict: false`** and also disables `noUncheckedIndexedAccess`, `noUnusedLocals`, `noUnusedParameters`. The permissive config is what core builds against.
+- Target: ES2020, module: ESNext, moduleResolution: bundler.
+- Core `tsconfig` includes `@webgpu/types` for WebGPU shader code.
+
+## Key Patterns
+
+- **SVG**: String-based generation, not DOM. Export SVG markup strings.
+- **Seeded randomness**: All generation uses a PRNG seeded from the painting config. Outputs are reproducible for the same seed.
+- **Options objects**: Most constructors and generators accept an options object with defaults.
+- **ESM only**: Output is `.mjs` / `.d.mts`. No CJS.
+- **Public exports** route through `index.ts` barrel files in each directory.
+
+## Constraints
+
+- **Never auto-start dev servers** (playground, test UI, etc.) without asking.
+- **Do not create extra test scaffolding files.** Tests should be minimal `*.test.ts` or `*.spec.ts` placed near the module being tested.
+- `vp check` is known to SIGABRT on CI runners — the CI workflow uses `continue-on-error: true` for the check step.
+- Reference material in `reference-code/`, `cloud.html`, root guides, and `docs/` is read-only.
+- Do not commit `dist/`, temporary experiment outputs, or bulky generated assets.
+- Use conventional commit prefixes (`feat:`, `fix:`, `refactor:`). Keep messages imperative.

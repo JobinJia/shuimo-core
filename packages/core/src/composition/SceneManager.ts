@@ -1,5 +1,6 @@
-import { MountPlanner, PlanItem } from "./MountPlanner";
-import { Mount } from "../elements/natural/Mount";
+import { MountPlanner, type PlanItem, type PlanTag } from "./MountPlanner";
+import type { RenderElementControls } from "./PaintingGenerator";
+import { Mount, type LayeredMountSVG } from "../elements/natural/Mount";
 import { water } from "../elements/natural/Water";
 import { Arch } from "../elements/objects/Arch";
 import { prng } from "../foundation/random";
@@ -47,6 +48,12 @@ export interface SceneState {
   landRegistry: PlanItem[];
 }
 
+function isLayeredMountSVG(
+  value: string | LayeredMountSVG | [import("../foundation/geometry").Polygon[]],
+): value is LayeredMountSVG {
+  return typeof value !== "string" && !Array.isArray(value);
+}
+
 /**
  * SceneManager - Manage infinite scrolling landscape scene
  * Handles chunk loading, rendering, and viewport management
@@ -54,8 +61,15 @@ export interface SceneState {
 export class SceneManager {
   private state: SceneState;
   private contentDirty: boolean = true; // Track if content (chunks) changed
+  private renderElements?: RenderElementControls;
 
-  constructor(windx: number = 3000, windy: number = 800, cwid: number = 512) {
+  constructor(
+    windx: number = 3000,
+    windy: number = 800,
+    cwid: number = 512,
+    renderElements?: RenderElementControls,
+  ) {
+    this.renderElements = renderElements;
     this.state = {
       canv: "",
       chunks: [],
@@ -76,6 +90,15 @@ export class SceneManager {
    */
   getState(): SceneState {
     return this.state;
+  }
+
+  setRenderElements(renderElements?: RenderElementControls): void {
+    this.renderElements = renderElements;
+    this.contentDirty = true;
+  }
+
+  private shouldRender(tag: string): boolean {
+    return this.renderElements?.[tag as PlanTag] !== false;
   }
 
   /**
@@ -134,103 +157,164 @@ export class SceneManager {
 
       for (let i = 0; i < plan.length; i++) {
         if (plan[i].tag === "mount") {
-          this.addChunk({
-            tag: plan[i].tag,
-            x: plan[i].x,
-            y: plan[i].y,
-            canv: Mount.mountain(plan[i].x, plan[i].y, i * 2 * prng.random()),
+          const rendered = Mount.mountain(plan[i].x, plan[i].y, i * 2 * prng.random(), {
+            layers: true,
           });
-          this.addChunk({
-            tag: plan[i].tag,
-            x: plan[i].x,
-            y: plan[i].y - 10000,
-            canv: water(plan[i].x, plan[i].y, i * 2),
-          });
+          if (!isLayeredMountSVG(rendered)) continue;
+          if (this.shouldRender(plan[i].tag)) {
+            this.addChunk({
+              tag: plan[i].tag,
+              x: plan[i].x,
+              y: plan[i].y,
+              canv: rendered.base,
+            });
+            this.addChunk({
+              tag: plan[i].tag,
+              x: plan[i].x,
+              y: plan[i].y + 10000,
+              canv: rendered.overlay,
+            });
+          }
+          const mountWater = water(plan[i].x, plan[i].y, i * 2);
+          if (this.shouldRender("water")) {
+            this.addChunk({
+              tag: "water",
+              x: plan[i].x,
+              y: plan[i].y - 10000,
+              canv: mountWater,
+            });
+          }
         } else if (plan[i].tag === "flatmount") {
-          this.addChunk({
-            tag: plan[i].tag,
-            x: plan[i].x,
-            y: plan[i].y,
-            canv: Mount.flatMount(plan[i].x, plan[i].y, 2 * prng.random() * Math.PI, {
-              wid: 600 + prng.random() * 400,
-              hei: 100,
-              cho: 0.5 + prng.random() * 0.2,
-            }),
+          const rendered = Mount.flatMount(plan[i].x, plan[i].y, 2 * prng.random() * Math.PI, {
+            wid: 600 + prng.random() * 400,
+            hei: 100,
+            cho: 0.5 + prng.random() * 0.2,
+            layers: true,
           });
+          if (!isLayeredMountSVG(rendered)) continue;
+          if (this.shouldRender(plan[i].tag)) {
+            this.addChunk({
+              tag: plan[i].tag,
+              x: plan[i].x,
+              y: plan[i].y,
+              canv: rendered.base,
+            });
+            this.addChunk({
+              tag: plan[i].tag,
+              x: plan[i].x,
+              y: plan[i].y + 10000,
+              canv: rendered.overlay,
+            });
+          }
         } else if (plan[i].tag === "distmount") {
-          this.addChunk({
-            tag: plan[i].tag,
-            x: plan[i].x,
-            y: plan[i].y,
-            canv: Mount.distMount(plan[i].x, plan[i].y, prng.random() * 100, {
-              hei: 150,
-              len: randChoice([500, 1000, 1500]),
-            }),
+          const rendered = Mount.distMount(plan[i].x, plan[i].y, prng.random() * 100, {
+            hei: 150,
+            len: randChoice([500, 1000, 1500]),
           });
+          if (this.shouldRender(plan[i].tag)) {
+            this.addChunk({
+              tag: plan[i].tag,
+              x: plan[i].x,
+              y: plan[i].y,
+              canv: rendered,
+            });
+          }
+        } else if (plan[i].tag === "water") {
+          const rendered = water(plan[i].x, plan[i].y, i * 2 + 1, {
+            len: plan[i].h || 360,
+            clu: 8,
+          });
+          if (this.shouldRender(plan[i].tag)) {
+            this.addChunk({
+              tag: plan[i].tag,
+              x: plan[i].x,
+              y: plan[i].y - 10000,
+              canv: rendered,
+            });
+          }
         } else if (plan[i].tag === "boat") {
-          this.addChunk({
-            tag: plan[i].tag,
-            x: plan[i].x,
-            y: plan[i].y,
-            canv: Arch.boat01(plan[i].x, plan[i].y, prng.random(), {
-              sca: plan[i].y / 800,
-              fli: randChoice([true, false]),
-            }),
+          const ripple = water(plan[i].x, plan[i].y + 18, i * 2 + 1, { len: 260, clu: 5 });
+          const boat = Arch.boat01(plan[i].x, plan[i].y, prng.random(), {
+            sca: plan[i].y / 800,
+            fli: randChoice([true, false]),
           });
+          if (this.shouldRender(plan[i].tag)) {
+            this.addChunk({
+              tag: plan[i].tag,
+              x: plan[i].x,
+              y: plan[i].y,
+              canv: (this.shouldRender("water") ? ripple : "") + boat,
+            });
+          }
         } else if (plan[i].tag === "arch01") {
           // Simple house/building
-          this.addChunk({
-            tag: plan[i].tag,
-            x: plan[i].x,
-            y: plan[i].y,
-            canv: Arch.arch01(plan[i].x, plan[i].y, prng.random() * 1000, {
-              hei: 60 + prng.random() * 40,
-              wid: 80 + prng.random() * 40,
-              per: 3 + prng.random() * 2,
-            }),
+          const rendered = Arch.arch01(plan[i].x, plan[i].y, prng.random() * 1000, {
+            hei: 60 + prng.random() * 40,
+            wid: 80 + prng.random() * 40,
+            per: 3 + prng.random() * 2,
           });
+          if (this.shouldRender(plan[i].tag)) {
+            this.addChunk({
+              tag: plan[i].tag,
+              x: plan[i].x,
+              y: plan[i].y,
+              canv: rendered,
+            });
+          }
         } else if (plan[i].tag === "arch02") {
           // Multi-story building
-          this.addChunk({
-            tag: plan[i].tag,
-            x: plan[i].x,
-            y: plan[i].y,
-            canv: Arch.arch02(plan[i].x, plan[i].y, prng.random() * 1000, {
-              wid: 40 + prng.random() * 30,
-              sto: 2 + Math.floor(prng.random() * 3),
-            }),
+          const rendered = Arch.arch02(plan[i].x, plan[i].y, prng.random() * 1000, {
+            wid: 40 + prng.random() * 30,
+            sto: 2 + Math.floor(prng.random() * 3),
           });
+          if (this.shouldRender(plan[i].tag)) {
+            this.addChunk({
+              tag: plan[i].tag,
+              x: plan[i].x,
+              y: plan[i].y,
+              canv: rendered,
+            });
+          }
         } else if (plan[i].tag === "arch03") {
           // Pagoda
-          this.addChunk({
-            tag: plan[i].tag,
-            x: plan[i].x,
-            y: plan[i].y,
-            canv: Arch.arch03(plan[i].x, plan[i].y, prng.random() * 1000, {
-              wid: 40 + prng.random() * 30,
-              sto: 5 + Math.floor(prng.random() * 4),
-            }),
+          const rendered = Arch.arch03(plan[i].x, plan[i].y, prng.random() * 1000, {
+            wid: 40 + prng.random() * 30,
+            sto: 5 + Math.floor(prng.random() * 4),
           });
+          if (this.shouldRender(plan[i].tag)) {
+            this.addChunk({
+              tag: plan[i].tag,
+              x: plan[i].x,
+              y: plan[i].y,
+              canv: rendered,
+            });
+          }
         } else if (plan[i].tag === "arch04") {
           // Transparent multi-story
-          this.addChunk({
-            tag: plan[i].tag,
-            x: plan[i].x,
-            y: plan[i].y,
-            canv: Arch.arch04(plan[i].x, plan[i].y, prng.random() * 1000, {
-              sto: 1 + Math.floor(prng.random() * 3),
-            }),
+          const rendered = Arch.arch04(plan[i].x, plan[i].y, prng.random() * 1000, {
+            sto: 1 + Math.floor(prng.random() * 3),
           });
+          if (this.shouldRender(plan[i].tag)) {
+            this.addChunk({
+              tag: plan[i].tag,
+              x: plan[i].x,
+              y: plan[i].y,
+              canv: rendered,
+            });
+          }
         } else if (plan[i].tag === "tower") {
           // Transmission tower
-          this.addChunk({
-            tag: plan[i].tag,
-            x: plan[i].x,
-            y: plan[i].y,
-            canv: Arch.transmissionTower01(plan[i].x, plan[i].y, prng.random() * 1000, {
-              hei: 150 + prng.random() * 100,
-            }),
+          const rendered = Arch.transmissionTower01(plan[i].x, plan[i].y, prng.random() * 1000, {
+            hei: 150 + prng.random() * 100,
           });
+          if (this.shouldRender(plan[i].tag)) {
+            this.addChunk({
+              tag: plan[i].tag,
+              x: plan[i].x,
+              y: plan[i].y,
+              canv: rendered,
+            });
+          }
         } else if (plan[i].tag === "redcirc") {
           this.addChunk({
             tag: plan[i].tag,

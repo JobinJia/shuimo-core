@@ -16,6 +16,7 @@ export interface MountainOptions {
   veg?: boolean;
   ret?: number;
   col?: string | ((x: number) => string);
+  layers?: boolean;
 }
 
 export interface FlatMountOptions {
@@ -24,6 +25,7 @@ export interface FlatMountOptions {
   tex?: number;
   cho?: number;
   ret?: number;
+  layers?: boolean;
 }
 
 export interface RockOptions {
@@ -59,6 +61,11 @@ interface Bounds {
   xmax: number;
   ymin: number;
   ymax: number;
+}
+
+export interface LayeredMountSVG {
+  base: string;
+  overlay: string;
 }
 
 /**
@@ -124,14 +131,14 @@ function foot(ptlist: Polygon[], options: FootOptions = {}): string | Polygon[] 
     });
   }
 
-    for (let j = 0; j < ftlist.length; j++) {
-      canv += stroke(ftlist[j], {
-        xof,
-        yof,
-        col: "rgba(100,100,100," + (0.1 + prng.random() * 0.1).toFixed(3) + ")",
-        wid: 1,
-      });
-    }
+  for (let j = 0; j < ftlist.length; j++) {
+    canv += stroke(ftlist[j], {
+      xof,
+      yof,
+      col: "rgba(100,100,100," + (0.1 + prng.random() * 0.1).toFixed(3) + ")",
+      wid: 1,
+    });
+  }
 
   return ret ? ftlist : canv;
 }
@@ -148,7 +155,7 @@ export class Mount {
     yoff: number,
     seed: number,
     options: MountainOptions = {},
-  ): string | [Polygon[]] {
+  ): string | [Polygon[]] | LayeredMountSVG {
     const hei = options.hei ?? 100 + prng.random() * 400;
     const wid = options.wid ?? 400 + prng.random() * 200;
     const tex = options.tex ?? 200;
@@ -158,7 +165,8 @@ export class Mount {
 
     seed = seed ?? 0;
 
-    let canv = "";
+    let base = "";
+    let overlay = "";
 
     const ptlist: Polygon[] = [];
     const h = hei;
@@ -193,7 +201,7 @@ export class Mount {
       }
       for (let i = 0; i < veglist.length; i++) {
         if (proofRule(veglist, i)) {
-          canv += treeFunc(veglist[i][0], veglist[i][1]);
+          overlay += treeFunc(veglist[i][0], veglist[i][1]);
         }
       }
     }
@@ -216,7 +224,7 @@ export class Mount {
     );
 
     // WHITE BG
-    canv += poly(ptlist[0].concat([[0, reso[0] * 4]]), {
+    base += poly(ptlist[0].concat([[0, reso[0] * 4]]), {
       xof: xoff,
       yof: yoff,
       fil: "white",
@@ -224,7 +232,7 @@ export class Mount {
     });
 
     // OUTLINE
-    canv += stroke(ptlist[0], {
+    base += stroke(ptlist[0], {
       xof: xoff,
       yof: yoff,
       col: "rgba(100,100,100,0.3)",
@@ -232,8 +240,8 @@ export class Mount {
       wid: 3,
     });
 
-    canv += foot(ptlist, { xof: xoff, yof: yoff }) as string;
-    canv += texture(ptlist, {
+    base += foot(ptlist, { xof: xoff, yof: yoff }) as string;
+    base += texture(ptlist, {
       xof: xoff,
       yof: yoff,
       tex: tex,
@@ -341,7 +349,7 @@ export class Mount {
     // Skipping those parts for now as they depend on Arch class
 
     if (ret === 0) {
-      return canv;
+      return options.layers ? { base, overlay } : base + overlay;
     } else {
       return [ptlist];
     }
@@ -355,7 +363,7 @@ export class Mount {
     yoff: number,
     seed: number,
     options: FlatMountOptions = {},
-  ): string {
+  ): string | LayeredMountSVG {
     const hei = options.hei ?? 40 + prng.random() * 400;
     const wid = options.wid ?? 400 + prng.random() * 200;
     const tex = options.tex ?? 80;
@@ -363,7 +371,8 @@ export class Mount {
 
     seed = seed ?? 0;
 
-    let canv = "";
+    let base = "";
+    let overlay = "";
     const ptlist: Polygon[] = [];
     const reso = [5, 50];
     let hoff = 0;
@@ -400,7 +409,7 @@ export class Mount {
     }
 
     // WHITE BG
-    canv += poly(ptlist[0].concat([[0, reso[0] * 4]]), {
+    base += poly(ptlist[0].concat([[0, reso[0] * 4]]), {
       xof: xoff,
       yof: yoff,
       fil: "white",
@@ -408,7 +417,7 @@ export class Mount {
     });
 
     // OUTLINE
-    canv += stroke(ptlist[0], {
+    base += stroke(ptlist[0], {
       xof: xoff,
       yof: yoff,
       col: "rgba(100,100,100,0.3)",
@@ -416,7 +425,7 @@ export class Mount {
       wid: 3,
     });
 
-    canv += texture(ptlist, {
+    base += texture(ptlist, {
       xof: xoff,
       yof: yoff,
       tex: tex,
@@ -440,7 +449,7 @@ export class Mount {
     }
 
     if (grlist1.length === 0) {
-      return canv;
+      return options.layers ? { base, overlay } : base;
     }
 
     const wb = [grlist1[0][0], grlist2[0][0]];
@@ -467,7 +476,7 @@ export class Mount {
       grlist[i][0] *= 1 - v + noise.noise(grlist[i][1] * 0.5) * v;
     }
 
-    canv += poly(grlist, {
+    base += poly(grlist, {
       xof: xoff,
       yof: yoff,
       str: "none",
@@ -475,7 +484,7 @@ export class Mount {
       wid: 2,
     });
 
-    canv += stroke(grlist, {
+    base += stroke(grlist, {
       xof: xoff,
       yof: yoff,
       wid: 3,
@@ -506,9 +515,9 @@ export class Mount {
       return { xmin: xmin!, xmax: xmax!, ymin: ymin!, ymax: ymax! };
     }
 
-    canv += Mount.flatDec(xoff, yoff, bound(grlist));
+    overlay += Mount.flatDec(xoff, yoff, bound(grlist));
 
-    return canv;
+    return options.layers ? { base, overlay } : base + overlay;
   }
 
   /**

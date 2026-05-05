@@ -347,8 +347,7 @@ export function stem(args: StemArgs = {}): { group: SVGGElement; points: Vec3[] 
 
       const lt = n / p;
       const shade = mapval(noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1);
-      const h =
-        lerpHue(col.min[0], col.max[0], lt) * shade;
+      const h = lerpHue(col.min[0], col.max[0], lt) * shade;
       const s = mapval(lt, 0, 1, col.max[1], col.min[1]) * shade;
       const v = mapval(lt, 0, 1, col.min[2], col.max[2]) * shade;
       const a = mapval(lt, 0, 1, col.min[3], col.max[3]);
