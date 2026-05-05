@@ -8,6 +8,7 @@ export type PlanTag =
   | "mount"
   | "flatmount"
   | "distmount"
+  | "water"
   | "boat"
   | "arch01"
   | "arch02"
@@ -40,6 +41,24 @@ export interface BlankArea {
   margin: number;
 }
 
+export interface ExplicitWaterBandOptions {
+  /**
+   * Explicit water/boat anchor y range in canvas coordinates.
+   *
+   * Used only when callers request `minCounts.water` / `minCounts.boat`.
+   * Defaults to a proportional mid/foreground water band, away from the
+   * canvas edge.
+   */
+  yRange?: readonly [number, number];
+}
+
+export interface LandscapePlacementOptions {
+  /**
+   * Controls the explicit water band used by fillShortfall water/boat anchors.
+   */
+  explicitWaterBand?: ExplicitWaterBandOptions;
+}
+
 /** Per-tag natural placement ranges matching the constants used in `plan()`. */
 interface TagPlacement {
   yBase: number;
@@ -51,6 +70,7 @@ const TAG_PLACEMENT: Record<PlanTag, TagPlacement> = {
   mount: { yBase: 300, yJitter: 0, mind: 10 },
   flatmount: { yBase: 550, yJitter: 150, mind: 10 },
   distmount: { yBase: 230, yJitter: 50, mind: 10 },
+  water: { yBase: 0, yJitter: 0, mind: 320 },
   boat: { yBase: 300, yJitter: 390, mind: 400 },
   arch01: { yBase: 680, yJitter: 50, mind: 80 },
   arch02: { yBase: 700, yJitter: 30, mind: 200 },
@@ -95,6 +115,12 @@ const ANCHORED_PROB: Record<AnchoredTag, number> = {
  * (anchored arch y ends at ≤ 380 + 80 = 460, still well within the scene).
  */
 const ARCH_ANCHOR_MAX_Y = 380;
+
+/** Default water band used only when a caller explicitly asks for water/boats. */
+const BOAT_WATER_MIN_Y_RATIO = 0.38;
+const BOAT_WATER_MAX_Y_RATIO = 0.52;
+const EXPLICIT_WATER_LEN = 360;
+const EXPLICIT_WATER_HALF_LEN = EXPLICIT_WATER_LEN / 2;
 
 /**
  * MountPlanner - Plan mountain and landscape element placement
@@ -151,9 +177,10 @@ export class MountPlanner {
     y: number,
     f: (x: number, y: number) => number,
     r: number,
+    threshold: number = 0.3,
   ): boolean {
     const z0 = f(x, y);
-    if (z0 <= 0.3) {
+    if (z0 <= threshold) {
       return false;
     }
     for (let i = x - r; i < x + r; i++) {
@@ -192,12 +219,118 @@ export class MountPlanner {
    * buildings of the same type from clustering on one spine.
    */
   private static chaddSameTag(reg: PlanItem[], r: PlanItem, mind: number): boolean {
-    for (const p of reg) {
-      if (p.tag !== r.tag) continue;
-      if (Math.abs(p.x - r.x) < mind) return false;
-    }
+    if (this.hasSameTagConflict(reg, r, mind)) return false;
     reg.push(r);
     return true;
+  }
+
+  private static hasSameTagConflict(reg: PlanItem[], r: PlanItem, mind: number): boolean {
+    return reg.some((p) => p.tag === r.tag && Math.abs(p.x - r.x) < mind);
+  }
+
+  private static landHalfWidth(item: PlanItem): number | null {
+    if (item.tag === "flatmount") return 760;
+    if (item.tag === "mount") return 520;
+    return null;
+  }
+
+  private static landVerticalClearance(item: PlanItem): number {
+    if (item.tag === "flatmount") return 60;
+    if (item.tag === "mount") return 140;
+    return 0;
+  }
+
+  private static isBoatOnLand(lands: PlanItem[], bx: number, by?: number): boolean {
+    return this.boatLandCollisionScore(lands, bx, by) > 0;
+  }
+
+  private static boatLandCollisionScore(lands: PlanItem[], bx: number, by?: number): number {
+    let score = 0;
+    for (const m of lands) {
+      const halfWid = this.landHalfWidth(m);
+      if (halfWid === null) continue;
+      if (by !== undefined) {
+        if (by <= m.y) continue;
+        if (by > m.y + this.landVerticalClearance(m)) continue;
+      }
+      const overlap = halfWid - Math.abs(m.x - bx);
+      if (overlap <= 0) continue;
+      score += overlap / halfWid;
+    }
+    return score;
+  }
+
+  private static defaultWaterYRange(height: number): [number, number] {
+    return [height * BOAT_WATER_MIN_Y_RATIO, height * BOAT_WATER_MAX_Y_RATIO];
+  }
+
+  private static waterYRange(
+    height: number,
+    placement?: LandscapePlacementOptions,
+  ): [number, number] {
+    const yRange = placement?.explicitWaterBand?.yRange;
+    if (!yRange) return this.defaultWaterYRange(height);
+    return yRange[0] <= yRange[1] ? [yRange[0], yRange[1]] : [yRange[1], yRange[0]];
+  }
+
+  private static explicitWaterY(
+    height: number,
+    placement?: LandscapePlacementOptions,
+  ): number {
+    const [yMin, yMax] = this.waterYRange(height, placement);
+    if (yMax <= yMin) return yMin;
+    return yMin + prng.random() * (yMax - yMin);
+  }
+
+  private static isWater(item: PlanItem): boolean {
+    return item.tag === "water";
+  }
+
+  private static boatWaterAnchor(plan: PlanItem[]): PlanItem | null {
+    const waters = plan.filter((p) => this.isWater(p));
+    if (waters.length === 0) return null;
+    return waters[Math.floor(prng.random() * waters.length)];
+  }
+
+  private static boatCandidateOnWater(waterItem: PlanItem, plan: PlanItem[]): PlanItem {
+    const halfLen = waterItem.h > 0 ? waterItem.h / 2 : EXPLICIT_WATER_HALF_LEN;
+    const offsets = [
+      (prng.random() - 0.5) * halfLen,
+      0,
+      -halfLen * 0.4,
+      halfLen * 0.4,
+      -halfLen * 0.2,
+      halfLen * 0.2,
+      -halfLen * 0.49,
+      halfLen * 0.49,
+    ];
+    // y jitter so boats don't all sit on the same horizontal line.
+    // Water ripples have ~18px vertical spread; ±12px keeps boats
+    // visibly anchored to the water surface.
+    const yJitter = (prng.random() - 0.5) * 24;
+    let best: PlanItem | null = null;
+    let bestScore = Infinity;
+    for (const offset of offsets) {
+      const item: PlanItem = {
+        tag: "boat",
+        x: waterItem.x + offset,
+        y: waterItem.y + yJitter,
+        h: 0,
+      };
+      const score = this.boatLandCollisionScore(plan, item.x, item.y);
+      if (score === 0) return item;
+      if (score < bestScore) {
+        best = item;
+        bestScore = score;
+      }
+    }
+    return best ?? { tag: "boat", x: waterItem.x, y: waterItem.y + yJitter, h: 0 };
+  }
+
+  private static isBoatOnWater(boat: PlanItem, waterItem: PlanItem): boolean {
+    if (!this.isWater(waterItem)) return false;
+    const halfLen = waterItem.h > 0 ? waterItem.h / 2 : EXPLICIT_WATER_HALF_LEN;
+    return Math.abs(boat.x - waterItem.x) <= halfLen && Math.abs(boat.y - waterItem.y) <= 15;
   }
 
   /**
@@ -231,10 +364,8 @@ export class MountPlanner {
     const reg: PlanItem[] = [];
     const samp = 0.03;
 
-    // Noise functions for different purposes
-    const ns = (x: number, _y: number): number => {
-      return Math.max(noise.noise(x * samp) - 0.55, 0) * 2;
-    };
+    // Noise functions for different purposes.
+    // ns is defined later with an adaptive bias; yr is used immediately.
     const yr = (x: number): number => {
       return noise.noise(x * 0.01, Math.PI);
     };
@@ -251,19 +382,54 @@ export class MountPlanner {
     const wouldCoverBoat = (lx: number, lhalfWid: number): boolean =>
       landRegistry.some((p) => p.tag === "boat" && Math.abs(p.x - lx) < lhalfWid);
 
-    // Initialize planning matrix
+    // Initialize planning matrix and measure noise distributions.
+    //
+    // Both yr(x) and ns(x) are backed by the same Perlin lookup table, and
+    // that table is re-randomised each page load (lazy-init from prng).
+    // Different tables produce different average noise levels, which causes
+    // the 4–34 mountain density swing. We measure the raw noise baseline
+    // and adapt the ns bias so the same fraction of noise values exceed it
+    // regardless of the table.
+    let totalYr = 0;
+    let noiseSum = 0;
+    let noiseCount = 0;
+    let columnCount = 0;
     for (let i = xmin; i < xmax; i += xstep) {
       const i1 = Math.floor(i / xstep);
       planmtx[i1] = planmtx[i1] || 0;
+      totalYr += Math.max(0, yr(i));
+      const raw = noise.noise(i * samp);
+      noiseSum += raw;
+      noiseCount++;
+      columnCount++;
     }
 
-    // Place mountains at local maxima
+    // Normalise yr — stabilise candidate pool size across seeds.
+    const targetAvgYr = 0.5;
+    const actualAvgYr = columnCount > 0 ? totalYr / columnCount : 0;
+    const yrScale = actualAvgYr > 0.01 ? targetAvgYr / actualAvgYr : 1.0;
+    const clampedYrScale = Math.max(0.5, Math.min(2.0, yrScale));
+
+    // Adapt the ns bias so the same fraction of raw noise values sit above
+    // it regardless of the perlin table.  noiseAvg varies ~0.45–0.55 across
+    // tables; the bias tracks it so ns is positive for the same upper tail.
+    const noiseAvg = noiseCount > 0 ? noiseSum / noiseCount : 0.5;
+    const nsBias = 0.55 + (noiseAvg - 0.5);
+    const clampedNsBias = Math.max(0.35, Math.min(0.7, nsBias));
+    const ns = (x: number, _y: number): number => {
+      return Math.max(noise.noise(x * samp) - clampedNsBias, 0) * 2;
+    };
+
+    // Place mountains at local maxima — left-to-right scan preserves the
+    // natural spatial distribution of the noise field so mountains aren't
+    // clustered in a single noise-rich region.
     for (let i = xmin; i < xmax; i += xstep) {
-      for (let j = 0; j < yr(i) * 480; j += 30) {
+      const yRange = Math.min(1.0, yr(i) * clampedYrScale) * 480;
+      for (let j = 0; j < yRange; j += 30) {
         if (this.locmax(i, j, ns, 2)) {
           const xof = i + 2 * (prng.random() - 0.5) * 500;
           const yof = j + 300;
-          if (wouldCoverBoat(xof, 350)) continue; // skip — boat from a prior chunk lives here
+          if (wouldCoverBoat(xof, 350)) continue;
           const r: PlanItem = { tag: "mount", x: xof, y: yof, h: ns(i, j) };
           const res = this.chadd(reg, r, 10, planmtx);
           if (res) {
@@ -273,8 +439,97 @@ export class MountPlanner {
           }
         }
       }
+    }
 
-      // Place distant mountains periodically
+    // If the natural scan produced too many mountains (some noise tables
+    // generate unusually many peaks), trim from the densest x-regions
+    // first, removing weaker peaks within each cluster.  This preserves
+    // spatial spread while keeping density within bounds.
+    const mountTargetMax = Math.max(
+      10,
+      Math.min(32, Math.round((xmax - xmin) / 42)),
+    );
+    {
+      const mountIndices: number[] = [];
+      for (let i = 0; i < reg.length; i++) {
+        if (reg[i].tag === "mount") mountIndices.push(i);
+      }
+      const excess = mountIndices.length - mountTargetMax;
+      if (excess > 0) {
+        // Score each mount: (neighbour count within 150px, noise strength).
+        // Sort by crowded-ness desc, then strength asc — weakest in
+        // densest areas go first.
+        interface TrimCandidate {
+          idx: number;
+          crowd: number;
+          h: number;
+        }
+        const scored: TrimCandidate[] = mountIndices.map((idx) => {
+          const m = reg[idx];
+          let crowd = 0;
+          for (const otherIdx of mountIndices) {
+            if (otherIdx === idx) continue;
+            if (Math.abs(reg[otherIdx].x - m.x) < 150) crowd++;
+          }
+          return { idx, crowd, h: m.h };
+        });
+        scored.sort((a, b) => b.crowd - a.crowd || a.h - b.h);
+
+        const removeSet = new Set(scored.slice(0, excess).map((s) => s.idx));
+        // Remove in reverse index order so splice indices stay valid.
+        const sortedRemove = [...removeSet].sort((a, b) => b - a);
+        for (const idx of sortedRemove) {
+          const item = reg[idx];
+          for (
+            let k = Math.floor((item.x - mwid) / xstep);
+            k < (item.x + mwid) / xstep;
+            k++
+          ) {
+            if (planmtx[k] > 0) planmtx[k] -= 1;
+          }
+          reg.splice(idx, 1);
+        }
+      }
+    }
+
+    // If the natural scan produced too few mountains (some noise tables
+    // have very few strong peaks), fill gaps with a second pass at a
+    // lowered threshold.  Weaken the threshold progressively until the
+    // target is met or we run out of relaxation.
+    const mountTargetMin = Math.max(6, Math.round((xmax - xmin) / 100));
+    {
+      let mountCount = reg.reduce((n, r) => (r.tag === "mount" ? n + 1 : n), 0);
+      const fillThresholds = [0.2, 0.15, 0.1, 0.05];
+      for (const fillThresh of fillThresholds) {
+        if (mountCount >= mountTargetMin) break;
+        for (let i = xmin; i < xmax; i += xstep) {
+          if (mountCount >= mountTargetMin) break;
+          const yRange = Math.min(1.0, yr(i) * clampedYrScale) * 480;
+          for (let j = 0; j < yRange; j += 30) {
+            if (mountCount >= mountTargetMin) break;
+            if (!this.locmax(i, j, ns, 2, fillThresh)) continue;
+            const xof = i + 2 * (prng.random() - 0.5) * 500;
+            const yof = j + 300;
+            if (wouldCoverBoat(xof, 350)) continue;
+            const r: PlanItem = { tag: "mount", x: xof, y: yof, h: ns(i, j) };
+            if (this.chadd(reg, r, 10, planmtx)) {
+              for (
+                let k = Math.floor((xof - mwid) / xstep);
+                k < (xof + mwid) / xstep;
+                k++
+              ) {
+                planmtx[k] += 1;
+              }
+              mountCount++;
+            }
+          }
+        }
+      }
+    }
+
+    // Place distant mountains periodically (separate pass — no longer inside
+    // the mountain-placement loop).
+    for (let i = xmin; i < xmax; i += xstep) {
       if (Math.abs(i) % 1000 < Math.max(1, xstep - 1)) {
         const r: PlanItem = {
           tag: "distmount",
@@ -305,39 +560,11 @@ export class MountPlanner {
       }
     }
 
-    // Place boats — must sit on open water, never on a mountain body. The
-    // boat carries a fishing person via `Arch.boat01`; if its x falls inside
-    // a mountain's horizontal span the fisherman appears to stand on the
-    // ridge.
-    //
-    // Half-width thresholds protect the FISHERMAN figure (the visible
-    // anomaly) from overlapping the land's drawn body. The figure sits at
-    // boat.x + 20*sca*dir (≤ 17px). Hull may clip the mountain *edge* up to
-    // ~100px when dir points toward it, but at boat-y > mountain.y the hull
-    // sits below the mountain base in canvas-y, so the visible result is a
-    // boat next to the mountain, not a fisherman atop it.
-    //   mount:     body half-width up to 300 + tree-rim halo + figure offset = 350
-    //   flatmount: body half-width up to 500 + halo + figure offset = 550
-    //
-    // Cross-chunk: SceneManager calls plan() per cwid=512 chunk, so a
-    // mountain centered near a chunk boundary is invisible to the next
-    // chunk's `reg`. `landRegistry` accumulates lands across chunks; checking
-    // it here prevents fisherman-on-ridge artifacts at chunk seams. prng
-    // draws are made before the rejection so the seed→output mapping stays
-    // deterministic for chunks that ultimately accept the boat.
-    const isOnLand = (m: PlanItem, bx: number): boolean => {
-      if (m.tag !== "mount" && m.tag !== "flatmount") return false;
-      const halfWid = m.tag === "flatmount" ? 550 : 350;
-      return Math.abs(m.x - bx) < halfWid;
-    };
-    for (let i = xmin; i < xmax; i += xstep) {
-      if (prng.random() < 0.2) {
-        const r: PlanItem = { tag: "boat", x: i, y: 300 + prng.random() * 390, h: 0 };
-        if (reg.some((m) => isOnLand(m, r.x))) continue;
-        if (landRegistry.some((m) => isOnLand(m, r.x))) continue;
-        this.chadd(reg, r, 400, planmtx);
-      }
-    }
+    // Do not auto-place fishing boats in procedural terrain chunks. This
+    // planner has no real water-mask data; sampling boats from generic x/y
+    // ranges repeatedly produced fishermen on mountain ridges. Boats are only
+    // added by fillShortfall(), where the caller provides canvas height and
+    // the boat can be anchored to a deliberate water band.
 
     // Accumulate this chunk's lands AND boats so subsequent chunks can see
     // them. Lands are checked by the next chunk's boat placement; boats are
@@ -507,15 +734,65 @@ export class MountPlanner {
       blankArea?: BlankArea | null;
       width: number;
       height: number;
+      placement?: LandscapePlacementOptions;
     },
   ): PlanItem[] {
-    const { xmin, xmax, planmtx, minCounts, blankArea, width, height } = ctx;
+    const { xmin, xmax, planmtx, minCounts, blankArea, width, height, placement } = ctx;
 
     for (const [key, rawTarget] of Object.entries(minCounts)) {
       const tag = key as PlanTag;
       const target = rawTarget ?? 0;
-      const placement = TAG_PLACEMENT[tag];
-      if (!placement || target <= 0) continue;
+      const tagPlacement = TAG_PLACEMENT[tag];
+      if (!tagPlacement || target <= 0) continue;
+
+      if (tag === "water") {
+        let count = plan.reduce((n, p) => (p.tag === "water" ? n + 1 : n), 0);
+        let fallbackWater: PlanItem | null = null;
+        let fallbackScore = Infinity;
+        const rememberFallbackWater = (x: number, y: number): void => {
+          const item: PlanItem = { tag: "water", x, y, h: EXPLICIT_WATER_LEN };
+          if (blankArea && this.isInBlankArea(x, y, width, height, blankArea)) return;
+          if (this.hasSameTagConflict(plan, item, TAG_PLACEMENT.water.mind)) return;
+          const score = this.boatLandCollisionScore(plan, x, y);
+          if (score < fallbackScore) {
+            fallbackWater = item;
+            fallbackScore = score;
+          }
+        };
+        const tryAddWater = (x: number, y: number): boolean => {
+          rememberFallbackWater(x, y);
+          if (blankArea && this.isInBlankArea(x, y, width, height, blankArea)) return false;
+          if (this.isBoatOnLand(plan, x, y)) return false;
+          const item: PlanItem = { tag: "water", x, y, h: EXPLICIT_WATER_LEN };
+          return this.chaddSameTag(plan, item, TAG_PLACEMENT.water.mind);
+        };
+
+        const maxAttempts = (target - count) * 80;
+        for (let attempt = 0; attempt < maxAttempts && count < target; attempt++) {
+          const x = xmin + prng.random() * (xmax - xmin);
+          const y = this.explicitWaterY(height, placement);
+          if (tryAddWater(x, y)) count++;
+        }
+
+        if (count < target) {
+          const [yMin, yMax] = this.waterYRange(height, placement);
+          const yRatios = [0.5, 0.25, 0.75, 0, 1];
+          const xStep = Math.max(80, Math.min(EXPLICIT_WATER_HALF_LEN, (xmax - xmin) / 32));
+          for (const yRatio of yRatios) {
+            if (count >= target) break;
+            const y = yMin + (yMax - yMin) * yRatio;
+            for (let x = xmin + xStep / 2; x < xmax && count < target; x += xStep) {
+              if (tryAddWater(x, y)) count++;
+            }
+          }
+        }
+
+        if (count < target && fallbackWater) {
+          plan.push(fallbackWater);
+          count++;
+        }
+        continue;
+      }
 
       const anchored = MOUNTAIN_ANCHORED.has(tag);
       // Anchored tags share a hard cap with plan(): never fill past the
@@ -550,34 +827,53 @@ export class MountPlanner {
         } else {
           x = xmin + prng.random() * (xmax - xmin);
           y =
-            placement.yJitter === 0
-              ? placement.yBase
-              : placement.yBase + prng.random() * placement.yJitter;
+            tagPlacement.yJitter === 0
+              ? tagPlacement.yBase
+              : tagPlacement.yBase + prng.random() * tagPlacement.yJitter;
+
+          if (tag === "boat") {
+            let anchor = this.boatWaterAnchor(plan);
+            if (!anchor) {
+              MountPlanner.fillShortfall(plan, {
+                xmin,
+                xmax,
+                planmtx,
+                minCounts: { water: 1 },
+                blankArea,
+                width,
+                height,
+                placement,
+              });
+              anchor = this.boatWaterAnchor(plan);
+            }
+            if (!anchor) continue;
+            const itemProbe = this.boatCandidateOnWater(anchor, plan);
+            if (!this.isBoatOnWater(itemProbe, anchor)) continue;
+            x = itemProbe.x;
+            y = itemProbe.y;
+          }
         }
 
         if (blankArea && this.isInBlankArea(x, y, width, height, blankArea)) {
           continue;
         }
 
-        // Boats must sit on open water — same invariant plan() enforces.
-        // Without this guard, callers passing minCounts.boat get fishermen
-        // anchored on mountain bodies whenever the random x lands inside a
-        // mount/flatmount footprint.
-        if (tag === "boat") {
-          const onLand = plan.some((m) => {
-            if (m.tag !== "mount" && m.tag !== "flatmount") return false;
-            const halfWid = m.tag === "flatmount" ? 550 : 350;
-            return Math.abs(m.x - x) < halfWid;
-          });
-          if (onLand) continue;
-        }
-
         const item: PlanItem = { tag, x, y, h: 0 };
-        const added = anchored
-          ? this.chaddSameTag(plan, item, placement.mind)
-          : this.chadd(plan, item, placement.mind, planmtx);
+        const added = anchored || tag === "boat"
+          ? this.chaddSameTag(plan, item, tagPlacement.mind)
+          : this.chadd(plan, item, tagPlacement.mind, planmtx);
         if (added) {
           count++;
+        }
+      }
+
+      if (tag === "boat" && count < effectiveTarget) {
+        const anchors = plan.filter((p) => this.isWater(p));
+        for (const anchor of anchors) {
+          if (count >= effectiveTarget) break;
+          const item = this.boatCandidateOnWater(anchor, plan);
+          if (!this.isBoatOnWater(item, anchor)) continue;
+          if (this.chaddSameTag(plan, item, tagPlacement.mind)) count++;
         }
       }
     }

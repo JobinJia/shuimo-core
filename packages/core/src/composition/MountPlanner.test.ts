@@ -368,30 +368,98 @@ describe("MountPlanner.plan anchored buildings", () => {
     }
   });
 
-  it("never places a boat where its x falls under a mountain or flatmount body (no fisherman on the ridge)", () => {
-    // The fishing-person boat (`Arch.boat01`) sits in y-sort behind/in-front
-    // of mountains by y order; if its x overlaps a mountain's horizontal span
-    // and its y is greater than the mountain's, it renders on top of the
-    // spine ink — so a fisherman appears to stand on the mountain.
-    //
-    // Threshold = land body half-width + boat-hull buffer. Mount bodies reach
-    // ±300 (wid 400-600); flatmount bodies reach ±500 (wid 600-1000); the
-    // boat hull extends from its anchor by up to len*sca = 120*0.86 ≈ 103px
-    // in one direction (dir is randomized at render). 130 buffer covers
-    // hull + fisherman offset.
+  it("does not auto-place fishing boats in terrain chunks without an explicit water mask", () => {
+    // Auto boat placement repeatedly produced fishermen on mountain ridges
+    // because plan() knows land footprints but not real water polygons. Keep
+    // default terrain chunks boat-free until a real water mask exists.
     for (const seed of [42, 123, 4678, 52362, 58049, 91724, 7]) {
       prng.seed(seed);
       const planmtx: number[] = [];
       const plan = MountPlanner.plan(0, 4800, planmtx);
+      expect(plan.some((p) => p.tag === "boat")).toBe(false);
+    }
+  });
 
-      const boats = plan.filter((p) => p.tag === "boat");
-      const lands = plan.filter((p) => p.tag === "mount" || p.tag === "flatmount");
-      for (const b of boats) {
-        for (const m of lands) {
-          const halfWid = m.tag === "flatmount" ? 550 : 350;
-          expect(Math.abs(m.x - b.x)).toBeGreaterThanOrEqual(halfWid);
-        }
-      }
+  it("fills explicit water regions outside visible foreground land collisions", () => {
+    prng.seed(11);
+    const plan: PlanItem[] = [
+      { tag: "mount", x: 600, y: 700, h: 0.5 },
+      { tag: "flatmount", x: 2300, y: 740, h: 0.4 },
+    ];
+
+    MountPlanner.fillShortfall(plan, {
+      xmin: 0,
+      xmax: 3000,
+      planmtx: [],
+      minCounts: { water: 1 },
+      width: 3000,
+      height: 800,
+    });
+
+    const waters = plan.filter((p) => p.tag === "water");
+    expect(waters.length).toBe(1);
+    for (const w of waters) {
+      expect(w.y).toBeGreaterThanOrEqual(304);
+      expect(w.y).toBeLessThanOrEqual(416);
+      expect(w.h).toBe(360);
+      if (w.y > 700 && w.y <= 840) expect(Math.abs(w.x - 600)).toBeGreaterThanOrEqual(520);
+      if (w.y > 740 && w.y <= 800) expect(Math.abs(w.x - 2300)).toBeGreaterThanOrEqual(760);
+    }
+  });
+
+  it("respects explicit water-band yRange when filling water shortfall", () => {
+    prng.seed(19);
+    const plan: PlanItem[] = [];
+
+    MountPlanner.fillShortfall(plan, {
+      xmin: 0,
+      xmax: 3000,
+      planmtx: [],
+      minCounts: { water: 2 },
+      width: 3000,
+      height: 800,
+      placement: {
+        explicitWaterBand: {
+          yRange: [620, 660],
+        },
+      },
+    });
+
+    const waters = plan.filter((p) => p.tag === "water");
+    expect(waters.length).toBe(2);
+    for (const w of waters) {
+      expect(w.y).toBeGreaterThanOrEqual(620);
+      expect(w.y).toBeLessThanOrEqual(660);
+    }
+  });
+
+  it("fills boat shortfall by anchoring boats to explicit water regions only", () => {
+    prng.seed(11);
+    const plan: PlanItem[] = [
+      { tag: "mount", x: 600, y: 700, h: 0.5 },
+      { tag: "flatmount", x: 2300, y: 740, h: 0.4 },
+    ];
+
+    MountPlanner.fillShortfall(plan, {
+      xmin: 0,
+      xmax: 3000,
+      planmtx: [],
+      minCounts: { boat: 1 },
+      width: 3000,
+      height: 800,
+    });
+
+    const waters = plan.filter((p) => p.tag === "water");
+    const boats = plan.filter((p) => p.tag === "boat");
+    expect(waters.length).toBeGreaterThanOrEqual(1);
+    expect(boats.length).toBe(1);
+    for (const b of boats) {
+      const waterAnchor = waters.some((w) => Math.abs(b.x - w.x) <= w.h / 2 && b.y === w.y);
+      expect(waterAnchor).toBe(true);
+      expect(b.y).toBeGreaterThanOrEqual(304);
+      expect(b.y).toBeLessThanOrEqual(416);
+      if (b.y > 700 && b.y <= 840) expect(Math.abs(b.x - 600)).toBeGreaterThanOrEqual(520);
+      if (b.y > 740 && b.y <= 800) expect(Math.abs(b.x - 2300)).toBeGreaterThanOrEqual(760);
     }
   });
 
@@ -424,7 +492,7 @@ describe("MountPlanner.plan anchored buildings", () => {
       for (const b of boats) {
         for (const m of lands) {
           if (b.y <= m.y) continue; // boat hidden behind land — not the user-visible bug
-          const halfWid = m.tag === "flatmount" ? 550 : 350;
+          const halfWid = m.tag === "flatmount" ? 760 : 520;
           expect(Math.abs(m.x - b.x)).toBeGreaterThanOrEqual(halfWid);
         }
       }
