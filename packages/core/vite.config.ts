@@ -17,7 +17,9 @@ export default defineConfig({
     },
     clean: true,
     sourcemap: false,
-    external: ["uuid"],
+    deps: {
+      neverBundle: ["uuid"],
+    },
     outDir: "dist",
   },
 
