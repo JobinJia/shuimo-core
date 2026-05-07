@@ -26,7 +26,7 @@ import { genParams } from "./FlowerParams";
  * Features branches with leaves and flowers
  */
 export function woody(args: WoodyArgs = {}): Layer {
-  const { xof = 0, yof = 0, PAR = genParams() } = args;
+  const { xof = 0, yof = 0, PAR = genParams(), fast = false } = args;
 
   const cwid = 1200;
   const lay0 = LayerSystem.empty(cwid, cwid);
@@ -133,19 +133,28 @@ export function woody(args: WoodyArgs = {}): Layer {
   // NOTE: Filters are now pre-computed during shape generation
   // No need for post-processing filter calls
 
-  // Calculate combined bounds
-  const b1 = LayerSystem.bound(lay0);
-  const b2 = LayerSystem.bound(lay1);
-  const bd = {
-    xmin: Math.min(b1.xmin, b2.xmin),
-    xmax: Math.max(b1.xmax, b2.xmax),
-    ymin: Math.min(b1.ymin, b2.ymin),
-    ymax: Math.max(b1.ymax, b2.ymax),
-  };
+  let xref: number
+  let yref: number
 
-  // Calculate positioning
-  const xref = xof - (bd.xmin + bd.xmax) / 2;
-  const yref = yof - bd.ymax;
+  if (fast) {
+    // Skip 2× clone+getBBox() (50k+ nodes each).
+    // Layer is 1200×1200; content typically fills ~90% of height.
+    // yof=canvas height → plant bottom anchors to viewBox bottom.
+    xref = xof - cwid / 2
+    yref = yof - Math.round(cwid * 0.9)
+  } else {
+    // Calculate combined bounds (expensive: clones layers + DOM reflow)
+    const b1 = LayerSystem.bound(lay0);
+    const b2 = LayerSystem.bound(lay1);
+    const bd = {
+      xmin: Math.min(b1.xmin, b2.xmin),
+      xmax: Math.max(b1.xmax, b2.xmax),
+      ymin: Math.min(b1.ymin, b2.ymin),
+      ymax: Math.max(b1.ymax, b2.ymax),
+    };
+    xref = xof - (bd.xmin + bd.xmax) / 2;
+    yref = yof - bd.ymax;
+  }
 
   // Create final layer and composite
   const finalLayer = LayerSystem.empty(cwid, cwid);
@@ -165,7 +174,7 @@ export function woody(args: WoodyArgs = {}): Layer {
  * Features stems with leaves and flowers at the top
  */
 export function herbal(args: HerbalArgs = {}): Layer {
-  const { xof = 0, yof = 0, PAR = genParams() } = args;
+  const { xof = 0, yof = 0, PAR = genParams(), fast = false } = args;
 
   const cwid = 1200;
   const lay0 = LayerSystem.empty(cwid, cwid);
@@ -314,19 +323,28 @@ export function herbal(args: HerbalArgs = {}): Layer {
   // NOTE: Filters are now pre-computed during shape generation
   // No need for post-processing filter calls
 
-  // Calculate combined bounds
-  const b1 = LayerSystem.bound(lay0);
-  const b2 = LayerSystem.bound(lay1);
-  const bd = {
-    xmin: Math.min(b1.xmin, b2.xmin),
-    xmax: Math.max(b1.xmax, b2.xmax),
-    ymin: Math.min(b1.ymin, b2.ymin),
-    ymax: Math.max(b1.ymax, b2.ymax),
-  };
+  let xref: number
+  let yref: number
 
-  // Calculate positioning
-  const xref = xof - (bd.xmin + bd.xmax) / 2;
-  const yref = yof - bd.ymax;
+  if (fast) {
+    // Skip 2× clone+getBBox() (50k+ nodes each).
+    // Layer is 1200×1200; content typically fills ~90% of height.
+    // yof=canvas height → plant bottom anchors to viewBox bottom.
+    xref = xof - cwid / 2
+    yref = yof - Math.round(cwid * 0.9)
+  } else {
+    // Calculate combined bounds (expensive: clones layers + DOM reflow)
+    const b1 = LayerSystem.bound(lay0);
+    const b2 = LayerSystem.bound(lay1);
+    const bd = {
+      xmin: Math.min(b1.xmin, b2.xmin),
+      xmax: Math.max(b1.xmax, b2.xmax),
+      ymin: Math.min(b1.ymin, b2.ymin),
+      ymax: Math.max(b1.ymax, b2.ymax),
+    };
+    xref = xof - (bd.xmin + bd.xmax) / 2;
+    yref = yof - bd.ymax;
+  }
 
   // Create final layer and composite
   const finalLayer = LayerSystem.empty(cwid, cwid);

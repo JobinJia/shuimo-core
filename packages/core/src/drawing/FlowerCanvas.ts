@@ -6,13 +6,122 @@
  * Reference: reference-code/flowers/main.js
  */
 
-import { prng } from "../foundation/random";
-import { PerlinNoise } from "../foundation/noise/PerlinNoise";
-
 type Vec3 = [number, number, number];
 
-// Global Noise instance
-const Noise = new PerlinNoise();
+// ============================================================================
+// BBS PRNG (Blum Blum Shub) — matches Nonflowers PRNG exactly
+// ============================================================================
+
+const BBS = (() => {
+  let s = 1234;
+  const p = 999979;
+  const q = 999983;
+  const m = p * q;
+
+  function hash(x: string | number): number {
+    const y = btoa(JSON.stringify(x));
+    let z = 0;
+    for (let i = 0; i < y.length; i++) {
+      z += y.charCodeAt(i) * Math.pow(128, i);
+    }
+    return z;
+  }
+
+  return {
+    seed(x?: string | number): void {
+      if (x === undefined) { x = new Date().getTime().toString(); }
+      const h = hash(x);
+      let y = h % m;
+      let z = 0;
+      while (y % p === 0 || y % q === 0 || y === 0 || y === 1) {
+        z += 1;
+        y = (h + z) % m;
+      }
+      s = y;
+      // Skip 10 iterations (matching nonflowers)
+      for (let i = 0; i < 10; i++) { this.next(); }
+    },
+    next(): number {
+      s = (s * s) % m;
+      return s / m;
+    },
+  };
+})();
+
+// ============================================================================
+// Perlin Noise — matches Nonflowers Perlin noise exactly
+// Table initialized from BBS PRNG (matching original's Math.random() = BBS)
+// ============================================================================
+
+const PERLIN_YWRAPB = 4;
+const PERLIN_YWRAP = 1 << PERLIN_YWRAPB;
+const PERLIN_ZWRAPB = 8;
+const PERLIN_ZWRAP = 1 << PERLIN_ZWRAPB;
+const PERLIN_SIZE = 4095;
+const PERLIN_OCTAVES = 4;
+const PERLIN_AMP_FALLOFF = 0.5;
+
+let perlin: number[] | null = null;
+
+function scaledCosine(i: number): number {
+  return 0.5 * (1.0 - Math.cos(i * Math.PI));
+}
+
+function pnoise(x: number, y: number = 0, z: number = 0): number {
+  if (perlin === null) {
+    perlin = new Array(PERLIN_SIZE + 1);
+    for (let i = 0; i < PERLIN_SIZE + 1; i++) {
+      perlin[i] = BBS.next();
+    }
+  }
+
+  if (x < 0) { x = -x; }
+  if (y < 0) { y = -y; }
+  if (z < 0) { z = -z; }
+
+  let xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+  let xf = x - xi, yf = y - yi, zf = z - zi;
+  let rxf: number, ryf: number;
+  let r = 0;
+  let ampl = 0.5;
+  let n1: number, n2: number, n3: number;
+
+  for (let o = 0; o < PERLIN_OCTAVES; o++) {
+    let of = xi + (yi << PERLIN_YWRAPB) + (zi << PERLIN_ZWRAPB);
+    rxf = scaledCosine(xf);
+    ryf = scaledCosine(yf);
+
+    n1 = perlin[of & PERLIN_SIZE];
+    n1 += rxf * (perlin[(of + 1) & PERLIN_SIZE] - n1);
+    n2 = perlin[(of + PERLIN_YWRAP) & PERLIN_SIZE];
+    n2 += rxf * (perlin[(of + PERLIN_YWRAP + 1) & PERLIN_SIZE] - n2);
+    n1 += ryf * (n2 - n1);
+
+    of += PERLIN_ZWRAP;
+    n2 = perlin[of & PERLIN_SIZE];
+    n2 += rxf * (perlin[(of + 1) & PERLIN_SIZE] - n2);
+    n3 = perlin[(of + PERLIN_YWRAP) & PERLIN_SIZE];
+    n3 += rxf * (perlin[(of + PERLIN_YWRAP + 1) & PERLIN_SIZE] - n3);
+    n2 += ryf * (n3 - n2);
+
+    n1 += scaledCosine(zf) * (n2 - n1);
+    r += n1 * ampl;
+    ampl *= PERLIN_AMP_FALLOFF;
+
+    xi <<= 1; xf *= 2;
+    yi <<= 1; yf *= 2;
+    zi <<= 1; zf *= 2;
+
+    if (xf >= 1.0) { xi++; xf--; }
+    if (yf >= 1.0) { yi++; yf--; }
+    if (zf >= 1.0) { zi++; zf--; }
+  }
+  return r;
+}
+
+function resetPerlin(): void {
+  perlin = null;
+}
 
 // ============================================================================
 // Types
@@ -23,6 +132,13 @@ export interface FlowerCanvasOptions {
   type?: "woody" | "herbal" | "random";
   width?: number;
   height?: number;
+  /**
+   * Background option. Defaults to "none" (no background).
+   * - "none": No background rendered
+   * - "paper": Xuan paper (宣纸) texture background
+   * - CSS color string: Solid color background
+   */
+  background?: "none" | "paper" | string;
 }
 
 export interface FlowerParams {
@@ -91,11 +207,11 @@ function mapval(
 }
 
 function randChoice<T>(arr: T[]): T {
-  return arr[Math.floor(arr.length * prng.random())];
+  return arr[Math.floor(arr.length * BBS.next())];
 }
 
 function normRand(m: number, M: number): number {
-  return mapval(prng.random(), 0, 1, m, M);
+  return mapval(BBS.next(), 0, 1, m, M);
 }
 
 function sigmoid(x: number, k: number = 10): number {
@@ -355,7 +471,7 @@ function stroke(args: StrokeArgs = {}): [Vec3[], Vec3[]] {
   const yof = args.yof ?? 0;
   const col = args.col ?? "black";
   const wid =
-    args.wid ?? ((x: number) => 1 * sin(x * PI) * mapval(Noise.noise(x * 10), 0, 1, 0.5, 1));
+    args.wid ?? ((x: number) => 1 * sin(x * PI) * mapval(pnoise(x * 10), 0, 1, 0.5, 1));
 
   const [vtxlist0, vtxlist1] = tubify({ pts, wid });
 
@@ -383,45 +499,29 @@ function paper(args: PaperArgs = {}): HTMLCanvasElement {
   canvas.height = 512;
   const ctx = canvas.getContext("2d")!;
   const reso = 512;
-  const imageData = ctx.createImageData(reso, reso);
-  const data = imageData.data;
-
-  const writePixel = (x: number, y: number, r: number, g: number, b: number): void => {
-    if (x < 0 || x >= reso || y < 0 || y >= reso) {
-      return;
-    }
-    const index = (y * reso + x) * 4;
-    data[index] = r;
-    data[index + 1] = g;
-    data[index + 2] = b;
-    data[index + 3] = 255;
-  };
 
   for (let i = 0; i < reso / 2 + 1; i++) {
     for (let j = 0; j < reso / 2 + 1; j++) {
-      let c = 255 - Noise.noise(i * 0.1, j * 0.1) * tex * 0.5;
-      c -= prng.random() * tex;
+      let c = 255 - pnoise(i * 0.1, j * 0.1) * tex * 0.5;
+      c -= BBS.next() * tex;
       let r = c * col[0];
       let g = c * col[1];
       let b = c * col[2];
       if (
-        Noise.noise(i * 0.04, j * 0.04, 2) * prng.random() * spr > 0.7 ||
-        prng.random() < 0.005 * spr
+        pnoise(i * 0.04, j * 0.04, 2) * BBS.next() * spr > 0.7 ||
+        BBS.next() < 0.005 * spr
       ) {
         r = c * 0.7;
         g = c * 0.5;
         b = c * 0.2;
       }
-      const ri = Math.floor(r);
-      const gi = Math.floor(g);
-      const bi = Math.floor(b);
-      writePixel(i, j, ri, gi, bi);
-      writePixel(reso - i, j, ri, gi, bi);
-      writePixel(i, reso - j, ri, gi, bi);
-      writePixel(reso - i, reso - j, ri, gi, bi);
+      ctx.fillStyle = rgba(r, g, b);
+      ctx.fillRect(i, j, 1, 1);
+      ctx.fillRect(reso - i, j, 1, 1);
+      ctx.fillRect(i, reso - j, 1, 1);
+      ctx.fillRect(reso - i, reso - j, 1, 1);
     }
   }
-  ctx.putImageData(imageData, 0, 0);
   return canvas;
 }
 
@@ -632,7 +732,7 @@ function stem(args: StemArgs = {}): Vec3[] {
       const p3 = v3.lerp(L[i], R[i], n);
 
       const lt = n / p;
-      const shade = mapval(Noise.noise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1);
+      const shade = mapval(pnoise(p * 10, m * 10, n * 10), 0, 1, 0.5, 1);
       const h = lerpHue(col.min[0], col.max[0], lt) * shade;
       const s = mapval(lt, 0, 1, col.max[1], col.min[1]) * shade;
       const v = mapval(lt, 0, 1, col.min[2], col.max[2]) * shade;
@@ -678,7 +778,7 @@ function branch(args: BranchArgs = {}): BranchResult[] {
 
   const jnt: [number, number][] = [];
   for (let i = 0; i < twi; i++) {
-    jnt.push([Math.floor(prng.random() * seg), normRand(-1, 1)]);
+    jnt.push([Math.floor(BBS.next() * seg), normRand(-1, 1)]);
   }
 
   function jntdist(x: number): [number, number] {
@@ -699,7 +799,7 @@ function branch(args: BranchArgs = {}): BranchResult[] {
     if (m < 1) {
       return wid * (3 + 5 * (1 - x));
     } else {
-      return wid * (2 + 7 * (1 - x) * mapval(Noise.noise(x * 10), 0, 1, 0.5, 1));
+      return wid * (2 + 7 * (1 - x) * mapval(pnoise(x * 10), 0, 1, 0.5, 1));
     }
   };
 
@@ -716,7 +816,7 @@ function branch(args: BranchArgs = {}): BranchResult[] {
 
   const child: BranchResult[] = [];
   if (dep > 0 && wid > 0.1) {
-    for (let i = 0; i < frk * prng.random(); i++) {
+    for (let i = 0; i < frk * BBS.next(); i++) {
       const ind = Math.floor(normRand(1, P.length));
       const r = grot(P, ind);
       const L = branch({
@@ -763,15 +863,15 @@ export function genParams(): FlowerParams {
     [2, randint(3, 7), randint(3, 8)],
   ]);
 
-  const flowerShapeNoiseSeed = prng.random() * PI;
+  const flowerShapeNoiseSeed = BBS.next() * PI;
   const flowerJaggedness = normRand(0.5, 8);
   PAR.flowerShape = (x: number) =>
-    Noise.noise(x * flowerJaggedness, flowerShapeNoiseSeed) * flowerShapeMask(x);
+    pnoise(x * flowerJaggedness, flowerShapeNoiseSeed) * flowerShapeMask(x);
 
   const leafJaggedness = normRand(0.1, 40);
   const leafPointyness = normRand(0.5, 1.5);
   PAR.leafShape = randChoice([
-    (x: number) => Noise.noise(x * leafJaggedness, flowerShapeNoiseSeed) * leafShapeMask(x),
+    (x: number) => pnoise(x * leafJaggedness, flowerShapeNoiseSeed) * leafShapeMask(x),
     (x: number) => sin(PI * x) ** leafPointyness,
   ]);
 
@@ -792,12 +892,12 @@ export function genParams(): FlowerParams {
   };
 
   const curveCoeff0 = [normRand(-0.5, 0.5), normRand(5, 10)];
-  const curveCoeff2 = [prng.random() * PI, normRand(5, 15)];
-  const curveCoeff4 = [prng.random() * 0.5, normRand(0.8, 1.2)];
+  const curveCoeff2 = [BBS.next() * PI, normRand(5, 15)];
+  const curveCoeff4 = [BBS.next() * 0.5, normRand(0.8, 1.2)];
 
   PAR.flowerOpenCurve = randChoice([
     (x: number, op: number) =>
-      x < 0.1 ? 2 + op * curveCoeff2[1] : Noise.noise(x * 10, curveCoeff2[0]),
+      x < 0.1 ? 2 + op * curveCoeff2[1] : pnoise(x * 10, curveCoeff2[0]),
     (x: number, op: number) =>
       x < curveCoeff4[0] ? 0 : 10 - x * mapval(op, 0, 1, 16, 20) * curveCoeff4[1],
   ]);
@@ -955,8 +1055,8 @@ const Filter = {
     b: number,
     a: number,
   ): [number, number, number, number] {
-    const n = Noise.noise(x * 0.2, y * 0.2);
-    const m = Noise.noise(x * 0.5, y * 0.5, 2);
+    const n = pnoise(x * 0.2, y * 0.2);
+    const m = pnoise(x * 0.5, y * 0.5, 2);
     return [
       r,
       g * mapval(m, 0, 1, 0.95, 1),
@@ -973,7 +1073,7 @@ const Filter = {
     b: number,
     a: number,
   ): [number, number, number, number] {
-    const n = Noise.noise(x * 0.01, y * 0.01);
+    const n = pnoise(x * 0.01, y * 0.01);
     return [r, g, b, a * Math.min(Math.max(mapval(n, 0, 1, 0, 1), 0), 1)];
   },
 };
@@ -989,7 +1089,7 @@ interface WoodyArgs {
   PAR?: FlowerParams;
 }
 
-function woody(args: WoodyArgs = {}): CanvasRenderingContext2D {
+function woody(args: WoodyArgs = {}): void {
   const xof = args.xof ?? 0;
   const yof = args.yof ?? 0;
   const PAR = args.PAR ?? genParams();
@@ -1012,7 +1112,7 @@ function woody(args: WoodyArgs = {}): CanvasRenderingContext2D {
   for (let i = 0; i < PL.length; i++) {
     if (i / PL.length > 0.1) {
       for (let j = 0; j < PL[i][1].length; j++) {
-        if (prng.random() < PAR.leafChance) {
+        if (BBS.next() < PAR.leafChance) {
           leaf({
             ctx: lay0.ctx,
             xof: PL[i][1][j][0],
@@ -1023,14 +1123,14 @@ function woody(args: WoodyArgs = {}): CanvasRenderingContext2D {
             rot: [normRand(-1, 1) * PI, normRand(-1, 1) * PI, 0],
             wid: (x: number) => PAR.leafShape(x) * PAR.leafWidth,
             ben: (x: number) => [
-              mapval(Noise.noise(x * 1, i), 0, 1, -1, 1) * 5,
+              mapval(pnoise(x * 1, i), 0, 1, -1, 1) * 5,
               0,
-              mapval(Noise.noise(x * 1, i + PI), 0, 1, -1, 1) * 5,
+              mapval(pnoise(x * 1, i + PI), 0, 1, -1, 1) * 5,
             ],
           });
         }
 
-        if (prng.random() < PAR.flowerChance) {
+        if (BBS.next() < PAR.flowerChance) {
           const hr: Vec3 = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, 0];
 
           const P_ = stem({
@@ -1044,7 +1144,7 @@ function woody(args: WoodyArgs = {}): CanvasRenderingContext2D {
             ben: (_x: number) => [0, 0, 0],
           });
 
-          const op = prng.random();
+          const op = BBS.next();
           const r = grot(P_, P_.length - 1);
           const hhr = r;
           for (let k = 0; k < PAR.flowerPetal; k++) {
@@ -1094,14 +1194,20 @@ function woody(args: WoodyArgs = {}): CanvasRenderingContext2D {
     ymax: Math.max(b1.ymax, b2.ymax),
   };
 
-  const xref = xof - (bd.xmin + bd.xmax) / 2;
-  const yref = yof - bd.ymax;
+  const targetW = args.ctx!.canvas.width;
+  const targetH = args.ctx!.canvas.height;
+  const contentW = bd.xmax - bd.xmin;
+  const contentH = bd.ymax - bd.ymin;
+  const scale = Math.min(1, targetW / Math.max(1, contentW), targetH / Math.max(1, contentH));
 
-  const finalCtx = args.ctx ?? Layer.empty(600, 600).ctx;
-  Layer.blit(finalCtx, lay0.ctx, { ble: "multiply", xof: xref, yof: yref });
-  Layer.blit(finalCtx, lay1.ctx, { ble: "normal", xof: xref, yof: yref });
+  const xref = xof - ((bd.xmin + bd.xmax) / 2) * scale;
+  const yref = yof - bd.ymax * scale;
 
-  return finalCtx;
+  args.ctx!.save();
+  args.ctx!.scale(scale, scale);
+  Layer.blit(args.ctx!, lay0.ctx, { ble: "multiply", xof: xref / scale, yof: yref / scale });
+  Layer.blit(args.ctx!, lay1.ctx, { ble: "normal", xof: xref / scale, yof: yref / scale });
+  args.ctx!.restore();
 }
 
 // ============================================================================
@@ -1115,7 +1221,7 @@ interface HerbalArgs {
   PAR?: FlowerParams;
 }
 
-function herbal(args: HerbalArgs = {}): CanvasRenderingContext2D {
+function herbal(args: HerbalArgs = {}): void {
   const xof = args.xof ?? 0;
   const yof = args.yof ?? 0;
   const PAR = args.PAR ?? genParams();
@@ -1136,17 +1242,17 @@ function herbal(args: HerbalArgs = {}): CanvasRenderingContext2D {
       len: PAR.stemLength * normRand(0.7, 1.3),
       rot: r,
       wid: (x: number) =>
-        PAR.stemWidth * (sin((x * PI) / 2 + PI / 2) ** 0.5 * Noise.noise(x * 10) * 0.5 + 0.5),
+        PAR.stemWidth * (sin((x * PI) / 2 + PI / 2) ** 0.5 * pnoise(x * 10) * 0.5 + 0.5),
       ben: (x: number) => [
-        mapval(Noise.noise(x * 1, i), 0, 1, -1, 1) * x * PAR.stemBend,
+        mapval(pnoise(x * 1, i), 0, 1, -1, 1) * x * PAR.stemBend,
         0,
-        mapval(Noise.noise(x * 1, i + PI), 0, 1, -1, 1) * x * PAR.stemBend,
+        mapval(pnoise(x * 1, i + PI), 0, 1, -1, 1) * x * PAR.stemBend,
       ],
     });
 
     if (PAR.leafPosition === 2) {
       for (let j = 0; j < P.length; j++) {
-        if (prng.random() < PAR.leafChance * 2) {
+        if (BBS.next() < PAR.leafChance * 2) {
           leaf({
             ctx: lay0.ctx,
             xof: x0 + P[j][0],
@@ -1157,9 +1263,9 @@ function herbal(args: HerbalArgs = {}): CanvasRenderingContext2D {
             rot: [normRand(-1, 1) * PI, normRand(-1, 1) * PI, 0],
             wid: (x: number) => 2 * PAR.leafShape(x) * PAR.leafWidth,
             ben: (x: number) => [
-              mapval(Noise.noise(x * 1, i), 0, 1, -1, 1) * 5,
+              mapval(pnoise(x * 1, i), 0, 1, -1, 1) * 5,
               0,
-              mapval(Noise.noise(x * 1, i + PI), 0, 1, -1, 1) * 5,
+              mapval(pnoise(x * 1, i + PI), 0, 1, -1, 1) * 5,
             ],
           });
         }
@@ -1190,13 +1296,13 @@ function herbal(args: HerbalArgs = {}): CanvasRenderingContext2D {
         col: { min: [70, 0.2, 0.9, 1], max: [70, 0.2, 0.9, 1] },
         wid: (_x: number) => 2,
         ben: (x: number) => [
-          mapval(Noise.noise(x * 1, j), 0, 1, -1, 1) * x * 10,
+          mapval(pnoise(x * 1, j), 0, 1, -1, 1) * x * 10,
           0,
-          mapval(Noise.noise(x * 1, j + PI), 0, 1, -1, 1) * x * 10,
+          mapval(pnoise(x * 1, j + PI), 0, 1, -1, 1) * x * 10,
         ],
       });
 
-      const op = prng.random();
+      const op = BBS.next();
       const hhr: Vec3 = [normRand(-1, 1) * PI, normRand(-1, 1) * PI, normRand(-1, 1) * PI];
       for (let k = 0; k < PAR.flowerPetal; k++) {
         leaf({
@@ -1241,9 +1347,9 @@ function herbal(args: HerbalArgs = {}): CanvasRenderingContext2D {
         wid: (x: number) => 2 * PAR.leafShape(x) * PAR.leafWidth,
         vei: PAR.leafType,
         ben: (x: number) => [
-          mapval(Noise.noise(x * 1, i), 0, 1, -1, 1) * 10,
+          mapval(pnoise(x * 1, i), 0, 1, -1, 1) * 10,
           0,
-          mapval(Noise.noise(x * 1, i + PI), 0, 1, -1, 1) * 10,
+          mapval(pnoise(x * 1, i + PI), 0, 1, -1, 1) * 10,
         ],
       });
     }
@@ -1262,14 +1368,20 @@ function herbal(args: HerbalArgs = {}): CanvasRenderingContext2D {
     ymax: Math.max(b1.ymax, b2.ymax),
   };
 
-  const xref = xof - (bd.xmin + bd.xmax) / 2;
-  const yref = yof - bd.ymax;
+  const targetW = args.ctx!.canvas.width;
+  const targetH = args.ctx!.canvas.height;
+  const contentW = bd.xmax - bd.xmin;
+  const contentH = bd.ymax - bd.ymin;
+  const scale = Math.min(1, targetW / Math.max(1, contentW), targetH / Math.max(1, contentH));
 
-  const finalCtx = args.ctx ?? Layer.empty(600, 600).ctx;
-  Layer.blit(finalCtx, lay0.ctx, { ble: "multiply", xof: xref, yof: yref });
-  Layer.blit(finalCtx, lay1.ctx, { ble: "normal", xof: xref, yof: yref });
+  const xref = xof - ((bd.xmin + bd.xmax) / 2) * scale;
+  const yref = yof - bd.ymax * scale;
 
-  return finalCtx;
+  args.ctx!.save();
+  args.ctx!.scale(scale, scale);
+  Layer.blit(args.ctx!, lay0.ctx, { ble: "multiply", xof: xref / scale, yof: yref / scale });
+  Layer.blit(args.ctx!, lay1.ctx, { ble: "normal", xof: xref / scale, yof: yref / scale });
+  args.ctx!.restore();
 }
 
 // ============================================================================
@@ -1280,17 +1392,16 @@ const PAPER_COL0: [number, number, number] = [0.98, 0.91, 0.74];
 const PAPER_COL1: [number, number, number] = [1, 0.99, 0.9];
 
 export function generateFlowerCanvas(options: FlowerCanvasOptions = {}): HTMLCanvasElement {
-  const { seed, type = "random", width = 600, height = 600 } = options;
+  const { seed, type = "random", width = 600, height = 600, background = "none" } = options;
 
   // Initialize PRNG
-  const finalSeed = seed !== undefined ? seed : new Date().getTime().toString();
-  prng.seed(finalSeed);
+  // Nonflowers: fallback seed is a NUMBER (Date.getTime()), not a string.
+  // JSON.stringify(number) → "1234" vs JSON.stringify("1234") → "\"1234\""
+  const finalSeed = seed !== undefined ? seed : new Date().getTime();
+  BBS.seed(finalSeed);
 
   // Reset noise - it will reinitialize on first use
-  Noise.reset();
-
-  // Simulate makeBG() - consumes randoms for noise initialization
-  paper({ col: PAPER_COL0, tex: 10, spr: 0 });
+  resetPerlin();
 
   // Create main canvas
   const canvas = document.createElement("canvas");
@@ -1298,31 +1409,47 @@ export function generateFlowerCanvas(options: FlowerCanvasOptions = {}): HTMLCan
   canvas.height = height;
   const ctx = canvas.getContext("2d")!;
 
-  // Fill with white
-  ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, width, height);
+  // Paper background — skip entirely when background is 'none'.
+  // The Canvas reference version (Nonflowers) always generates two paper textures
+  // via makeBG() + paper(). Those calls consume PRNG state; skipping them means
+  // the same seed produces a different plant than with background !== 'none'.
+  if (background !== "none") {
+    // Simulate makeBG() - consumes randoms for noise initialization
+    paper({ col: PAPER_COL0, tex: 10, spr: 0 });
 
-  // Add paper texture
-  const ppr = paper({ col: PAPER_COL1 });
-  for (let i = 0; i < width; i += 512) {
-    for (let j = 0; j < height; j += 512) {
-      ctx.drawImage(ppr, i, j);
+    if (background === "paper") {
+      // Fill with white base
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, width, height);
+
+      // Add paper texture
+      const ppr = paper({ col: PAPER_COL1 });
+      for (let i = 0; i < width; i += 512) {
+        for (let j = 0; j < height; j += 512) {
+          ctx.drawImage(ppr, i, j);
+        }
+      }
+    } else {
+      // Solid color background
+      ctx.fillStyle = background;
+      ctx.fillRect(0, 0, width, height);
     }
   }
 
   // Determine plant type
   let plantType: "woody" | "herbal";
   if (type === "random") {
-    plantType = prng.random() <= 0.5 ? "woody" : "herbal";
+    plantType = BBS.next() <= 0.5 ? "woody" : "herbal";
   } else {
     plantType = type;
   }
 
   // Generate plant
+  const xof = width / 2;
   if (plantType === "woody") {
-    woody({ ctx, xof: 300, yof: 550 });
+    woody({ ctx, xof, yof: height * 0.85 });
   } else {
-    herbal({ ctx, xof: 300, yof: 600 });
+    herbal({ ctx, xof, yof: height * 0.92 });
   }
 
   // Apply border

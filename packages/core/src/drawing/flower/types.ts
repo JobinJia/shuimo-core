@@ -246,6 +246,8 @@ export interface WoodyArgs {
   yof?: number;
   /** Parameters */
   PAR?: FlowerParams;
+  /** Skip getBBox() bounds calculation (fast mode) */
+  fast?: boolean;
 }
 
 export interface HerbalArgs {
@@ -255,6 +257,8 @@ export interface HerbalArgs {
   yof?: number;
   /** Parameters */
   PAR?: FlowerParams;
+  /** Skip getBBox() bounds calculation (fast mode) */
+  fast?: boolean;
 }
 
 // ============================================================================
@@ -272,4 +276,10 @@ export interface FlowerOptions {
   height?: number;
   /** Background option */
   background?: "none" | "paper" | string;
+  /**
+   * Fast mode: skip getBBox() layer bounds calculation and squircle border.
+   * Saves 5× DOM clone+reflow (50k+ nodes each). Plant positioning uses xof/yof
+   * directly instead of measured content bounds. Suitable for mobile backgrounds.
+   */
+  fast?: boolean;
 }

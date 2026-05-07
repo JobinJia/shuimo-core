@@ -36,6 +36,7 @@
   },
   "scripts": {
     "build": "tsc --noEmit && vp pack",
+    "build:watch": "vp pack --watch",
     "test": "vp test",
     "test:ui": "vp test --ui",
     "test:coverage": "vp test --coverage",

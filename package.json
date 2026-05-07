@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "pnpm --filter @shuimo/playground dev",
     "build": "pnpm --filter @jobinjia/shuimo-core build",
+    "build:watch": "pnpm --filter @jobinjia/shuimo-core build:watch",
     "build:all": "pnpm -r --filter \"./packages/**\" build",
     "build:playground": "pnpm run build && pnpm --filter @shuimo/playground build",
     "test": "pnpm --filter @jobinjia/shuimo-core test",

@@ -41,18 +41,7 @@ import { createPureSVGPaper, generatePaperCanvas } from "./flower/FlowerPaper";
  * ```
  */
 export function generateFlower(options: FlowerOptions = {}): SVGSVGElement {
-  const { seed, type = "random", width = 600, height = 600, background = "none" } = options;
-
-  // ============================================================================
-  // Match Original Canvas Execution Flow
-  // ============================================================================
-  // Original flow (reference-code/flowers/main.js):
-  // 1. Initialize PRNG with seed
-  // 2. makeBG() calls paper({ col: PAPER_COL0, tex: 10, spr: 0 })
-  // 3. paper({ col: PAPER_COL1 }) for visible background
-  // 4. prng.random() <= 0.5 to decide plant type
-  // 5. woody() or herbal() → genParams()
-  // ============================================================================
+  const { seed, type = "random", width = 600, height = 600, background = "none", fast = false } = options;
 
   const finalSeed = seed !== undefined ? seed : new Date().getTime().toString();
 
@@ -61,15 +50,6 @@ export function generateFlower(options: FlowerOptions = {}): SVGSVGElement {
   resetNoise();
   seedPRNG(finalSeed);
 
-  // Step 2: Simulate makeBG() - consume same randoms as Canvas version
-  const PAPER_COL0: [number, number, number] = [0.98, 0.91, 0.74];
-  generatePaperCanvas({
-    col: PAPER_COL0,
-    tex: 10,
-    spr: 0,
-    reso: 512,
-  });
-
   // Create SVG container
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("width", width.toString());
@@ -77,36 +57,50 @@ export function generateFlower(options: FlowerOptions = {}): SVGSVGElement {
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.setAttribute("xmlns", SVG_NS);
 
-  // Step 3: Paper background (consume randoms to match Canvas flow)
-  const PAPER_COL1: [number, number, number] = [1, 0.99, 0.9];
-
-  // Must consume same randoms as original for PRNG consistency
-  generatePaperCanvas({
-    col: PAPER_COL1,
-    tex: 20,
-    spr: 1,
-    reso: 512,
-  });
-
-  if (background === "paper") {
-    // Use pure SVG paper (no Canvas/image dependency)
-    const paperId = seed
-      ? `paper-${seed.toString().replace(/[^a-zA-Z0-9]/g, "-")}`
-      : `paper-${Date.now()}`;
-
-    const { defs, rect } = createPureSVGPaper(paperId, width, height, {
-      col: PAPER_COL1,
-      tex: 20,
+  // Paper background — skip entirely when background is 'none'.
+  // The Canvas reference version (Nonflowers) always generates two paper textures
+  // via makeBG() + paper(). Those calls consume PRNG state; skipping them means
+  // the same seed produces a different plant than with background !== 'none'.
+  // This is fine — mobile 'none' flower is its own seed space.
+  if (background !== "none") {
+    // makeBG() → paper({col: PAPER_COL0}) — 512×512 canvas, ~66k pixels × 2 noise calls
+    const PAPER_COL0: [number, number, number] = [0.98, 0.91, 0.74];
+    generatePaperCanvas({
+      col: PAPER_COL0,
+      tex: 10,
+      spr: 0,
+      reso: 512,
     });
 
-    svg.appendChild(defs);
-    svg.appendChild(rect);
-  } else if (background !== "none") {
-    const rect = document.createElementNS(SVG_NS, "rect");
-    rect.setAttribute("width", width.toString());
-    rect.setAttribute("height", height.toString());
-    rect.setAttribute("fill", background);
-    svg.appendChild(rect);
+    // paper({col: PAPER_COL1}) — second 512×512 canvas texture
+    const PAPER_COL1: [number, number, number] = [1, 0.99, 0.9];
+    generatePaperCanvas({
+      col: PAPER_COL1,
+      tex: 20,
+      spr: 1,
+      reso: 512,
+    });
+
+    if (background === "paper") {
+      const paperId = seed
+        ? `paper-${seed.toString().replace(/[^a-zA-Z0-9]/g, "-")}`
+        : `paper-${Date.now()}`;
+
+      const { defs, rect } = createPureSVGPaper(paperId, width, height, {
+        col: PAPER_COL1,
+        tex: 20,
+      });
+
+      svg.appendChild(defs);
+      svg.appendChild(rect);
+    } else {
+      // Solid color background
+      const rect = document.createElementNS(SVG_NS, "rect");
+      rect.setAttribute("width", width.toString());
+      rect.setAttribute("height", height.toString());
+      rect.setAttribute("fill", background);
+      svg.appendChild(rect);
+    }
   }
 
   // Step 4: Determine plant type
@@ -118,11 +112,17 @@ export function generateFlower(options: FlowerOptions = {}): SVGSVGElement {
   }
 
   // Step 5: Generate plant
+  const xof = width / 2;
+  const yof = height;
   const layer =
-    plantType === "woody" ? woody({ xof: 300, yof: 550 }) : herbal({ xof: 300, yof: 600 });
+    plantType === "woody"
+      ? woody({ xof, yof, fast })
+      : herbal({ xof, yof, fast });
 
-  // Apply border clipping (squircle shape)
-  border(layer, squircle(0.98, 3));
+  // Squircle border: clones layer (50k+ nodes) and calls getBBox(). Skip in fast mode.
+  if (!fast) {
+    border(layer, squircle(0.98, 3));
+  }
 
   // Add layer to SVG
   svg.appendChild(layer.group);
