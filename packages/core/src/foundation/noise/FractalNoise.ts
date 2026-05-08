@@ -51,6 +51,8 @@ export interface FractalNoiseOptions {
  *   persistence: 0.5
  * })
  */
+let lazyPerlin: PerlinNoise | null = null;
+
 export function fractalNoise(x: number, y: number, options: FractalNoiseOptions = {}): number {
   const {
     octaves = 4,
@@ -61,12 +63,11 @@ export function fractalNoise(x: number, y: number, options: FractalNoiseOptions 
     seed = Date.now(),
   } = options;
 
-  // Create a Perlin noise instance
-  const perlin = new PerlinNoise();
-  perlin.noiseSeed(seed);
-
-  // Disable built-in octaves - we'll handle them manually
-  perlin.noiseDetail(1, 1.0);
+  if (!lazyPerlin) {
+    lazyPerlin = new PerlinNoise();
+    lazyPerlin.noiseSeed(seed);
+    lazyPerlin.noiseDetail(1, 1.0);
+  }
 
   let total = 0;
   let currentFrequency = frequency;
@@ -76,7 +77,7 @@ export function fractalNoise(x: number, y: number, options: FractalNoiseOptions 
   // Combine multiple octaves
   for (let i = 0; i < octaves; i++) {
     // Sample noise at current frequency
-    const noiseValue = perlin.noise(x * currentFrequency, y * currentFrequency);
+    const noiseValue = lazyPerlin.noise(x * currentFrequency, y * currentFrequency);
 
     // Add weighted contribution
     total += noiseValue * currentAmplitude;

@@ -62,7 +62,7 @@ export class Brush {
     const angle = options.angle ?? 0;
     const textureCount = options.texture ?? 5;
 
-    let svg = "";
+    const svgParts: string[] = [];
     const n0 = prng.random() * 10;
 
     // Parse color components
@@ -132,11 +132,13 @@ export class Brush {
 
     // Draw main stroke with ink gradient
     const avgAlpha = ((inkStart + inkEnd) / 2) * baseAlpha;
-    svg += poly(strokePolygon, {
-      fil: `rgba(${r},${g},${b},${avgAlpha.toFixed(3)})`,
-      str: "none",
-      wid: 0,
-    });
+    svgParts.push(
+      poly(strokePolygon, {
+        fil: `rgba(${r},${g},${b},${avgAlpha.toFixed(3)})`,
+        str: "none",
+        wid: 0,
+      }),
+    );
 
     // Add darker stroke edges for depth
     const edgeAlpha = Math.min(baseAlpha * 1.2, 1.0);
@@ -144,8 +146,8 @@ export class Brush {
 
     // Draw edges as strokes
     if (leftEdge.length > 1) {
-      svg += this.generateEdgeStroke(leftEdge, edgeColor, 0.8, noiseAmount);
-      svg += this.generateEdgeStroke(rightEdge, edgeColor, 0.8, noiseAmount);
+      svgParts.push(this.generateEdgeStroke(leftEdge, edgeColor, 0.8, noiseAmount));
+      svgParts.push(this.generateEdgeStroke(rightEdge, edgeColor, 0.8, noiseAmount));
     }
 
     // Add texture marks for paper absorption effect (渗透效果)
@@ -160,15 +162,17 @@ export class Brush {
       const offsetX = (prng.random() - 0.5) * width * 0.6;
       const offsetY = (prng.random() - 0.5) * width * 0.6;
 
-      svg += this.generateTextureBlob(
-        point[0] + offsetX,
-        point[1] + offsetY,
-        width * (0.2 + prng.random() * 0.3),
-        `rgba(${r},${g},${b},${texAlpha.toFixed(3)})`,
+      svgParts.push(
+        this.generateTextureBlob(
+          point[0] + offsetX,
+          point[1] + offsetY,
+          width * (0.2 + prng.random() * 0.3),
+          `rgba(${r},${g},${b},${texAlpha.toFixed(3)})`,
+        ),
       );
     }
 
-    return svg;
+    return svgParts.join("");
   }
 
   /**
@@ -224,7 +228,7 @@ export class Brush {
     const noiseAmount = options.noise ?? 0.7;
     const textureCount = options.texture ?? 3;
 
-    let svg = "";
+    const svgParts: string[] = [];
     const n0 = prng.random() * 10;
 
     // Parse color
@@ -245,11 +249,13 @@ export class Brush {
       points.push([x + Math.cos(angle) * r, y + Math.sin(angle) * r]);
     }
 
-    svg += poly(points, {
-      fil: `rgba(${r},${g},${b},${baseAlpha.toFixed(3)})`,
-      str: `rgba(${Math.max(0, r - 30)},${Math.max(0, g - 30)},${Math.max(0, b - 30)},${Math.min(1, baseAlpha * 1.2).toFixed(3)})`,
-      wid: 0.5,
-    });
+    svgParts.push(
+      poly(points, {
+        fil: `rgba(${r},${g},${b},${baseAlpha.toFixed(3)})`,
+        str: `rgba(${Math.max(0, r - 30)},${Math.max(0, g - 30)},${Math.max(0, b - 30)},${Math.min(1, baseAlpha * 1.2).toFixed(3)})`,
+        wid: 0.5,
+      }),
+    );
 
     // Add texture blobs
     for (let i = 0; i < textureCount; i++) {
@@ -260,15 +266,17 @@ export class Brush {
       const texSize = width * (0.15 + prng.random() * 0.2);
       const texAlpha = baseAlpha * (0.2 + prng.random() * 0.3);
 
-      svg += this.generateTextureBlob(
-        texX,
-        texY,
-        texSize,
-        `rgba(${r},${g},${b},${texAlpha.toFixed(3)})`,
+      svgParts.push(
+        this.generateTextureBlob(
+          texX,
+          texY,
+          texSize,
+          `rgba(${r},${g},${b},${texAlpha.toFixed(3)})`,
+        ),
       );
     }
 
-    return svg;
+    return svgParts.join("");
   }
 
   /**

@@ -133,17 +133,13 @@ export function woody(args: WoodyArgs = {}): Layer {
   // NOTE: Filters are now pre-computed during shape generation
   // No need for post-processing filter calls
 
-  let xref: number
-  let yref: number
+  let xref: number;
+  let yref: number;
 
   if (fast) {
-    // Skip 2× clone+getBBox() (50k+ nodes each).
-    // Layer is 1200×1200; content typically fills ~90% of height.
-    // yof=canvas height → plant bottom anchors to viewBox bottom.
-    xref = xof - cwid / 2
-    yref = yof - Math.round(cwid * 0.9)
+    xref = xof - cwid / 2;
+    yref = yof - Math.round(cwid * 0.9);
   } else {
-    // Calculate combined bounds (expensive: clones layers + DOM reflow)
     const b1 = LayerSystem.bound(lay0);
     const b2 = LayerSystem.bound(lay1);
     const bd = {
@@ -323,17 +319,13 @@ export function herbal(args: HerbalArgs = {}): Layer {
   // NOTE: Filters are now pre-computed during shape generation
   // No need for post-processing filter calls
 
-  let xref: number
-  let yref: number
+  let xref: number;
+  let yref: number;
 
   if (fast) {
-    // Skip 2× clone+getBBox() (50k+ nodes each).
-    // Layer is 1200×1200; content typically fills ~90% of height.
-    // yof=canvas height → plant bottom anchors to viewBox bottom.
-    xref = xof - cwid / 2
-    yref = yof - Math.round(cwid * 0.9)
+    xref = xof - cwid / 2;
+    yref = yof - Math.round(cwid * 0.9);
   } else {
-    // Calculate combined bounds (expensive: clones layers + DOM reflow)
     const b1 = LayerSystem.bound(lay0);
     const b2 = LayerSystem.bound(lay1);
     const bd = {

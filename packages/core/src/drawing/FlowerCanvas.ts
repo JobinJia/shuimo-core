@@ -29,7 +29,9 @@ const BBS = (() => {
 
   return {
     seed(x?: string | number): void {
-      if (x === undefined) { x = new Date().getTime().toString(); }
+      if (x === undefined) {
+        x = new Date().getTime().toString();
+      }
       const h = hash(x);
       let y = h % m;
       let z = 0;
@@ -39,7 +41,9 @@ const BBS = (() => {
       }
       s = y;
       // Skip 10 iterations (matching nonflowers)
-      for (let i = 0; i < 10; i++) { this.next(); }
+      for (let i = 0; i < 10; i++) {
+        this.next();
+      }
     },
     next(): number {
       s = (s * s) % m;
@@ -75,12 +79,22 @@ function pnoise(x: number, y: number = 0, z: number = 0): number {
     }
   }
 
-  if (x < 0) { x = -x; }
-  if (y < 0) { y = -y; }
-  if (z < 0) { z = -z; }
+  if (x < 0) {
+    x = -x;
+  }
+  if (y < 0) {
+    y = -y;
+  }
+  if (z < 0) {
+    z = -z;
+  }
 
-  let xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
-  let xf = x - xi, yf = y - yi, zf = z - zi;
+  let xi = Math.floor(x),
+    yi = Math.floor(y),
+    zi = Math.floor(z);
+  let xf = x - xi,
+    yf = y - yi,
+    zf = z - zi;
   let rxf: number, ryf: number;
   let r = 0;
   let ampl = 0.5;
@@ -108,13 +122,25 @@ function pnoise(x: number, y: number = 0, z: number = 0): number {
     r += n1 * ampl;
     ampl *= PERLIN_AMP_FALLOFF;
 
-    xi <<= 1; xf *= 2;
-    yi <<= 1; yf *= 2;
-    zi <<= 1; zf *= 2;
+    xi <<= 1;
+    xf *= 2;
+    yi <<= 1;
+    yf *= 2;
+    zi <<= 1;
+    zf *= 2;
 
-    if (xf >= 1.0) { xi++; xf--; }
-    if (yf >= 1.0) { yi++; yf--; }
-    if (zf >= 1.0) { zi++; zf--; }
+    if (xf >= 1.0) {
+      xi++;
+      xf--;
+    }
+    if (yf >= 1.0) {
+      yi++;
+      yf--;
+    }
+    if (zf >= 1.0) {
+      zi++;
+      zf--;
+    }
   }
   return r;
 }
@@ -139,6 +165,8 @@ export interface FlowerCanvasOptions {
    * - CSS color string: Solid color background
    */
   background?: "none" | "paper" | string;
+  /** Fast mode: skip getImageData bounds scan and squircle border. */
+  fast?: boolean;
 }
 
 export interface FlowerParams {
@@ -470,8 +498,7 @@ function stroke(args: StrokeArgs = {}): [Vec3[], Vec3[]] {
   const xof = args.xof ?? 0;
   const yof = args.yof ?? 0;
   const col = args.col ?? "black";
-  const wid =
-    args.wid ?? ((x: number) => 1 * sin(x * PI) * mapval(pnoise(x * 10), 0, 1, 0.5, 1));
+  const wid = args.wid ?? ((x: number) => 1 * sin(x * PI) * mapval(pnoise(x * 10), 0, 1, 0.5, 1));
 
   const [vtxlist0, vtxlist1] = tubify({ pts, wid });
 
@@ -499,6 +526,17 @@ function paper(args: PaperArgs = {}): HTMLCanvasElement {
   canvas.height = 512;
   const ctx = canvas.getContext("2d")!;
   const reso = 512;
+  const imageData = ctx.createImageData(reso, reso);
+  const data = imageData.data;
+
+  const setPixel = (x: number, y: number, ri: number, gi: number, bi: number): void => {
+    if (x < 0 || x >= reso || y < 0 || y >= reso) return;
+    const idx = (y * reso + x) * 4;
+    data[idx] = ri;
+    data[idx + 1] = gi;
+    data[idx + 2] = bi;
+    data[idx + 3] = 255;
+  };
 
   for (let i = 0; i < reso / 2 + 1; i++) {
     for (let j = 0; j < reso / 2 + 1; j++) {
@@ -507,21 +545,21 @@ function paper(args: PaperArgs = {}): HTMLCanvasElement {
       let r = c * col[0];
       let g = c * col[1];
       let b = c * col[2];
-      if (
-        pnoise(i * 0.04, j * 0.04, 2) * BBS.next() * spr > 0.7 ||
-        BBS.next() < 0.005 * spr
-      ) {
+      if (pnoise(i * 0.04, j * 0.04, 2) * BBS.next() * spr > 0.7 || BBS.next() < 0.005 * spr) {
         r = c * 0.7;
         g = c * 0.5;
         b = c * 0.2;
       }
-      ctx.fillStyle = rgba(r, g, b);
-      ctx.fillRect(i, j, 1, 1);
-      ctx.fillRect(reso - i, j, 1, 1);
-      ctx.fillRect(i, reso - j, 1, 1);
-      ctx.fillRect(reso - i, reso - j, 1, 1);
+      const ri = Math.floor(r);
+      const gi = Math.floor(g);
+      const bi = Math.floor(b);
+      setPixel(i, j, ri, gi, bi);
+      setPixel(reso - i, j, ri, gi, bi);
+      setPixel(i, reso - j, ri, gi, bi);
+      setPixel(reso - i, reso - j, ri, gi, bi);
     }
   }
+  ctx.putImageData(imageData, 0, 0);
   return canvas;
 }
 
@@ -896,8 +934,7 @@ export function genParams(): FlowerParams {
   const curveCoeff4 = [BBS.next() * 0.5, normRand(0.8, 1.2)];
 
   PAR.flowerOpenCurve = randChoice([
-    (x: number, op: number) =>
-      x < 0.1 ? 2 + op * curveCoeff2[1] : pnoise(x * 10, curveCoeff2[0]),
+    (x: number, op: number) => (x < 0.1 ? 2 + op * curveCoeff2[1] : pnoise(x * 10, curveCoeff2[0])),
     (x: number, op: number) =>
       x < curveCoeff4[0] ? 0 : 10 - x * mapval(op, 0, 1, 16, 20) * curveCoeff4[1],
   ]);
@@ -1087,12 +1124,14 @@ interface WoodyArgs {
   xof?: number;
   yof?: number;
   PAR?: FlowerParams;
+  fast?: boolean;
 }
 
 function woody(args: WoodyArgs = {}): void {
   const xof = args.xof ?? 0;
   const yof = args.yof ?? 0;
   const PAR = args.PAR ?? genParams();
+  const fast = args.fast ?? false;
 
   const cwid = 1200;
   const lay0 = Layer.empty(cwid);
@@ -1185,29 +1224,41 @@ function woody(args: WoodyArgs = {}): void {
   Layer.filter(lay0.ctx, Filter.wispy);
   Layer.filter(lay1.ctx, Filter.wispy);
 
-  const b1 = Layer.bound(lay0.ctx);
-  const b2 = Layer.bound(lay1.ctx);
-  const bd = {
-    xmin: Math.min(b1.xmin, b2.xmin),
-    xmax: Math.max(b1.xmax, b2.xmax),
-    ymin: Math.min(b1.ymin, b2.ymin),
-    ymax: Math.max(b1.ymax, b2.ymax),
-  };
+  let xref: number;
+  let yref: number;
 
-  const targetW = args.ctx!.canvas.width;
-  const targetH = args.ctx!.canvas.height;
-  const contentW = bd.xmax - bd.xmin;
-  const contentH = bd.ymax - bd.ymin;
-  const scale = Math.min(1, targetW / Math.max(1, contentW), targetH / Math.max(1, contentH));
+  if (fast) {
+    xref = xof - cwid / 2;
+    yref = yof - Math.round(cwid * 0.9);
+    args.ctx!.save();
+    Layer.blit(args.ctx!, lay0.ctx, { ble: "multiply", xof: xref, yof: yref });
+    Layer.blit(args.ctx!, lay1.ctx, { ble: "normal", xof: xref, yof: yref });
+    args.ctx!.restore();
+  } else {
+    const b1 = Layer.bound(lay0.ctx);
+    const b2 = Layer.bound(lay1.ctx);
+    const bd = {
+      xmin: Math.min(b1.xmin, b2.xmin),
+      xmax: Math.max(b1.xmax, b2.xmax),
+      ymin: Math.min(b1.ymin, b2.ymin),
+      ymax: Math.max(b1.ymax, b2.ymax),
+    };
 
-  const xref = xof - ((bd.xmin + bd.xmax) / 2) * scale;
-  const yref = yof - bd.ymax * scale;
+    const targetW = args.ctx!.canvas.width;
+    const targetH = args.ctx!.canvas.height;
+    const contentW = bd.xmax - bd.xmin;
+    const contentH = bd.ymax - bd.ymin;
+    const scale = Math.min(1, targetW / Math.max(1, contentW), targetH / Math.max(1, contentH));
 
-  args.ctx!.save();
-  args.ctx!.scale(scale, scale);
-  Layer.blit(args.ctx!, lay0.ctx, { ble: "multiply", xof: xref / scale, yof: yref / scale });
-  Layer.blit(args.ctx!, lay1.ctx, { ble: "normal", xof: xref / scale, yof: yref / scale });
-  args.ctx!.restore();
+    xref = xof - ((bd.xmin + bd.xmax) / 2) * scale;
+    yref = yof - bd.ymax * scale;
+
+    args.ctx!.save();
+    args.ctx!.scale(scale, scale);
+    Layer.blit(args.ctx!, lay0.ctx, { ble: "multiply", xof: xref / scale, yof: yref / scale });
+    Layer.blit(args.ctx!, lay1.ctx, { ble: "normal", xof: xref / scale, yof: yref / scale });
+    args.ctx!.restore();
+  }
 }
 
 // ============================================================================
@@ -1219,12 +1270,14 @@ interface HerbalArgs {
   xof?: number;
   yof?: number;
   PAR?: FlowerParams;
+  fast?: boolean;
 }
 
 function herbal(args: HerbalArgs = {}): void {
   const xof = args.xof ?? 0;
   const yof = args.yof ?? 0;
   const PAR = args.PAR ?? genParams();
+  const fast = args.fast ?? false;
 
   const cwid = 1200;
   const lay0 = Layer.empty(cwid);
@@ -1359,29 +1412,41 @@ function herbal(args: HerbalArgs = {}): void {
   Layer.filter(lay0.ctx, Filter.wispy);
   Layer.filter(lay1.ctx, Filter.wispy);
 
-  const b1 = Layer.bound(lay0.ctx);
-  const b2 = Layer.bound(lay1.ctx);
-  const bd = {
-    xmin: Math.min(b1.xmin, b2.xmin),
-    xmax: Math.max(b1.xmax, b2.xmax),
-    ymin: Math.min(b1.ymin, b2.ymin),
-    ymax: Math.max(b1.ymax, b2.ymax),
-  };
+  let xref: number;
+  let yref: number;
 
-  const targetW = args.ctx!.canvas.width;
-  const targetH = args.ctx!.canvas.height;
-  const contentW = bd.xmax - bd.xmin;
-  const contentH = bd.ymax - bd.ymin;
-  const scale = Math.min(1, targetW / Math.max(1, contentW), targetH / Math.max(1, contentH));
+  if (fast) {
+    xref = xof - cwid / 2;
+    yref = yof - Math.round(cwid * 0.9);
+    args.ctx!.save();
+    Layer.blit(args.ctx!, lay0.ctx, { ble: "multiply", xof: xref, yof: yref });
+    Layer.blit(args.ctx!, lay1.ctx, { ble: "normal", xof: xref, yof: yref });
+    args.ctx!.restore();
+  } else {
+    const b1 = Layer.bound(lay0.ctx);
+    const b2 = Layer.bound(lay1.ctx);
+    const bd = {
+      xmin: Math.min(b1.xmin, b2.xmin),
+      xmax: Math.max(b1.xmax, b2.xmax),
+      ymin: Math.min(b1.ymin, b2.ymin),
+      ymax: Math.max(b1.ymax, b2.ymax),
+    };
 
-  const xref = xof - ((bd.xmin + bd.xmax) / 2) * scale;
-  const yref = yof - bd.ymax * scale;
+    const targetW = args.ctx!.canvas.width;
+    const targetH = args.ctx!.canvas.height;
+    const contentW = bd.xmax - bd.xmin;
+    const contentH = bd.ymax - bd.ymin;
+    const scale = Math.min(1, targetW / Math.max(1, contentW), targetH / Math.max(1, contentH));
 
-  args.ctx!.save();
-  args.ctx!.scale(scale, scale);
-  Layer.blit(args.ctx!, lay0.ctx, { ble: "multiply", xof: xref / scale, yof: yref / scale });
-  Layer.blit(args.ctx!, lay1.ctx, { ble: "normal", xof: xref / scale, yof: yref / scale });
-  args.ctx!.restore();
+    xref = xof - ((bd.xmin + bd.xmax) / 2) * scale;
+    yref = yof - bd.ymax * scale;
+
+    args.ctx!.save();
+    args.ctx!.scale(scale, scale);
+    Layer.blit(args.ctx!, lay0.ctx, { ble: "multiply", xof: xref / scale, yof: yref / scale });
+    Layer.blit(args.ctx!, lay1.ctx, { ble: "normal", xof: xref / scale, yof: yref / scale });
+    args.ctx!.restore();
+  }
 }
 
 // ============================================================================
@@ -1392,7 +1457,14 @@ const PAPER_COL0: [number, number, number] = [0.98, 0.91, 0.74];
 const PAPER_COL1: [number, number, number] = [1, 0.99, 0.9];
 
 export function generateFlowerCanvas(options: FlowerCanvasOptions = {}): HTMLCanvasElement {
-  const { seed, type = "random", width = 600, height = 600, background = "none" } = options;
+  const {
+    seed,
+    type = "random",
+    width = 600,
+    height = 600,
+    background = "none",
+    fast = false,
+  } = options;
 
   // Initialize PRNG
   // Nonflowers: fallback seed is a NUMBER (Date.getTime()), not a string.
@@ -1447,13 +1519,14 @@ export function generateFlowerCanvas(options: FlowerCanvasOptions = {}): HTMLCan
   // Generate plant
   const xof = width / 2;
   if (plantType === "woody") {
-    woody({ ctx, xof, yof: height * 0.85 });
+    woody({ ctx, xof, yof: height * 0.85, fast });
   } else {
-    herbal({ ctx, xof, yof: height * 0.92 });
+    herbal({ ctx, xof, yof: height * 0.92, fast });
   }
 
-  // Apply border
-  Layer.border(ctx, squircle(0.98, 3));
+  if (!fast) {
+    Layer.border(ctx, squircle(0.98, 3));
+  }
 
   return canvas;
 }

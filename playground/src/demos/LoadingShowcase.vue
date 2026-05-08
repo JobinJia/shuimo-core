@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import {
-  generateShuimoLoadingSVG,
-  generateCalligraphyLoadingSVG,
-} from "@jobinjia/shuimo-core";
+import { generateShuimoLoadingSVG, generateCalligraphyLoadingSVG } from "@jobinjia/shuimo-core";
 import { computed, reactive } from "vue";
 
 const LoadingTypes = [

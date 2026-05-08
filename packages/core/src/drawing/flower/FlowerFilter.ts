@@ -11,6 +11,26 @@ import type { LayerType } from "./types";
 import { noise } from "./FlowerNoise";
 import { mapval } from "./FlowerMath";
 
+// Low-res noise cache. Each flower generation calls noise ~45k times
+// from filter lookups. Most coordinates hit the same rounded buckets.
+const noiseCache = new Map<number, number>();
+const cacheKey = (x: number, y: number, z: number): number =>
+  Math.round(x * 10) * 10000 + Math.round(y * 10) * 10 + z;
+
+function cachedNoise(x: number, y: number, z: number = 0): number {
+  const k = cacheKey(x, y, z);
+  let v = noiseCache.get(k);
+  if (v === undefined) {
+    v = noise(x, y, z);
+    noiseCache.set(k, v);
+  }
+  return v;
+}
+
+export function resetFilterNoiseCache(): void {
+  noiseCache.clear();
+}
+
 // ============================================================================
 // Pre-computation Filter Functions
 // ============================================================================
@@ -27,8 +47,8 @@ export function getWispyAdjustment(
   x: number,
   y: number,
 ): { r: number; g: number; b: number; a: number } {
-  const n = noise(x * 0.2, y * 0.2);
-  const m = noise(x * 0.5, y * 0.5, 2);
+  const n = cachedNoise(x * 0.2, y * 0.2);
+  const m = cachedNoise(x * 0.5, y * 0.5, 2);
 
   return {
     r: 1.0,
@@ -47,7 +67,7 @@ export function getWispyAdjustment(
  * @returns Alpha multiplier (0-1)
  */
 export function getFadeAdjustment(x: number, y: number): number {
-  const n = noise(x * 0.01, y * 0.01);
+  const n = cachedNoise(x * 0.01, y * 0.01);
   return Math.min(Math.max(mapval(n, 0, 1, 0, 1), 0), 1);
 }
 

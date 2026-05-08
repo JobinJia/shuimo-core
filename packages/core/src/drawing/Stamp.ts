@@ -8,6 +8,7 @@
 import { createStampNoise } from "./StampNoise";
 import { dsin, dcos, fmtNum } from "../utils/math";
 import { calculateStampTextMetrics } from "./StampMetrics";
+import { wasmSquarePath, wasmRectPath, wasmCirclePath, wasmEllipsePath } from "./StampWasm";
 import {
   commandsToSvgPathData,
   getBoundingBox,
@@ -969,49 +970,13 @@ function generateSquarePath(
   size: number,
   borderPoints: number,
   cornerRadius: number,
-  random: () => number,
-  applyNoise: NoiseFn,
+  _random: () => number,
+  _applyNoise: NoiseFn,
   regularShape: boolean,
+  noiseAmount: number,
+  seed: number,
 ): string {
-  if (regularShape) {
-    const cr = randomizeCornerRadii(cornerRadius, random, true);
-    return buildRegularQuadPath(size, size, cr);
-  }
-
-  // Small uniform outer corner rounding — inner angle stays 90°, outer tip slightly rounded
-  const r = Math.min(cornerRadius, size * 0.03);
-  const pointsPerEdge = Math.floor(borderPoints / 4);
-  const b = new PathBuilder();
-
-  // Start after top-left outer rounding
-  b.moveTo(r, 0);
-
-  // Top edge → inward is downward (0, +1)
-  generateEdgePoints(b, r, 0, size - r, 0, pointsPerEdge, applyNoise, true, 0, 1);
-
-  // Top-right corner: small outer rounding
-  b.quadTo(size, 0, size, r);
-
-  // Right edge → inward is leftward (-1, 0)
-  generateEdgePoints(b, size, r, size, size - r, pointsPerEdge, applyNoise, false, -1, 0);
-
-  // Bottom-right corner
-  b.quadTo(size, size, size - r, size);
-
-  // Bottom edge → inward is upward (0, -1)
-  generateEdgePoints(b, size - r, size, r, size, pointsPerEdge, applyNoise, false, 0, -1);
-
-  // Bottom-left corner
-  b.quadTo(0, size, 0, size - r);
-
-  // Left edge → inward is rightward (+1, 0)
-  generateEdgePoints(b, 0, size - r, 0, r, pointsPerEdge, applyNoise, false, 1, 0);
-
-  // Close back to top-left
-  b.quadTo(0, 0, r, 0);
-  b.close();
-
-  return b.toString();
+  return wasmSquarePath(size, borderPoints, cornerRadius, noiseAmount, seed, regularShape);
 }
 
 /**
@@ -1022,48 +987,13 @@ function generateRectanglePath(
   height: number,
   borderPoints: number,
   cornerRadius: number,
-  random: () => number,
-  applyNoise: NoiseFn,
+  _random: () => number,
+  _applyNoise: NoiseFn,
   regularShape: boolean,
+  noiseAmount: number,
+  seed: number,
 ): string {
-  if (regularShape) {
-    const cr = randomizeCornerRadii(cornerRadius, random, true);
-    return buildRegularQuadPath(width, height, cr);
-  }
-
-  // Small uniform outer corner rounding — inner angle stays 90°, outer tip slightly rounded
-  const r = Math.min(cornerRadius, Math.min(width, height) * 0.03);
-  const pointsPerEdge = Math.floor(borderPoints / 4);
-  const b = new PathBuilder();
-
-  b.moveTo(r, 0);
-
-  // Top edge → inward is downward (0, +1)
-  generateEdgePoints(b, r, 0, width - r, 0, pointsPerEdge, applyNoise, true, 0, 1);
-
-  // Top-right corner
-  b.quadTo(width, 0, width, r);
-
-  // Right edge → inward is leftward (-1, 0)
-  generateEdgePoints(b, width, r, width, height - r, pointsPerEdge, applyNoise, false, -1, 0);
-
-  // Bottom-right corner
-  b.quadTo(width, height, width - r, height);
-
-  // Bottom edge → inward is upward (0, -1)
-  generateEdgePoints(b, width - r, height, r, height, pointsPerEdge, applyNoise, false, 0, -1);
-
-  // Bottom-left corner
-  b.quadTo(0, height, 0, height - r);
-
-  // Left edge → inward is rightward (+1, 0)
-  generateEdgePoints(b, 0, height - r, 0, r, pointsPerEdge, applyNoise, false, 1, 0);
-
-  // Close back to top-left
-  b.quadTo(0, 0, r, 0);
-  b.close();
-
-  return b.toString();
+  return wasmRectPath(width, height, borderPoints, cornerRadius, noiseAmount, seed, regularShape);
 }
 
 /**
@@ -1072,39 +1002,12 @@ function generateRectanglePath(
 function generateCirclePath(
   radius: number,
   borderPoints: number,
-  applyNoise: NoiseFn,
+  _applyNoise: NoiseFn,
   regularShape: boolean,
+  noiseAmount: number,
+  seed: number,
 ): string {
-  const centerX = radius;
-  const centerY = radius;
-
-  if (regularShape) {
-    return buildRegularEllipsePath(centerX, centerY, radius, radius);
-  }
-
-  const b = new PathBuilder();
-
-  for (let i = 0; i < borderPoints; i++) {
-    const angle = (i / borderPoints) * PI * 2;
-    const x = centerX + dcos(angle) * radius;
-    const y = centerY + dsin(angle) * radius;
-
-    // Inward normal for circle = toward center = -(cos, sin)
-    const inwardNX = -dcos(angle);
-    const inwardNY = -dsin(angle);
-
-    const edgeProgress = 1.0;
-    const pt = applyNoise(x, y, edgeProgress, inwardNX, inwardNY);
-
-    if (i === 0) {
-      b.moveTo(pt.x, pt.y);
-    } else {
-      b.lineTo(pt.x, pt.y);
-    }
-  }
-
-  b.close();
-  return b.toString();
+  return wasmCirclePath(radius, borderPoints, noiseAmount, seed, regularShape);
 }
 
 /**
@@ -1118,6 +1021,8 @@ function generateEllipsePath(
   borderPoints: number,
   applyNoise: NoiseFn,
   regularShape: boolean,
+  _noiseAmount?: number,
+  _seed?: number,
 ): string {
   if (regularShape) {
     const rx = width / 2;
@@ -1432,6 +1337,8 @@ export function generateStampPath(options: StampOptions): StampResult {
       random,
       applyNoise,
       regularShape,
+      actualNoiseAmount,
+      seed,
     );
     bounds = {
       left: 0,
@@ -1456,6 +1363,8 @@ export function generateStampPath(options: StampOptions): StampResult {
       random,
       applyNoise,
       regularShape,
+      actualNoiseAmount,
+      seed,
     );
     bounds = {
       left: 0,
@@ -1479,7 +1388,7 @@ export function generateStampPath(options: StampOptions): StampResult {
     const diameter = baseDiameter * avgScale;
     const radius = diameter / 2;
 
-    path = generateCirclePath(radius, actualBorderPoints, applyNoise, regularShape);
+    path = generateCirclePath(radius, actualBorderPoints, applyNoise, regularShape, actualNoiseAmount, seed);
     bounds = {
       left: 0,
       right: diameter,

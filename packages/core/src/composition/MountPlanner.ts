@@ -273,10 +273,7 @@ export class MountPlanner {
     return yRange[0] <= yRange[1] ? [yRange[0], yRange[1]] : [yRange[1], yRange[0]];
   }
 
-  private static explicitWaterY(
-    height: number,
-    placement?: LandscapePlacementOptions,
-  ): number {
+  private static explicitWaterY(height: number, placement?: LandscapePlacementOptions): number {
     const [yMin, yMax] = this.waterYRange(height, placement);
     if (yMax <= yMin) return yMin;
     return yMin + prng.random() * (yMax - yMin);
@@ -364,6 +361,10 @@ export class MountPlanner {
     const reg: PlanItem[] = [];
     const samp = 0.03;
 
+    // Use fewer octaves during planning — locmax only needs low-frequency terrain.
+    // Save/restore to avoid affecting downstream render passes.
+    noise.noiseDetail(2, 0.5);
+
     // Noise functions for different purposes.
     // ns is defined later with an adaptive bias; yr is used immediately.
     const yr = (x: number): number => {
@@ -445,10 +446,7 @@ export class MountPlanner {
     // generate unusually many peaks), trim from the densest x-regions
     // first, removing weaker peaks within each cluster.  This preserves
     // spatial spread while keeping density within bounds.
-    const mountTargetMax = Math.max(
-      10,
-      Math.min(32, Math.round((xmax - xmin) / 42)),
-    );
+    const mountTargetMax = Math.max(10, Math.min(32, Math.round((xmax - xmin) / 42)));
     {
       const mountIndices: number[] = [];
       for (let i = 0; i < reg.length; i++) {
@@ -480,11 +478,7 @@ export class MountPlanner {
         const sortedRemove = [...removeSet].sort((a, b) => b - a);
         for (const idx of sortedRemove) {
           const item = reg[idx];
-          for (
-            let k = Math.floor((item.x - mwid) / xstep);
-            k < (item.x + mwid) / xstep;
-            k++
-          ) {
+          for (let k = Math.floor((item.x - mwid) / xstep); k < (item.x + mwid) / xstep; k++) {
             if (planmtx[k] > 0) planmtx[k] -= 1;
           }
           reg.splice(idx, 1);
@@ -513,11 +507,7 @@ export class MountPlanner {
             if (wouldCoverBoat(xof, 350)) continue;
             const r: PlanItem = { tag: "mount", x: xof, y: yof, h: ns(i, j) };
             if (this.chadd(reg, r, 10, planmtx)) {
-              for (
-                let k = Math.floor((xof - mwid) / xstep);
-                k < (xof + mwid) / xstep;
-                k++
-              ) {
+              for (let k = Math.floor((xof - mwid) / xstep); k < (xof + mwid) / xstep; k++) {
                 planmtx[k] += 1;
               }
               mountCount++;
@@ -675,6 +665,7 @@ export class MountPlanner {
       }
     }
 
+    noise.noiseDetail(4, 0.5);
     return reg;
   }
 
@@ -859,9 +850,10 @@ export class MountPlanner {
         }
 
         const item: PlanItem = { tag, x, y, h: 0 };
-        const added = anchored || tag === "boat"
-          ? this.chaddSameTag(plan, item, tagPlacement.mind)
-          : this.chadd(plan, item, tagPlacement.mind, planmtx);
+        const added =
+          anchored || tag === "boat"
+            ? this.chaddSameTag(plan, item, tagPlacement.mind)
+            : this.chadd(plan, item, tagPlacement.mind, planmtx);
         if (added) {
           count++;
         }

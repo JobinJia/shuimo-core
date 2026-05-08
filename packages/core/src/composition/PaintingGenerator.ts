@@ -249,98 +249,88 @@ function renderPlanItem(
   const visible = shouldRenderElement(item.tag, renderElements);
 
   switch (item.tag) {
-    case "mount":
+    case "mount": {
       // ret defaults to 0, which returns string
-      {
-        const rendered = Mount.mountain(item.x, item.y, randomSeed * prng.random(), {
-          tex: Math.round(200 * textureDetail),
-          layers: true,
-        }) as LayeredMountSVG;
-        return visible ? rendered : inkOnly("");
-      }
+      const rendered = Mount.mountain(item.x, item.y, randomSeed * prng.random(), {
+        tex: Math.round(200 * textureDetail),
+        layers: true,
+      }) as LayeredMountSVG;
+      return visible ? rendered : inkOnly("");
+    }
 
-    case "flatmount":
-      {
-        const rendered = Mount.flatMount(item.x, item.y, randomSeed * Math.PI, {
-          wid: 600 + prng.random() * 400,
-          hei: 100,
-          tex: Math.round(80 * textureDetail),
-          cho: 0.5 + prng.random() * 0.2,
-          layers: true,
-        }) as LayeredMountSVG;
-        return visible ? rendered : inkOnly("");
-      }
+    case "flatmount": {
+      const rendered = Mount.flatMount(item.x, item.y, randomSeed * Math.PI, {
+        wid: 600 + prng.random() * 400,
+        hei: 100,
+        tex: Math.round(80 * textureDetail),
+        cho: 0.5 + prng.random() * 0.2,
+        layers: true,
+      }) as LayeredMountSVG;
+      return visible ? rendered : inkOnly("");
+    }
 
-    case "distmount":
-      {
-        const svg = Mount.distMount(item.x, item.y, randomSeed, {
-          hei: 150,
-          len: randChoice([500, 1000, 1500]),
-        });
-        return inkOnly(visible ? svg : "");
-      }
+    case "distmount": {
+      const svg = Mount.distMount(item.x, item.y, randomSeed, {
+        hei: 150,
+        len: randChoice([500, 1000, 1500]),
+      });
+      return inkOnly(visible ? svg : "");
+    }
 
-    case "water":
-      {
-        const svg = water(item.x, item.y, randomSeed, { len: item.h || 360, clu: 8 });
-        return inkOnly(visible ? svg : "");
-      }
+    case "water": {
+      const svg = water(item.x, item.y, randomSeed, { len: item.h || 360, clu: 8 });
+      return inkOnly(visible ? svg : "");
+    }
 
-    case "boat":
-      {
-        const ripple = water(item.x, item.y + 18, randomSeed, { len: 260, clu: 5 });
-        const boat = Arch.boat01(item.x, item.y, prng.random(), {
-          sca: item.y / 800,
-          fli: randChoice([true, false]),
-        });
-        return inkOnly(
-          visible ? (shouldRenderElement("water", renderElements) ? ripple : "") + boat : "",
-        );
-      }
+    case "boat": {
+      const ripple = water(item.x, item.y + 18, randomSeed, { len: 260, clu: 5 });
+      const boat = Arch.boat01(item.x, item.y, prng.random(), {
+        sca: item.y / 800,
+        fli: randChoice([true, false]),
+      });
+      return inkOnly(
+        visible ? (shouldRenderElement("water", renderElements) ? ripple : "") + boat : "",
+      );
+    }
 
-    case "arch01":
-      {
-        const svg = Arch.arch01(item.x, item.y, randomSeed, {
-          hei: 60 + prng.random() * 40,
-          wid: 80 + prng.random() * 40,
-          per: 3 + prng.random() * 2,
-        });
-        return inkOnly(visible ? svg : "");
-      }
+    case "arch01": {
+      const svg = Arch.arch01(item.x, item.y, randomSeed, {
+        hei: 60 + prng.random() * 40,
+        wid: 80 + prng.random() * 40,
+        per: 3 + prng.random() * 2,
+      });
+      return inkOnly(visible ? svg : "");
+    }
 
-    case "arch02":
-      {
-        const svg = Arch.arch02(item.x, item.y, randomSeed, {
-          wid: 40 + prng.random() * 30,
-          sto: 2 + Math.floor(prng.random() * 3),
-        });
-        return inkOnly(visible ? svg : "");
-      }
+    case "arch02": {
+      const svg = Arch.arch02(item.x, item.y, randomSeed, {
+        wid: 40 + prng.random() * 30,
+        sto: 2 + Math.floor(prng.random() * 3),
+      });
+      return inkOnly(visible ? svg : "");
+    }
 
-    case "arch03":
-      {
-        const svg = Arch.arch03(item.x, item.y, randomSeed, {
-          wid: 40 + prng.random() * 30,
-          sto: 5 + Math.floor(prng.random() * 4),
-        });
-        return inkOnly(visible ? svg : "");
-      }
+    case "arch03": {
+      const svg = Arch.arch03(item.x, item.y, randomSeed, {
+        wid: 40 + prng.random() * 30,
+        sto: 5 + Math.floor(prng.random() * 4),
+      });
+      return inkOnly(visible ? svg : "");
+    }
 
-    case "arch04":
-      {
-        const svg = Arch.arch04(item.x, item.y, randomSeed, {
-          sto: 1 + Math.floor(prng.random() * 3),
-        });
-        return inkOnly(visible ? svg : "");
-      }
+    case "arch04": {
+      const svg = Arch.arch04(item.x, item.y, randomSeed, {
+        sto: 1 + Math.floor(prng.random() * 3),
+      });
+      return inkOnly(visible ? svg : "");
+    }
 
-    case "tower":
-      {
-        const svg = Arch.transmissionTower01(item.x, item.y, randomSeed, {
-          hei: 150 + prng.random() * 100,
-        });
-        return inkOnly(visible ? svg : "");
-      }
+    case "tower": {
+      const svg = Arch.transmissionTower01(item.x, item.y, randomSeed, {
+        hei: 150 + prng.random() * 100,
+      });
+      return inkOnly(visible ? svg : "");
+    }
 
     default:
       return inkOnly("");

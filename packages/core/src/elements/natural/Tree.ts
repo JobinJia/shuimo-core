@@ -742,7 +742,7 @@ export class Tree {
       return trmlist;
     }
 
-    const trmlist = fracTree(x, y, 3, {
+    const trmlist = fracTree(x, y, 2, {
       hei: hei,
       wid: wid,
       ang: -Math.PI / 2,
@@ -953,7 +953,7 @@ export class Tree {
           },
         );
       } else if (i === Math.floor(trlistMerged.length / 2)) {
-        twcanv += fracTree(x + trlistMerged[i][0], y + trlistMerged[i][1], 3, {
+        twcanv += fracTree(x + trlistMerged[i][0], y + trlistMerged[i][1], 2, {
           ang: -Math.PI / 2 + ang,
         });
       }

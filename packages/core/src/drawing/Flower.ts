@@ -10,8 +10,8 @@
 import type { FlowerOptions } from "./flower/types";
 import { SVG_NS } from "./flower/types";
 import { prng } from "../foundation/random";
-import { seed as seedPRNG } from "./flower/FlowerPRNG";
 import { resetNoise } from "./flower/FlowerNoise";
+import { resetFilterNoiseCache } from "./flower/FlowerFilter";
 import { woody, herbal } from "./flower/FlowerComposer";
 import { squircle } from "./flower/FlowerMath";
 import { border } from "./flower/FlowerLayer";
@@ -41,14 +41,21 @@ import { createPureSVGPaper, generatePaperCanvas } from "./flower/FlowerPaper";
  * ```
  */
 export function generateFlower(options: FlowerOptions = {}): SVGSVGElement {
-  const { seed, type = "random", width = 600, height = 600, background = "none", fast = false } = options;
+  const {
+    seed,
+    type = "random",
+    width = 600,
+    height = 600,
+    background = "none",
+    fast = false,
+  } = options;
 
   const finalSeed = seed !== undefined ? seed : new Date().getTime().toString();
 
   // Step 1: Set seed for PRNG
   prng.seed(finalSeed);
   resetNoise();
-  seedPRNG(finalSeed);
+  resetFilterNoiseCache();
 
   // Create SVG container
   const svg = document.createElementNS(SVG_NS, "svg");
@@ -114,10 +121,7 @@ export function generateFlower(options: FlowerOptions = {}): SVGSVGElement {
   // Step 5: Generate plant
   const xof = width / 2;
   const yof = height;
-  const layer =
-    plantType === "woody"
-      ? woody({ xof, yof, fast })
-      : herbal({ xof, yof, fast });
+  const layer = plantType === "woody" ? woody({ xof, yof, fast }) : herbal({ xof, yof, fast });
 
   // Squircle border: clones layer (50k+ nodes) and calls getBBox(). Skip in fast mode.
   if (!fast) {

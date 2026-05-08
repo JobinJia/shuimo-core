@@ -101,7 +101,8 @@ describe("PaintingGenerator default (opaque) mode", () => {
       },
     });
 
-    const boatPoints = result.svg.match(/data-shuimo-element="boat"[\s\S]*?points=' ([^']+)/)?.[1] ?? "";
+    const boatPoints =
+      result.svg.match(/data-shuimo-element="boat"[\s\S]*?points=' ([^']+)/)?.[1] ?? "";
     const yValues = [...boatPoints.matchAll(/,(-?\d+(?:\.\d+)?)/g)].map((m) => Number(m[1]));
     expect(yValues.length).toBeGreaterThan(0);
     expect(Math.min(...yValues)).toBeGreaterThanOrEqual(695);

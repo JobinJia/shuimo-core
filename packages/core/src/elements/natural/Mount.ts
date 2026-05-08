@@ -189,7 +189,7 @@ export class Mount {
     function vegetate(
       treeFunc: (x: number, y: number) => string,
       growthRule: (i: number, j: number) => boolean,
-      proofRule: (veglist: Polygon, i: number) => boolean,
+      proofRule: (neighbors: number[], veglist: Polygon, i: number) => boolean,
     ): void {
       const veglist: Polygon = [];
       for (let i = 0; i < ptlist.length; i += 1) {
@@ -199,8 +199,24 @@ export class Mount {
           }
         }
       }
+
+      // Build spatial hash by x-coordinate to avoid O(n²) distance checks
+      const BUCKET = 60;
+      const buckets = new Map<number, number[]>();
       for (let i = 0; i < veglist.length; i++) {
-        if (proofRule(veglist, i)) {
+        const k = Math.floor(veglist[i][0] / BUCKET);
+        if (!buckets.has(k)) buckets.set(k, []);
+        buckets.get(k)!.push(i);
+      }
+
+      for (let i = 0; i < veglist.length; i++) {
+        const bx = Math.floor(veglist[i][0] / BUCKET);
+        const neighbors: number[] = [];
+        for (let db = -1; db <= 1; db++) {
+          const b = buckets.get(bx + db);
+          if (b) neighbors.push(...b);
+        }
+        if (proofRule(neighbors, veglist, i)) {
           overlay += treeFunc(veglist[i][0], veglist[i][1]);
         }
       }
@@ -220,7 +236,7 @@ export class Mount {
         const ns = noise.noise(j * 0.1, seed);
         return i === 0 && ns * ns * ns < 0.1 && Math.abs(ptlist[i][j][1]) / h > 0.2;
       },
-      (_veglist, _i) => true,
+      (_neighbors, _veglist, _i) => true,
     );
 
     // WHITE BG
@@ -280,7 +296,7 @@ export class Mount {
         const ns = noise.noise(i * 0.1, j * 0.1, seed + 2);
         return ns * ns * ns < 0.1 && Math.abs(ptlist[i][j][1]) / h > 0.5;
       },
-      (_veglist, _i) => true,
+      (_neighbors, _veglist, _i) => true,
     );
 
     if (veg) {
@@ -302,20 +318,15 @@ export class Mount {
           const ns = noise.noise(i * 0.2, j * 0.05, seed);
           return j % 2 && ns * ns * ns * ns < 0.012 && Math.abs(ptlist[i][j][1]) / h < 0.3;
         },
-        (veglist, i) => {
+        (neighbors, veglist, i) => {
           let counter = 0;
-          for (let j = 0; j < veglist.length; j++) {
-            if (
-              i !== j &&
-              Math.pow(veglist[i][0] - veglist[j][0], 2) +
-                Math.pow(veglist[i][1] - veglist[j][1], 2) <
-                30 * 30
-            ) {
+          const xi = veglist[i][0];
+          const yi = veglist[i][1];
+          for (const j of neighbors) {
+            if (i !== j && (xi - veglist[j][0]) ** 2 + (yi - veglist[j][1]) ** 2 < 900) {
               counter++;
             }
-            if (counter > 2) {
-              return true;
-            }
+            if (counter > 2) return true;
           }
           return false;
         },
@@ -341,7 +352,7 @@ export class Mount {
           const ns = noise.noise(i * 0.2, j * 0.05, seed);
           return (j === 0 || j === ptlist[i].length - 1) && ns * ns * ns * ns < 0.012;
         },
-        (_veglist, _i) => true,
+        (_neighbors, _veglist, _i) => true,
       );
     }
 
@@ -961,9 +972,9 @@ export class Mount {
 
       if (filterOnly) continue; // 只渲染滤镜层时跳过皴法
 
-      const particleDensity = 0.5 + layerDepth * 1.0; // Increased from 0.3-1.0 to 0.5-1.5
-      const particleSize = 0.8 + layerDepth * 1.7; // 0.8 to 2.5
-      const particleCount = Math.floor(len * particleDensity * 0.35); // Increased from 0.15 to 0.35
+      const particleDensity = 0.3 + layerDepth * 0.7;
+      const particleSize = 0.8 + layerDepth * 1.7;
+      const particleCount = Math.floor(len * particleDensity * 0.2);
 
       for (let p = 0; p < particleCount; p++) {
         // Random position along the mountain width

@@ -454,7 +454,11 @@ describe("MountPlanner.plan anchored buildings", () => {
     expect(waters.length).toBeGreaterThanOrEqual(1);
     expect(boats.length).toBe(1);
     for (const b of boats) {
-      const waterAnchor = waters.some((w) => Math.abs(b.x - w.x) <= w.h / 2 && b.y === w.y);
+      // boatCandidateOnWater adds ±12 y-jitter for visual variety.
+      // Boats float within the water band, not on an exact grid line.
+      const waterAnchor = waters.some(
+        (w) => Math.abs(b.x - w.x) <= w.h / 2 && Math.abs(b.y - w.y) <= 12,
+      );
       expect(waterAnchor).toBe(true);
       expect(b.y).toBeGreaterThanOrEqual(304);
       expect(b.y).toBeLessThanOrEqual(416);

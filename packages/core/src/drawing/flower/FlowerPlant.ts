@@ -13,7 +13,7 @@ import { mapval, normRand } from "./FlowerMath";
 import { prng } from "../../foundation/random";
 import { lerpHue } from "./FlowerColor";
 import { hsvFiltered, rgbaFiltered } from "./FlowerColor";
-import { polygon, stroke, tubify, createSVGElement } from "./FlowerShape";
+import { polygon, stroke, tubify, createSVGElement, pathString } from "./FlowerShape";
 import { noise } from "./FlowerNoise";
 
 // ============================================================================
@@ -332,7 +332,8 @@ export function stem(args: StemArgs = {}): { group: SVGGElement; points: Vec3[] 
     a[1] + (b[1] - a[1]) * t,
   ];
 
-  // Draw stem segments with shading
+  // Draw stem segments with shading — batch into single innerHTML
+  const stemBodyParts: string[] = [];
   for (let i = 1; i < P.length; i++) {
     for (let j = 1; j < wseg; j++) {
       const m = (j - 1) / (wseg - 1);
@@ -352,27 +353,30 @@ export function stem(args: StemArgs = {}): { group: SVGGElement; points: Vec3[] 
       const v = mapval(lt, 0, 1, col.min[2], col.max[2]) * shade;
       const a = mapval(lt, 0, 1, col.min[3], col.max[3]);
 
-      // Calculate center for filter
       const centerX = (p0[0] + p1[0] + p2[0] + p3[0]) / 4 + xof;
       const centerY = (p0[1] + p1[1] + p2[1] + p3[1]) / 4 + yof;
       const color = hsvFiltered(h, s, v, a, centerX, centerY, layerType);
 
-      const poly = polygon({
-        pts: [
-          [p0[0], p0[1]],
-          [p1[0], p1[1]],
-          [p3[0], p3[1]],
-          [p2[0], p2[1]],
-        ],
-        xof,
-        yof,
-        fil: true,
-        str: false,
-        col: color,
-      });
-      group.appendChild(poly);
+      stemBodyParts.push(
+        pathString({
+          pts: [
+            [p0[0], p0[1]],
+            [p1[0], p1[1]],
+            [p3[0], p3[1]],
+            [p2[0], p2[1]],
+          ],
+          xof,
+          yof,
+          fil: true,
+          str: false,
+          col: color,
+        }),
+      );
     }
   }
+  const bodyGroup = createSVGElement("g");
+  bodyGroup.innerHTML = stemBodyParts.join("");
+  group.appendChild(bodyGroup);
 
   // Edge strokes with filter
   const leftEdgeX = L[Math.floor(L.length / 2)][0] + xof;

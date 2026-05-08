@@ -63,9 +63,10 @@ export function blit(target: Layer, source: Layer, options: BlitOptions = {}): v
  */
 export function bound(layer: Layer): Bounds {
   try {
-    // If layer is not in DOM, temporarily add it to get bbox
     const isInDOM = document.body.contains(layer.group);
     let tempSVG: SVGSVGElement | null = null;
+    let parentNode: Node | null = null;
+    let nextSibling: Node | null = null;
 
     if (!isInDOM) {
       tempSVG = document.createElementNS(SVG_NS, "svg");
@@ -73,15 +74,20 @@ export function bound(layer: Layer): Bounds {
       tempSVG.style.visibility = "hidden";
       tempSVG.style.width = "0";
       tempSVG.style.height = "0";
-      tempSVG.appendChild(layer.group.cloneNode(true));
+      parentNode = layer.group.parentNode;
+      nextSibling = layer.group.nextSibling;
+      tempSVG.appendChild(layer.group);
       document.body.appendChild(tempSVG);
     }
 
-    const targetGroup = isInDOM ? layer.group : (tempSVG!.firstElementChild as SVGGElement);
-    const bbox = targetGroup.getBBox();
+    const bbox = layer.group.getBBox();
 
-    // Clean up temp element
     if (tempSVG) {
+      if (parentNode) {
+        parentNode.insertBefore(layer.group, nextSibling);
+      } else {
+        tempSVG.removeChild(layer.group);
+      }
       document.body.removeChild(tempSVG);
     }
 
@@ -92,13 +98,7 @@ export function bound(layer: Layer): Bounds {
       ymax: bbox.y + bbox.height,
     };
   } catch {
-    // If getBBox fails (empty group), return zeros
-    return {
-      xmin: 0,
-      xmax: 0,
-      ymin: 0,
-      ymax: 0,
-    };
+    return { xmin: 0, xmax: 0, ymin: 0, ymax: 0 };
   }
 }
 

@@ -103,8 +103,12 @@ class Petal {
   static draw(spec: PetalSpec, style: ResolvedStyle, strokeW: number): string {
     const {
       width,
-      tipX, tipY, bendX, bendY,
-      curl, edgeOn,
+      tipX,
+      tipY,
+      bendX,
+      bendY,
+      curl,
+      edgeOn,
       widePos = 0.45,
       showCurlLine = true,
     } = spec;
@@ -136,9 +140,8 @@ class Petal {
     // weighted differently — a teardrop, a lance, an oval — by moving widePos.
     const widthAt = (t: number): number => {
       const rise = widePos > 1e-3 ? Math.sin(Math.min(1, t / widePos) * Math.PI * 0.5) : 1;
-      const fall = (1 - widePos) > 1e-3
-        ? Math.sin(Math.min(1, (1 - t) / (1 - widePos)) * Math.PI * 0.5)
-        : 1;
+      const fall =
+        1 - widePos > 1e-3 ? Math.sin(Math.min(1, (1 - t) / (1 - widePos)) * Math.PI * 0.5) : 1;
       return visWidth * Math.min(rise, fall);
     };
 
@@ -626,7 +629,7 @@ export class Lotus {
     const innerN = 3;
     for (let i = 0; i < innerN; i++) {
       const t = i / (innerN - 1);
-      const angle = (t - 0.5) * 26;            // narrow 26° fan, centred up
+      const angle = (t - 0.5) * 26; // narrow 26° fan, centred up
       const len = s * (0.62 + prng.next() * 0.08);
       const wid = s * (0.22 + prng.next() * 0.04);
       const tipX = (t - 0.5) * s * 0.06;
@@ -642,9 +645,12 @@ export class Lotus {
         depth: 0.85 + Math.abs(t - 0.5) * 0.05,
         spec: {
           width: wid,
-          tipX, tipY: -len,
-          bendX, bendY: -len * 0.5,
-          curl, edgeOn,
+          tipX,
+          tipY: -len,
+          bendX,
+          bendY: -len * 0.5,
+          curl,
+          edgeOn,
           widePos: 0.5,
           showCurlLine: edgeOn < 0.4,
         },
@@ -665,13 +671,11 @@ export class Lotus {
       const angle = minA + span * t;
 
       const len = s * (0.85 + prng.next() * 0.35);
-      const wid = s * (0.30 + prng.next() * 0.12);
+      const wid = s * (0.3 + prng.next() * 0.12);
 
       // 1-in-4 petals are turned aside, showing edge rather than face.
       const turnedAside = prng.next() < 0.24;
-      const edgeOn = turnedAside
-        ? 0.55 + prng.next() * 0.30
-        : 0.06 + prng.next() * 0.18;
+      const edgeOn = turnedAside ? 0.55 + prng.next() * 0.3 : 0.06 + prng.next() * 0.18;
 
       // Petals pointing further from "up" tend to droop their tips outward,
       // so curl is biased away from the centreline for low-hemisphere petals.
@@ -691,10 +695,13 @@ export class Lotus {
         depth: 1 - upness, // 0 (up/back) → 2 (down/front)
         spec: {
           width: wid,
-          tipX, tipY: -len,
-          bendX, bendY,
-          curl, edgeOn,
-          widePos: 0.40 + prng.next() * 0.15,
+          tipX,
+          tipY: -len,
+          bendX,
+          bendY,
+          curl,
+          edgeOn,
+          widePos: 0.4 + prng.next() * 0.15,
           showCurlLine: !turnedAside,
         },
       });

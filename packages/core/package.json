@@ -44,6 +44,8 @@
   },
   "scripts": {
     "build": "tsc --noEmit && vp pack",
+    "build:wasm-data": "node scripts/encode-wasm.mjs",
+    "build:copy-wasm": "mkdir -p dist/wasm && cp wasm/shuimo-noise/pkg/shuimo_noise.js wasm/shuimo-noise/pkg/shuimo_noise_bg.wasm dist/wasm/",
     "build:watch": "vp pack --watch",
     "test": "vp test",
     "test:ui": "vp test --ui",

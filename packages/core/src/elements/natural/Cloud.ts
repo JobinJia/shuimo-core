@@ -218,23 +218,27 @@ export class Cloud {
       }
     }
 
-    // Sort particles by alpha (draw transparent ones first)
+    // Sort particles by alpha, then batch into compound paths per alpha bucket.
+    // Avoid ctx.shadowBlur (expensive per-particle offscreen rasterization
+    // on every arc+fill) — particle alpha already gives soft edges.
     particles.sort((a, b) => a.alpha - b.alpha);
 
-    // Enable shadow blur for soft edges
-    ctx.shadowBlur = 3;
-    ctx.shadowColor = `rgba(${r},${g},${b},0.2)`;
-
-    // Draw particles
-    for (const particle of particles) {
-      ctx.fillStyle = `rgba(${r},${g},${b},${particle.alpha})`;
-      ctx.beginPath();
-      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-      ctx.fill();
+    const buckets = new Map<number, Array<(typeof particles)[0]>>();
+    for (const p of particles) {
+      const key = Math.round(p.alpha * 10) / 10;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key)!.push(p);
     }
 
-    // Reset shadow
-    ctx.shadowBlur = 0;
+    for (const [alpha, group] of buckets) {
+      ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+      ctx.beginPath();
+      for (const particle of group) {
+        ctx.moveTo(particle.x + particle.size, particle.y);
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
 
     return canvas;
   }
@@ -396,25 +400,27 @@ export class Cloud {
   ): void {
     const [r, g, b] = baseColor.split(",").map((c) => Number.parseInt(c.trim()));
 
-    // Sort particles by alpha (draw transparent ones first)
+    // Batch particles into compound paths per alpha bucket.
+    // Avoid ctx.shadowBlur (expensive per-particle offscreen rasterization).
     particles.sort((a, b) => a.alpha - b.alpha);
 
-    // Enable shadow blur for soft edges
-    ctx.shadowBlur = 2;
-    ctx.shadowColor = `rgba(${r},${g},${b},0.3)`;
-
-    for (const particle of particles) {
-      // Skip nearly transparent particles for performance
-      if (particle.alpha < 0.02) continue;
-
-      ctx.fillStyle = `rgba(${r},${g},${b},${particle.alpha})`;
-      ctx.beginPath();
-      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-      ctx.fill();
+    const buckets = new Map<number, Array<(typeof particles)[0]>>();
+    for (const p of particles) {
+      if (p.alpha < 0.02) continue;
+      const key = Math.round(p.alpha * 10) / 10;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key)!.push(p);
     }
 
-    // Reset shadow
-    ctx.shadowBlur = 0;
+    for (const [alpha, group] of buckets) {
+      ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+      ctx.beginPath();
+      for (const particle of group) {
+        ctx.moveTo(particle.x + particle.size, particle.y);
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
   }
 
   /**

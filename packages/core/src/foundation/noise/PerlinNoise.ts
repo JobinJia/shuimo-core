@@ -170,5 +170,7 @@ export class PerlinNoise {
   }
 }
 
-// Global instance
-export const noise = new PerlinNoise();
+// Global instance — WASM-backed (sync init from embedded base64).
+// For JS-only fallback, use `new PerlinNoise()` directly.
+import { WasmPerlinNoise } from "./WasmPerlinNoise";
+export const noise = new WasmPerlinNoise() as unknown as PerlinNoise;

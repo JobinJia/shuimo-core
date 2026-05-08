@@ -171,6 +171,22 @@ export function stroke(args: StrokeArgs): SVGPathElement {
 }
 
 // ============================================================================
+// String-based polygon (for batch innerHTML)
+// ============================================================================
+
+/**
+ * Return SVG path string instead of creating a DOM element.
+ * Used in stem() quads to batch 160+ polygons into a single innerHTML set.
+ */
+export function pathString(args: PolygonArgs): string {
+  const { pts = [], col = "black", fil = true, str = false, xof = 0, yof = 0 } = args;
+  const d = pointsToPath(pts, true, xof, yof);
+  const fill = fil ? ` fill="${col}"` : ' fill="none"';
+  const stroke = str ? ` stroke="${col}" stroke-width="1"` : "";
+  return `<path d="${d}"${fill}${stroke}/>`;
+}
+
+// ============================================================================
 // Additional Utilities
 // ============================================================================
 

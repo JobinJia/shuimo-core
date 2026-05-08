@@ -40,7 +40,7 @@ export class Texture {
   static generate(ptlist: Polygon[], options: TextureOptions = {}): string | Polygon[] {
     const xof = options.xof ?? 0;
     const yof = options.yof ?? 0;
-    const tex = options.tex ?? 400;
+    const tex = options.tex ?? 200;
     const wid = options.wid ?? 1.5;
     const len = options.len ?? 0.2;
     const sha = options.sha ?? 0;
@@ -62,8 +62,9 @@ export class Texture {
 
     const reso = [ptlist.length, ptlist[0].length];
     const texlist: Polygon[] = [];
-    const layerDepths: number[] = []; // Track layer depth for each stroke
-    let canv = "";
+    const layerDepths: number[] = [];
+    const shadeParts: string[] = [];
+    const textureParts: string[] = [];
 
     // Generate texture strokes
     for (let i = 0; i < tex; i++) {
@@ -103,24 +104,23 @@ export class Texture {
       return texlist;
     }
 
-    // SHADE
-    if (sha) {
-      for (let j = 0; j < texlist.length; j += 1 + (sha !== 0 ? 1 : 0)) {
-        canv += stroke(texlist[j], { xof, yof, col: "rgba(100,100,100,0.1)", wid: sha });
+    // SHADE + TEXTURE — merged single pass
+    for (let j = 0; j < texlist.length; j++) {
+      const t = j / texlist.length;
+      if (sha && j % 2 === 0) {
+        shadeParts.push(stroke(texlist[j], { xof, yof, col: "rgba(100,100,100,0.1)", wid: sha }));
       }
+      textureParts.push(
+        stroke(texlist[j], {
+          xof,
+          yof,
+          col: col(t, layerDepths[j]),
+          wid: wid,
+        }),
+      );
     }
 
-    // TEXTURE
-    for (let j = 0 + sha; j < texlist.length; j += 1 + sha) {
-      canv += stroke(texlist[j], {
-        xof,
-        yof,
-        col: col(j / texlist.length, layerDepths[j]),
-        wid: wid,
-      });
-    }
-
-    return canv;
+    return shadeParts.join("") + textureParts.join("");
   }
 }
 
