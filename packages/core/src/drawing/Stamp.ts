@@ -15,6 +15,7 @@ import {
   type GlyphFont,
   type NormalizedCommand,
 } from "./internal/glyphPath";
+import { loadGlyphFontViaWorker } from "./internal/glyphFontClient";
 
 // ─── Reference constants ────────────────────────────────────────────
 // All distance defaults are expressed as ratios of fontSize.
@@ -173,6 +174,16 @@ export interface StampOptions {
 
   /** 文字刀刻强度。normal 保持清晰可读，strong 增强边缘刀刻缺口，stone-cut 更偏石刻断裂感。 */
   textCarving?: StampTextCarving;
+
+  /**
+   * Optional Web Worker that hosts the stamp glyph-font code (see
+   * `@jobinjia/shuimo-core/stamp/font-worker`). When provided, fontkit's
+   * woff2 brotli decode runs on the worker thread and the main thread only
+   * receives precomputed glyph commands + advance widths for the requested
+   * characters. Strongly recommended for woff2 fonts to avoid blocking the
+   * UI thread for hundreds of milliseconds on first load.
+   */
+  fontWorker?: Worker;
 
   /** Random seed for reproducible generation */
   seed?: number;
@@ -835,7 +846,46 @@ function buildVerticalGlyphPath(
   return commandsToSvgPathData(translated, 2);
 }
 
+function collectStampChars(text: string[] | undefined): string[] {
+  if (!text || text.length === 0) return [];
+  const set = new Set<string>();
+  for (const line of text) {
+    for (const ch of Array.from(line)) set.add(ch);
+  }
+  return Array.from(set);
+}
+
+function workerCacheKey(options: StampOptions, chars: string[]): string {
+  // chars are sorted so identical input order doesn't matter for cache hits.
+  const sortedChars = [...chars].sort().join("");
+  return `${options.fontUrl ?? "<data>"}::${sortedChars}`;
+}
+
 async function loadGlyphFont(options: StampOptions): Promise<GlyphFont | null> {
+  // When a worker is provided, parse off the main thread for the requested
+  // characters only. This is the recommended path for woff2 fonts.
+  if (options.fontWorker && (options.fontUrl || options.fontData)) {
+    const chars = collectStampChars(options.text);
+    if (chars.length > 0) {
+      const cacheKey = workerCacheKey(options, chars);
+      const cached = FONT_CACHE.get(cacheKey);
+      if (cached) return cached;
+      const fontPromise = (async () => {
+        try {
+          return await loadGlyphFontViaWorker(options.fontWorker!, {
+            fontUrl: options.fontUrl,
+            fontData: options.fontData,
+            chars,
+          });
+        } catch {
+          return null;
+        }
+      })();
+      FONT_CACHE.set(cacheKey, fontPromise);
+      return fontPromise;
+    }
+  }
+
   if (options.fontData) {
     return loadFont(options.fontData);
   }
@@ -1943,6 +1993,7 @@ export class Stamp {
       StampOptions,
       | "fontUrl"
       | "fontData"
+      | "fontWorker"
       | "columnSpacingPx"
       | "characterSpacingPx"
       | "paddingXPx"
@@ -1970,6 +2021,7 @@ export class Stamp {
       fontFamily: options.fontFamily || "serif",
       fontUrl: options.fontUrl,
       fontData: options.fontData,
+      fontWorker: options.fontWorker,
       fontSize: options.fontSize || 70,
       fontWeight: options.fontWeight || "normal",
       offsetX: options.offsetX ?? 0,

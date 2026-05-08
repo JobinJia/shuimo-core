@@ -31,6 +31,15 @@ export {
   type FontMetrics,
 } from "./StampMetrics";
 export {
+  loadGlyphFontViaWorker,
+  type GlyphFontWorkerInput,
+} from "./internal/glyphFontClient";
+export type {
+  GlyphFontBundle,
+  GlyphFontWorkerRequest,
+  GlyphFontWorkerResponse,
+} from "./internal/glyphFontWorker-protocol";
+export {
   generateFlowerCanvas,
   genParams,
   squircle,

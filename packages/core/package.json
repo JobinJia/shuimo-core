@@ -32,6 +32,14 @@
     "./xuan-paper/worker-protocol": {
       "types": "./dist/xuan-paper-worker-protocol.d.mts",
       "import": "./dist/xuan-paper-worker-protocol.mjs"
+    },
+    "./stamp/font-worker": {
+      "types": "./dist/stamp-font-worker.d.mts",
+      "import": "./dist/stamp-font-worker.mjs"
+    },
+    "./stamp/font-worker-protocol": {
+      "types": "./dist/stamp-font-worker-protocol.d.mts",
+      "import": "./dist/stamp-font-worker-protocol.mjs"
     }
   },
   "scripts": {

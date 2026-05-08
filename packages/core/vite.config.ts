@@ -9,6 +9,8 @@ export default defineConfig({
       drawing: "src/drawing/index.ts",
       "xuan-paper-worker": "src/elements/natural/xuan-paper/worker.ts",
       "xuan-paper-worker-protocol": "src/elements/natural/xuan-paper/worker-protocol.ts",
+      "stamp-font-worker": "src/drawing/internal/glyphFontWorker.ts",
+      "stamp-font-worker-protocol": "src/drawing/internal/glyphFontWorker-protocol.ts",
     },
     format: ["esm"],
     dts: {
