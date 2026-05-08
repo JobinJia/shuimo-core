@@ -18,7 +18,7 @@ function b64ToBuf(b64: string): ArrayBuffer {
 
 function ensureWasm(): void {
   if (wasmReady) return;
-  initSync(b64ToBuf(WASM_NOISE_BASE64));
+  initSync({ module: b64ToBuf(WASM_NOISE_BASE64) });
   wasmReady = true;
 }
 

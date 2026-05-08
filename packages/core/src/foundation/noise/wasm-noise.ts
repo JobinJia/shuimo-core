@@ -15,7 +15,7 @@
  */
 
 let NoiseWasm: {
-  initSync: (m: BufferSource | WebAssembly.Module) => void;
+  initSync: (input: { module: BufferSource | WebAssembly.Module }) => void;
   shuimo_noise_init: (ps: number, ws: number, o: number, f: number) => void;
   shuimo_perlin2d: (x: number, y: number) => number;
   shuimo_perlin2d_batch: (xs: Float64Array, ys: Float64Array, o: Float64Array) => void;
@@ -52,7 +52,7 @@ export async function initWasmNoiseEngine(
       const mod = await import(/* @vite-ignore */ jsUrl);
       const resp = await fetch(wasmUrl);
       const buf = await resp.arrayBuffer();
-      mod.initSync(buf);
+      mod.initSync({ module: buf });
       NoiseWasm = mod as typeof NoiseWasm;
     })();
   }

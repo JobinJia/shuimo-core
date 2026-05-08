@@ -18,7 +18,7 @@ function ensureStampWasm(): void {
   const bin = atob(WASM_NOISE_BASE64);
   const buf = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-  initSync(buf.buffer);
+  initSync({ module: buf.buffer });
   wasmReady = true;
 }
 
