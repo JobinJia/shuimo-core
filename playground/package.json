@@ -19,6 +19,7 @@
     "vue-router": "^5.0.6"
   },
   "devDependencies": {
+    "tslib": "^2.8.1",
     "typescript": "^6.0.3",
     "vite": "catalog:",
     "vite-plus": "catalog:"
