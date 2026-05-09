@@ -59,7 +59,7 @@ onMounted(async () => {
     borderScaleY: 1.015,
     offsetX: 0,
     offsetY: 0,
-    noiseAmountPx: 11,
+    noiseAmountPx: 0,
     borderPointsPx: 28,
     seed: 12345,
   };
@@ -81,7 +81,7 @@ onMounted(async () => {
     borderWidthPx: 4,
     offsetX: 0,
     offsetY: 0,
-    noiseAmountPx: 11,
+    noiseAmountPx: 0,
     borderPointsPx: 28,
     seed: 54321,
   };
@@ -102,7 +102,7 @@ onMounted(async () => {
     borderScale: 1.0,
     offsetX: 0,
     offsetY: 0,
-    noiseAmountPx: 8,
+    noiseAmountPx: 0,
     borderPointsPx: 24,
     seed: 11111,
   };
@@ -127,7 +127,7 @@ onMounted(async () => {
     borderWidthPx: 4,
     offsetX: 0,
     offsetY: 0,
-    noiseAmountPx: 8,
+    noiseAmountPx: 0,
     borderPointsPx: 24,
     seed: 11112,
   };
@@ -151,7 +151,7 @@ onMounted(async () => {
     borderScale: 1.0,
     offsetX: 0,
     offsetY: 0,
-    noiseAmountPx: 10,
+    noiseAmountPx: 0,
     borderPointsPx: 24,
     seed: 22221,
   };
@@ -176,7 +176,7 @@ onMounted(async () => {
     borderWidthPx: 4,
     offsetX: 0,
     offsetY: 0,
-    noiseAmountPx: 10,
+    noiseAmountPx: 0,
     borderPointsPx: 24,
     seed: 22222,
   };
@@ -199,7 +199,7 @@ onMounted(async () => {
     borderScaleY: 1.0,
     offsetX: 0,
     offsetY: 0,
-    noiseAmountPx: 10,
+    noiseAmountPx: 0,
     borderPointsPx: 32,
     seed: 33333,
   };
@@ -223,7 +223,7 @@ onMounted(async () => {
     borderWidthPx: 4,
     offsetX: 0,
     offsetY: 0,
-    noiseAmountPx: 10,
+    noiseAmountPx: 0,
     borderPointsPx: 32,
     seed: 33334,
   };
@@ -248,7 +248,7 @@ onMounted(async () => {
     borderScaleY: 1.02,
     offsetX: 0,
     offsetY: 0,
-    noiseAmountPx: 10,
+    noiseAmountPx: 0,
     borderPointsPx: 32,
     seed: 44443,
   };
@@ -274,7 +274,7 @@ onMounted(async () => {
     borderWidthPx: 4,
     offsetX: 0,
     offsetY: 0,
-    noiseAmountPx: 10,
+    noiseAmountPx: 0,
     borderPointsPx: 32,
     seed: 1,
   };
