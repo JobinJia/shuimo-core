@@ -120,7 +120,7 @@ pub fn stamp_square_path(
     let mut b = PathBuilder::new((pe * 4 + 10) as usize);
 
     b.m(r, 0.0);
-    generate_edge_points(&mut b, r, 0.0, size - r, 0.0, pe, false, 0.0, 1.0, noise_amount, &perlin);
+    generate_edge_points(&mut b, r, 0.0, size - r, 0.0, pe, true, 0.0, 1.0, noise_amount, &perlin);
     b.q(size, 0.0, size, r);
     generate_edge_points(&mut b, size, r, size, size - r, pe, false, -1.0, 0.0, noise_amount, &perlin);
     b.q(size, size, size - r, size);
@@ -149,7 +149,7 @@ pub fn stamp_rect_path(
     let mut b = PathBuilder::new((pe * 4 + 10) as usize);
 
     b.m(r, 0.0);
-    generate_edge_points(&mut b, r, 0.0, w - r, 0.0, pe, false, 0.0, 1.0, noise_amount, &perlin);
+    generate_edge_points(&mut b, r, 0.0, w - r, 0.0, pe, true, 0.0, 1.0, noise_amount, &perlin);
     b.q(w, 0.0, w, r);
     generate_edge_points(&mut b, w, r, w, h - r, pe, false, -1.0, 0.0, noise_amount, &perlin);
     b.q(w, h, w - r, h);

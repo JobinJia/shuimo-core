@@ -1470,7 +1470,7 @@ export function generateStampPath(options: StampOptions): StampResult {
     b.moveTo(r, 0);
 
     // Top edge → inward downward (0, +1)
-    generateEdgePoints(b, r, 0, maxWidth - r, 0, pointsPerEdge, applyNoise, false, 0, 1);
+    generateEdgePoints(b, r, 0, maxWidth - r, 0, pointsPerEdge, applyNoise, true, 0, 1);
 
     // Top-right corner
     b.quadTo(maxWidth, 0, maxWidth, r);
