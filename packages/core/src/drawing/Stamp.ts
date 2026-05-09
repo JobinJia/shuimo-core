@@ -1644,9 +1644,10 @@ export function generateStamp(options: StampOptions): string {
     const verticalBuffer = getMeasuredHeightBuffer(fontSize);
     return { ...box, y: box.y - verticalBuffer / 2, height: box.height + verticalBuffer };
   });
-  const positioningBoxes = shouldUseCellCenteredFrame(shape, displayText.length)
-    ? undefined
-    : bufferedBoxes;
+  // Always position by ink bbox so single-char circle/ellipse stamps are
+  // visually centered (em-box centering left chars like 兰 visibly off-center
+  // because the font puts ink in the top half of the em-box).
+  const positioningBoxes = bufferedBoxes;
   const visualFrame = calculateVisualTextFrame(
     columnWidths,
     columnHeights,
