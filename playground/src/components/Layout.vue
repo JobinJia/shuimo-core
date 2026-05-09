@@ -53,10 +53,7 @@ const menuItems = [
   },
   {
     name: "Flower",
-    children: [
-      { path: "/flower-canvas", name: "Canvas" },
-      { path: "/flower-svg", name: "SVG" },
-    ],
+    children: [{ path: "/flower-canvas", name: "Canvas" }],
   },
   {
     name: "Shanshui",

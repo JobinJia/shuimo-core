@@ -30,10 +30,7 @@ export {
   type StampTextMetrics,
   type FontMetrics,
 } from "./StampMetrics";
-export {
-  loadGlyphFontViaWorker,
-  type GlyphFontWorkerInput,
-} from "./internal/glyphFontClient";
+export { loadGlyphFontViaWorker, type GlyphFontWorkerInput } from "./internal/glyphFontClient";
 export type {
   GlyphFontBundle,
   GlyphFontWorkerRequest,
@@ -46,19 +43,6 @@ export {
   type FlowerCanvasOptions,
   type FlowerParams,
 } from "./FlowerCanvas";
-// SVG version of flower generator
-export { generateFlower, type FlowerOptions } from "./Flower";
-export {
-  generatePaperCanvas,
-  generatePaperDataURL,
-  createPaperImage,
-  createPaperPattern,
-  PAPER_COL_DEFAULT,
-  PAPER_COL_WARM,
-  PAPER_COL_COOL,
-  PAPER_COL_AGED,
-  type PaperOptions,
-} from "./flower/FlowerPaper";
 export {
   InkMount,
   generateRidge,

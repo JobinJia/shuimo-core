@@ -16,9 +16,6 @@ const onXuanPaper = ref(true);
 const blankPosition = ref<BlankPosition>("none");
 const seed = ref(String(Date.now()));
 
-// Flower options
-const flowerType = ref<"woody" | "herbal" | "random">("random");
-
 // Xuan paper options
 const paperColorPreset = ref<
   "processed" | "raw" | "antique" | "teaStained" | "moonWhite" | "custom"
@@ -121,7 +118,6 @@ function render() {
     onXuanPaper: onXuanPaper.value,
     blankPosition: blankPosition.value,
     seed: seedNum,
-    flowerType: flowerType.value,
     xuanPaperOptions: {
       baseColor: getPaperColor(),
       textureIntensity: textureIntensity.value,
@@ -175,7 +171,6 @@ onMounted(() => {
           <label>画作类型</label>
           <select v-model="paintingType">
             <option value="landscape">山水画</option>
-            <option value="flowerBird">花鸟画</option>
           </select>
         </div>
 
@@ -306,20 +301,6 @@ onMounted(() => {
             <div v-for="i in 9" :key="i" class="blank-cell" />
           </div>
           <p class="hint-text">浅色区域不生成元素</p>
-        </div>
-      </div>
-
-      <!-- Flower Options -->
-      <div v-if="paintingType === 'flowerBird'" class="control-section">
-        <h4>花鸟画设置</h4>
-
-        <div class="control-row">
-          <label>花卉类型</label>
-          <select v-model="flowerType">
-            <option value="random">随机</option>
-            <option value="woody">木本</option>
-            <option value="herbal">草本</option>
-          </select>
         </div>
       </div>
 

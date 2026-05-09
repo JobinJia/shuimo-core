@@ -3,7 +3,6 @@
  *
  * Supports:
  * - Landscape paintings (山水画) using SceneManager
- * - Flower-bird paintings (花鸟画) with procedural flowers
  * - Optional Xuan paper (宣纸) background with full customization
  * - Configurable blank space (留白) positioning - affects element generation
  */
@@ -20,7 +19,6 @@ import { water } from "../elements/natural/Water";
 import { Arch } from "../elements/objects/Arch";
 import { randChoice } from "../utils/random";
 import { prng } from "../foundation/random";
-import { generateFlower } from "../drawing/Flower";
 import { XuanPaperColors, GoldFleckColors } from "../elements/natural/XuanPaper";
 import { buildXuanPaperScene } from "../elements/natural/xuan-paper/model";
 import { renderXuanPaperSVGParts } from "../elements/natural/xuan-paper/svg-renderer";
@@ -44,9 +42,7 @@ export type BlankPosition =
 /**
  * Painting type
  */
-export type PaintingType =
-  | "landscape" // 山水画
-  | "flowerBird"; // 花鸟画
+export type PaintingType = "landscape"; // 山水画
 
 export type RenderElementControls = Partial<Record<PlanTag, boolean>>;
 export type { LandscapePlacementOptions };
@@ -77,7 +73,7 @@ export interface PaintingXuanPaperOptions {
  * Options for generating a painting
  */
 export interface PaintingOptions {
-  /** Painting type: 'landscape' (山水画) or 'flowerBird' (花鸟画) */
+  /** Painting type: 'landscape' (山水画) */
   type: PaintingType;
 
   /** Canvas width in pixels */
@@ -143,10 +139,6 @@ export interface PaintingOptions {
    * such as guaranteed water bands / boats.
    */
   placement?: LandscapePlacementOptions;
-
-  // Flower-bird specific options
-  /** Flower type: 'woody', 'herbal', or 'random' */
-  flowerType?: "woody" | "herbal" | "random";
 }
 
 function shouldRenderElement(tag: string, controls?: RenderElementControls): boolean {
@@ -413,30 +405,6 @@ function generateLandscapeContent(
 }
 
 /**
- * Generate flower-bird painting (花鸟画) content
- */
-function generateFlowerBirdContent(
-  width: number,
-  height: number,
-  seed: number,
-  options: PaintingOptions,
-): string {
-  const flowerType = options.flowerType ?? "random";
-
-  // Generate flower using the existing flower generator
-  const flowerSvg = generateFlower({
-    seed: seed.toString(),
-    type: flowerType,
-    width: width,
-    height: height,
-    background: "none",
-  });
-
-  // Extract inner content from SVG element
-  return flowerSvg.innerHTML;
-}
-
-/**
  * Generate Xuan paper background as SVG string
  */
 function generateXuanPaperBackground(
@@ -541,8 +509,6 @@ export class PaintingGenerator {
         renderElements,
         placement,
       );
-    } else if (type === "flowerBird") {
-      paintingContent = generateFlowerBirdContent(width, height, seed, options);
     }
 
     const rootStyleAttr = transparent ? "" : ' style="mix-blend-mode:multiply;"';
@@ -575,14 +541,6 @@ export class PaintingGenerator {
   }
 
   /**
-   * Generate a flower-bird painting (花鸟画)
-   * Convenience method for generating flower-bird paintings
-   */
-  static flowerBird(options: Omit<PaintingOptions, "type"> = {}): PaintingResult {
-    return this.generate({ ...options, type: "flowerBird" });
-  }
-
-  /**
    * Generate painting and return as data URL
    * Useful for embedding in images or downloading
    */
@@ -612,8 +570,4 @@ export function generatePainting(options: PaintingOptions): PaintingResult {
 
 export function generateLandscape(options: Omit<PaintingOptions, "type"> = {}): PaintingResult {
   return PaintingGenerator.landscape(options);
-}
-
-export function generateFlowerBird(options: Omit<PaintingOptions, "type"> = {}): PaintingResult {
-  return PaintingGenerator.flowerBird(options);
 }

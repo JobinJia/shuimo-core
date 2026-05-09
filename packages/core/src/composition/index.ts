@@ -11,7 +11,6 @@ export {
   PaintingGenerator,
   generatePainting,
   generateLandscape,
-  generateFlowerBird,
   XuanPaperColors,
   GoldFleckColors,
   type PaintingOptions,

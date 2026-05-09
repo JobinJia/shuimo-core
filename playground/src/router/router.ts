@@ -5,7 +5,6 @@ import Shanshui from "../demos/Shanshui.vue";
 import ShanShuiElements from "../demos/ShanShuiElements.vue";
 import CloudDemo from "../demos/CloudDemo.vue";
 import FlowerCanvasTest from "../FlowerCanvasTest.vue";
-import FlowerSVGTest from "../demos/FlowerSVGTest.vue";
 import MistyMount from "../demos/MistyMount.vue";
 import XuanPaperDemo from "../demos/XuanPaperDemo.vue";
 import PaintingGeneratorDemo from "../demos/PaintingGeneratorDemo.vue";
@@ -50,11 +49,6 @@ const routes = [
     path: "/flower-canvas",
     name: "FlowerCanvas",
     component: FlowerCanvasTest,
-  },
-  {
-    path: "/flower-svg",
-    name: "FlowerSVG",
-    component: FlowerSVGTest,
   },
   {
     path: "/misty-mount",
