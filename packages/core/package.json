@@ -50,7 +50,8 @@
     "test": "vp test",
     "test:ui": "vp test --ui",
     "test:coverage": "vp test --coverage",
-    "generate:font-metrics": "npx tsx scripts/generate-font-metrics.mts"
+    "generate:font-metrics": "npx tsx scripts/generate-font-metrics.mts",
+    "subset:demo": "tsx scripts/audit-stamp-chars.mts | tsx scripts/subset-font.mts ../../playground/src/assets/fonts/yishanbeizhuanti.ttf @/dev/stdin ../../playground/src/assets/fonts/yishanbeizhuanti.demo.woff2"
   },
   "dependencies": {
     "fontkit": "^2.0.4",
