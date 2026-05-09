@@ -591,10 +591,6 @@ function calculateVisualTextFrame(
   };
 }
 
-function shouldUseCellCenteredFrame(shape: StampShape | undefined, columnCount: number): boolean {
-  return (shape === "circle" || shape === "ellipse") && columnCount === 1;
-}
-
 function getActualCharacterSpacingPx(options: StampOptions): number {
   const fontSize = options.fontSize ?? 70;
   if (options.characterSpacingPx !== undefined) return options.characterSpacingPx;

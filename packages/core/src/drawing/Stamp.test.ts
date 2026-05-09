@@ -68,7 +68,7 @@ describe("Stamp layout", () => {
     expect(result?.columnHeights[0]).toBeCloseTo(100, 3);
   });
 
-  it("keeps single-character circle stamps centered by cell width instead of ink bbox", () => {
+  it("centers single-character circle stamps by ink bbox so the visible ink lands at the same spot regardless of cell offset", () => {
     const baseOptions = {
       text: ["梅"],
       shape: "circle",
@@ -82,32 +82,31 @@ describe("Stamp layout", () => {
       seed: 1,
     } as const;
 
+    const rightBox = { x: 20, y: 0, width: 20, height: 100 };
+    const leftBox = { x: -20, y: 0, width: 20, height: 100 };
+
     const svgWithRightShiftedInk = generateStamp({
       ...baseOptions,
-      measuredColumnBoxes: [
-        {
-          x: 20,
-          y: 0,
-          width: 20,
-          height: 100,
-        },
-      ],
+      measuredColumnBoxes: [rightBox],
     });
     const svgWithLeftShiftedInk = generateStamp({
       ...baseOptions,
-      measuredColumnBoxes: [
-        {
-          x: -20,
-          y: 0,
-          width: 20,
-          height: 100,
-        },
-      ],
+      measuredColumnBoxes: [leftBox],
     });
 
-    const rightShiftedX = svgWithRightShiftedInk.match(/<text x="([^"]+)"/)?.[1];
-    const leftShiftedX = svgWithLeftShiftedInk.match(/<text x="([^"]+)"/)?.[1];
-    expect(rightShiftedX).toBe(leftShiftedX);
+    const rightShiftedX = Number.parseFloat(
+      svgWithRightShiftedInk.match(/<text x="([^"]+)"/)?.[1] ?? "",
+    );
+    const leftShiftedX = Number.parseFloat(
+      svgWithLeftShiftedInk.match(/<text x="([^"]+)"/)?.[1] ?? "",
+    );
+
+    // Centering uses the ink bbox: text x compensates for box.x so the visible
+    // ink center (text x + box.x + box.width / 2) lands at the same position
+    // regardless of where the ink sits inside the cell.
+    const rightInkCenter = rightShiftedX + rightBox.x + rightBox.width / 2;
+    const leftInkCenter = leftShiftedX + leftBox.x + leftBox.width / 2;
+    expect(rightInkCenter).toBeCloseTo(leftInkCenter, 5);
   });
 
   it("uses a carved text filter instead of blur-smoothed text edges", () => {
