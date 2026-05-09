@@ -9,7 +9,7 @@ import {
 } from "@jobinjia/shuimo-core";
 
 const FONT_URLS: Record<string, string | undefined> = {
-  峄山碑篆体: "/fonts/yishanbeizhuanti.ttf",
+  峄山碑篆体: "/fonts/yishanbeizhuanti.demo.woff2",
 };
 
 // Text configuration
