@@ -1,0 +1,15 @@
+{
+  "name": "shuimo-noise",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "shuimo_noise_bg.wasm",
+    "shuimo_noise.js",
+    "shuimo_noise.d.ts"
+  ],
+  "main": "shuimo_noise.js",
+  "types": "shuimo_noise.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
