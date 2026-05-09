@@ -60,6 +60,7 @@ onMounted(async () => {
     offsetX: 0,
     offsetY: 0,
     noiseAmountPx: 0,
+    cornerRadiusPx: 5,
     borderPointsPx: 28,
     seed: 12345,
   };
@@ -103,6 +104,7 @@ onMounted(async () => {
     offsetX: 0,
     offsetY: 0,
     noiseAmountPx: 0,
+    cornerRadiusPx: 5,
     borderPointsPx: 24,
     seed: 11111,
   };
@@ -152,6 +154,7 @@ onMounted(async () => {
     offsetX: 0,
     offsetY: 0,
     noiseAmountPx: 0,
+    cornerRadiusPx: 5,
     borderPointsPx: 24,
     seed: 22221,
   };
