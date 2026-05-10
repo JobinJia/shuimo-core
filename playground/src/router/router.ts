@@ -12,7 +12,6 @@ import FourGentlemenDemo from "../demos/FourGentlemenDemo.vue";
 import InkMountDemo from "../demos/InkMountDemo.vue";
 import LoadingShowcase from "../demos/LoadingShowcase.vue";
 import GoldfishDemo from "../demos/GoldfishDemo.vue";
-import LotusDemo from "../demos/LotusDemo.vue";
 
 const routes = [
   {
@@ -74,11 +73,6 @@ const routes = [
     path: "/goldfish",
     name: "Goldfish",
     component: GoldfishDemo,
-  },
-  {
-    path: "/lotus",
-    name: "Lotus",
-    component: LotusDemo,
   },
   {
     path: "/four-gentlemen",

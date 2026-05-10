@@ -39,4 +39,3 @@ export {
   chrysanthemumFlower,
   type ChrysanthemumOptions,
 } from "./Chrysanthemum";
-export { Lotus, lotus, lotusFlower, lotusLeaf, type LotusOptions } from "./Lotus";

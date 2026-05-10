@@ -267,7 +267,6 @@ Options: `width`, `height`, `size`, `color`, `octaves` (default 4), `frequency`,
 - `Orchid` — `orchid(x, y, options)`, `orchidLeaves(x, y, options)`
 - `WinterPlum` — `winterPlum(x, y, options)`, `plumBlossoms(x, y, options)`
 - `Chrysanthemum` — `chrysanthemum(x, y, options)`, `chrysanthemumFlower(x, y, options)`
-- `Lotus` — `lotus(x, y, options)`, `lotusFlower(x, y, options)`, `lotusLeaf(x, y, options)`
 
 All accept `SeedOptions` (seed + derived noise/random).
 

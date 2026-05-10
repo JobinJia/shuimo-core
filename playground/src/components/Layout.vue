@@ -64,7 +64,6 @@ const menuItems = [
       { path: "/misty-mount", name: "Misty Mount" },
       { path: "/ink-mount", name: "Ink Mount" },
       { path: "/cloud", name: "Cloud" },
-      { path: "/lotus", name: "Lotus" },
       { path: "/xuan-paper", name: "Xuan Paper" },
     ],
   },
