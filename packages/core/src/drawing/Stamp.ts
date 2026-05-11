@@ -699,6 +699,14 @@ function extractFillFromStyle(styleText: string | null): string | null {
   return match?.[1]?.trim() ?? null;
 }
 
+function resolveFontWeightNumber(weight: string | number | undefined): number {
+  if (typeof weight === "number") return weight;
+  if (weight === "bold") return 700;
+  if (weight === "normal" || !weight) return 400;
+  const parsed = Number.parseInt(weight, 10);
+  return Number.isFinite(parsed) ? parsed : 400;
+}
+
 function measureVerticalGlyphColumn(
   font: GlyphFont,
   line: string,
@@ -954,7 +962,56 @@ function replaceTextElementsWithGlyphPaths(
     textElement.replaceWith(pathElement);
   });
 
+  // Simulate fontWeight in glyph-path mode via feMorphology prepended to the
+  // text texture filter chain. CSS font-weight is dropped when text becomes
+  // outlined <path>, so we morph the rendered glyph in raster space — dilate
+  // for bolder, erode for thinner. The carving shell is rescaled in lockstep
+  // so its proportional "carved depth" stays roughly constant across weights.
+  const weightNum = resolveFontWeightNumber(options.fontWeight);
+  if (weightNum !== 400) {
+    const delta = weightNum - 400;
+    // Asymmetric: dilation is additive (safe); erosion eats narrow strokes,
+    // so use a gentler coefficient to avoid disconnecting thin seal-script lines.
+    const coeff = delta > 0 ? 0.01 : 0.005;
+    const morphRadius = (delta / 100) * fontSize * coeff;
+    applyTextFilterMorph(svgDocument, morphRadius);
+  }
+
   return new XMLSerializer().serializeToString(svgDocument);
+}
+
+function applyTextFilterMorph(svgDocument: Document, radius: number): void {
+  const filter = svgDocument.getElementById("stamp-text-texture");
+  if (!filter) return;
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  const operator = radius >= 0 ? "dilate" : "erode";
+  const absRadius = Math.abs(radius);
+
+  const morph = svgDocument.createElementNS(svgNS, "feMorphology");
+  morph.setAttribute("in", "SourceGraphic");
+  morph.setAttribute("operator", operator);
+  morph.setAttribute("radius", fmtNum(absRadius));
+  morph.setAttribute("result", "textMorphed");
+  filter.insertBefore(morph, filter.firstChild);
+
+  // Rewire the original chain entry points (which read SourceGraphic) to read
+  // the morphed result. Only the first two primitives reference the raw source
+  // in this filter; everything else chains via named results. The carving
+  // shell radius is intentionally left at its base value — scaling it with
+  // the morph turned every stroke edge into a wide band of chips/grain, which
+  // reads as noise rather than carving. Keeping the shell thin gives the
+  // morphed glyph a clean "thicker stroke with the same fine carved edge",
+  // which matches how a real seal cut at different depths looks.
+  for (const child of Array.from(filter.children)) {
+    if (child === morph) continue;
+    if (child.getAttribute("in") === "SourceGraphic") {
+      child.setAttribute("in", "textMorphed");
+    }
+    if (child.getAttribute("in2") === "SourceGraphic") {
+      child.setAttribute("in2", "textMorphed");
+    }
+  }
 }
 
 // ─── Shape generators ───────────────────────────────────────────────
