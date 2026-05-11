@@ -25,6 +25,49 @@ import { loadGlyphFontViaWorker } from "./internal/glyphFontClient";
 // legacy value exactly.
 
 const REFERENCE_FONT_SIZE = 70;
+
+/**
+ * Resolves how SVG filter parameters scale with fontSize. Each filter primitive
+ * input has a physical dimension that should respond to size differently:
+ *
+ *   - length:        pixel-distance quantities (erode radius, blur stdDeviation).
+ *                    Scales linearly so the shape stays proportional to the glyph.
+ *   - frequency:     feTurbulence baseFrequency for *body/border* noise. Scales
+ *                    inversely (1/s). The stamp body is intentionally chunky —
+ *                    its texture is "ink staining paper", where wavelength
+ *                    naturally tracks the silhouette size.
+ *   - fineFrequency: feTurbulence baseFrequency for *text-carving* noise. Uses
+ *                    a capped sub-linear ramp (see `subCapped` below).
+ *   - amplitude:     feDisplacementMap scale for text-edge wobble. Same capped
+ *                    sub-linear ramp as fineFrequency.
+ *
+ * Why cap the text-carving ramps: a real seal carved at 10 cm doesn't have
+ * features 10× the size of a 1 cm seal — the engraver's tool tip enforces an
+ * absolute roughness ceiling. Our linear/sqrt scaling let texture amplitude
+ * and wavelength grow with fontSize, so a 200-px stamp read as "small stamp
+ * photo-zoomed-in" with conspicuous fluff and dust around each stroke. Capping
+ * the ramp at s = 1.5 means past fontSize ≈ 105 the absolute texture pixel
+ * scale stays put; only the glyph keeps growing — exactly how a clean large
+ * seal looks.
+ */
+const TEXTURE_RAMP_CAP = 1.5;
+
+function carvingScales(fontSize: number): {
+  length: number;
+  frequency: number;
+  fineFrequency: number;
+  amplitude: number;
+} {
+  const s = fontSize / REFERENCE_FONT_SIZE;
+  const subCapped = Math.sqrt(Math.min(s, TEXTURE_RAMP_CAP));
+  return {
+    length: s,
+    frequency: 1 / s,
+    fineFrequency: 1 / subCapped,
+    amplitude: subCapped,
+  };
+}
+
 const DEFAULT_NOISE_AMOUNT = 8 / REFERENCE_FONT_SIZE;
 const DEFAULT_CORNER_RADIUS = 15 / REFERENCE_FONT_SIZE;
 const DEFAULT_BORDER_WIDTH = 1 / REFERENCE_FONT_SIZE;
@@ -173,8 +216,14 @@ export interface StampOptions {
   /** Whether to generate regular geometric shapes without noise (default: false). Only applies to non-auto shapes (square, rectangle, circle, ellipse) */
   regularShape?: boolean;
 
-  /** 文字刀刻强度。normal 保持清晰可读，strong 增强边缘刀刻缺口，stone-cut 更偏石刻断裂感。 */
+  /** 文字刀刻风格。normal 粗朴宽边带，strong 中等位移，stone-cut 精细锐利。 */
   textCarving?: StampTextCarving;
+
+  /**
+   * 刀刻强度系数。统一缩放当前 textCarving profile 的边带厚度、边缘位移幅度、
+   * 缺口密度。1.0 为 profile 原值，> 1 加深刀刻可见度，< 1 减弱。安全范围 0.3-2.5。
+   */
+  carvingIntensity?: number;
 
   /**
    * Optional Web Worker that hosts the stamp glyph-font code (see
@@ -1601,12 +1650,14 @@ export function generateStamp(options: StampOptions): string {
   const actualCharacterSpacing =
     characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
 
-  // SVG filter scaling — keep visual texture density consistent across font sizes
-  const filterScale = fontSize / REFERENCE_FONT_SIZE;
-  const filterScaleInv = REFERENCE_FONT_SIZE / fontSize;
+  // SVG filter scaling — see carvingScales() for the per-dimension model.
+  const k = carvingScales(fontSize);
 
-  const inkDisplacement = 10 * filterScale;
-  const borderDisplacement = 8 * filterScale;
+  // Body/border displacement is intentionally kept on the linear `length` ramp
+  // (not `amplitude`) to preserve the established hand-cut stamp silhouette;
+  // wobble there reads as edge wear, not as text burrs.
+  const inkDisplacement = 10 * k.length;
+  const borderDisplacement = 8 * k.length;
   const carvingProfile =
     textCarving === "stone-cut"
       ? {
@@ -1655,6 +1706,21 @@ export function generateStamp(options: StampOptions): string {
             alphaGain: 1.12,
             alphaBias: -0.02,
           };
+
+  // Apply unified intensity scaling on top of the chosen profile. The select
+  // picks the carving "style" (coarse/medium/fine), this knob picks "how much".
+  // coreErode (the shell band width) is intentionally NOT scaled — widening
+  // the shell stretches the displacement texture into long visible fringes.
+  // The carving "amount" comes primarily from chip density; edge displacement
+  // is scaled gently so silhouettes don't become noticeably wobbly.
+  const intensityRaw = options.carvingIntensity ?? 1.0;
+  const intensity = clamp(intensityRaw, 0.3, 2.5);
+  if (intensity !== 1.0) {
+    carvingProfile.edgeDisplacement *= 1 + (intensity - 1) * 0.3;
+    // chipThreshold is a feColorMatrix offset; less negative = more pixels pass
+    // the chip mask = more visible chips.
+    carvingProfile.chipThreshold += (intensity - 1) * 0.08;
+  }
 
   // Early return if no valid text
   if (!text || text.every((t) => !t || t.trim().length === 0)) {
@@ -1772,15 +1838,15 @@ export function generateStamp(options: StampOptions): string {
     <!-- Realistic ink stamp texture - simulates paper fiber absorption and ink splatter -->
     <filter id="stamp-ink-texture" x="-20%" y="-20%" width="140%" height="140%">
       <!-- Step 1: Edge displacement for irregular border, then clip to original boundary (凹陷 only, no 凸起) -->
-      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.04 * filterScaleInv)}" numOctaves="4" seed="${seed + 123}" result="borderNoise"/>
+      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.04 * k.frequency)}" numOctaves="4" seed="${seed + 123}" result="borderNoise"/>
       <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmtNum(inkDisplacement)}" xChannelSelector="R" yChannelSelector="G" result="rawDisplaced"/>
       <feComposite in="rawDisplaced" in2="SourceGraphic" operator="in" result="displacedShape"/>
 
       <!-- Step 2: Create granular texture (paper fibers) - increased visibility -->
-      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.4 * filterScaleInv)}" numOctaves="4" seed="${seed + 456}" result="grainNoise"/>
+      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.4 * k.frequency)}" numOctaves="4" seed="${seed + 456}" result="grainNoise"/>
 
       <!-- Step 3: Create larger blotchy patterns (ink distribution) - more pronounced -->
-      <feTurbulence type="turbulence" baseFrequency="${fmtNum(0.08 * filterScaleInv)}" numOctaves="2" seed="${seed + 789}" result="blotchNoise"/>
+      <feTurbulence type="turbulence" baseFrequency="${fmtNum(0.08 * k.frequency)}" numOctaves="2" seed="${seed + 789}" result="blotchNoise"/>
 
       <!-- Step 4: Combine grain and blotches using blend multiply -->
       <feBlend in="grainNoise" in2="blotchNoise" mode="multiply" result="combinedNoise"/>
@@ -1801,7 +1867,7 @@ export function generateStamp(options: StampOptions): string {
       <feComposite in="displacedShape" in2="contrastMask" operator="in" result="texturedShape"/>
 
       <!-- Step 8: Slight blur for natural ink spread -->
-      <feGaussianBlur in="texturedShape" stdDeviation="${fmtNum(0.5 * filterScale)}" result="blurredInk"/>
+      <feGaussianBlur in="texturedShape" stdDeviation="${fmtNum(0.5 * k.length)}" result="blurredInk"/>
 
       <!-- Step 9: Final opacity adjustment -->
       <feColorMatrix in="blurredInk" type="matrix"
@@ -1814,19 +1880,19 @@ export function generateStamp(options: StampOptions): string {
     <!-- Border texture for yang stamp - similar to ink texture but for stroke -->
     <filter id="stamp-border-texture" x="-20%" y="-20%" width="140%" height="140%">
       <!-- Edge displacement -->
-      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.04 * filterScaleInv)}" numOctaves="3" seed="${seed + 123}" result="borderNoise"/>
+      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.04 * k.frequency)}" numOctaves="3" seed="${seed + 123}" result="borderNoise"/>
       <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmtNum(borderDisplacement)}" xChannelSelector="R" yChannelSelector="G" result="displacedBorder"/>
 
       <!-- Slight blur for natural ink spread -->
-      <feGaussianBlur in="displacedBorder" stdDeviation="${fmtNum(0.3 * filterScale)}" result="blurredBorder"/>
+      <feGaussianBlur in="displacedBorder" stdDeviation="${fmtNum(0.3 * k.length)}" result="blurredBorder"/>
     </filter>
 
     <!-- Text engraving texture - keep glyph cores readable while roughening carved edges -->
     <filter id="stamp-text-texture" x="-18%" y="-18%" width="136%" height="136%">
-      <feMorphology in="SourceGraphic" operator="erode" radius="${fmtNum(carvingProfile.coreErode * filterScale)}" result="textCore"/>
+      <feMorphology in="SourceGraphic" operator="erode" radius="${fmtNum(carvingProfile.coreErode * k.length)}" result="textCore"/>
       <feComposite in="SourceGraphic" in2="textCore" operator="out" result="textEdgeBand"/>
 
-      <feTurbulence type="${carvingProfile.edgeNoiseType}" baseFrequency="${fmtNum(carvingProfile.edgeFrequency * filterScaleInv)}" numOctaves="3" seed="${seed}" result="textEdgeNoise"/>
+      <feTurbulence type="${carvingProfile.edgeNoiseType}" baseFrequency="${fmtNum(carvingProfile.edgeFrequency * k.fineFrequency)}" numOctaves="3" seed="${seed}" result="textEdgeNoise"/>
       ${
         textCarving === "stone-cut"
           ? `<feComponentTransfer in="textEdgeNoise" result="textEdgeNoiseStepped">
@@ -1837,9 +1903,15 @@ export function generateStamp(options: StampOptions): string {
       </feComponentTransfer>`
           : ""
       }
-      <feDisplacementMap in="textEdgeBand" in2="${textCarving === "stone-cut" ? "textEdgeNoiseStepped" : "textEdgeNoise"}" scale="${fmtNum(carvingProfile.edgeDisplacement * filterScale)}" xChannelSelector="R" yChannelSelector="G" result="textDisplacedEdge"/>
+      <feDisplacementMap in="textEdgeBand" in2="${textCarving === "stone-cut" ? "textEdgeNoiseStepped" : "textEdgeNoise"}" scale="${fmtNum(carvingProfile.edgeDisplacement * k.amplitude)}" xChannelSelector="R" yChannelSelector="G" result="textDisplacedEdgeRaw"/>
+      <!-- Clip the displaced edge band to the source glyph so the noise can
+           only carve *into* the glyph, never extend past its silhouette.
+           Without this clip, every displacement direction is symmetric: half
+           the wobble goes inward (reads as carving), half goes outward (reads
+           as burrs/fringes). Mirrors the body/border filter at line above. -->
+      <feComposite in="textDisplacedEdgeRaw" in2="SourceGraphic" operator="in" result="textDisplacedEdge"/>
 
-      <feTurbulence type="turbulence" baseFrequency="${fmtNum(carvingProfile.chipFrequency * filterScaleInv)}" numOctaves="2" seed="${seed + 999}" result="textChipNoise"/>
+      <feTurbulence type="turbulence" baseFrequency="${fmtNum(carvingProfile.chipFrequency * k.fineFrequency)}" numOctaves="2" seed="${seed + 999}" result="textChipNoise"/>
       <feColorMatrix in="textChipNoise" type="matrix"
         values="0 0 0 0 0
                 0 0 0 0 0
@@ -1851,7 +1923,7 @@ export function generateStamp(options: StampOptions): string {
 
       <feComposite in="textDisplacedEdge" in2="textChipMask" operator="out" result="textChippedEdge"/>
 
-      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(carvingProfile.grainFrequency * filterScaleInv)}" numOctaves="2" seed="${seed + 321}" result="textGrainNoise"/>
+      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(carvingProfile.grainFrequency * k.fineFrequency)}" numOctaves="2" seed="${seed + 321}" result="textGrainNoise"/>
       <feColorMatrix in="textGrainNoise" type="matrix"
         values="0 0 0 0 0
                 0 0 0 0 0
@@ -1949,6 +2021,7 @@ export class Stamp {
       | "borderWidth"
       | "regularShape"
       | "textCarving"
+      | "carvingIntensity"
       | "seed"
     >
   > &
@@ -2014,6 +2087,7 @@ export class Stamp {
       borderWidthPx: options.borderWidthPx,
       regularShape: options.regularShape ?? false,
       textCarving: options.textCarving ?? "normal",
+      carvingIntensity: options.carvingIntensity ?? 1.0,
       seed: options.seed || Date.now(),
     };
   }

@@ -119,6 +119,7 @@ const fontFamily = ref("峄山碑篆体");
 const fontSize = ref(100);
 const fontWeight = ref<string | number>("normal");
 const textCarving = ref<StampTextCarving>("normal");
+const carvingIntensity = ref(1.0);
 const offsetX = ref(0);
 const offsetY = ref(0);
 const columnSpacing = ref(0.012);
@@ -231,6 +232,7 @@ const stampOptions = computed<StampOptions>(() => ({
   fontSize: fontSize.value,
   fontWeight: fontWeight.value,
   textCarving: textCarving.value,
+  carvingIntensity: carvingIntensity.value,
   offsetX: offsetX.value,
   offsetY: offsetY.value,
   columnSpacing: columnSpacing.value,
@@ -284,6 +286,7 @@ function resetDefaults() {
   fontSize.value = 100;
   fontWeight.value = "normal";
   textCarving.value = "normal";
+  carvingIntensity.value = 1.0;
   applyTuningProfile(shapeProfiles.auto);
   seed.value = 12345;
 }
@@ -308,6 +311,7 @@ function exportConfig() {
     fontSize: fontSize.value,
     fontWeight: fontWeight.value,
     textCarving: textCarving.value,
+    carvingIntensity: carvingIntensity.value,
     offsetX: offsetX.value,
     offsetY: offsetY.value,
     columnSpacing: columnSpacing.value,
@@ -514,12 +518,25 @@ function applyPreset(preset: (typeof presets)[0]) {
           </div>
           <div class="control-row">
             <label>
-              <span class="label-text">刀刻强度</span>
+              <span class="label-text">刀刻风格</span>
               <select v-model="textCarving" class="select-input">
-                <option value="normal">默认刀刻</option>
-                <option value="strong">强刀刻</option>
-                <option value="stone-cut">石刻刀刻</option>
+                <option value="normal">粗朴刀痕</option>
+                <option value="strong">中等刀痕</option>
+                <option value="stone-cut">精细石刻</option>
               </select>
+            </label>
+          </div>
+          <div class="control-row">
+            <label>
+              <span class="label-text">刀刻强度: {{ carvingIntensity.toFixed(1) }}</span>
+              <input
+                v-model.number="carvingIntensity"
+                type="range"
+                min="0.3"
+                max="2.5"
+                step="0.1"
+                class="range-input"
+              />
             </label>
           </div>
           <div class="control-row">
