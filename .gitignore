@@ -33,3 +33,6 @@ coverage/
 .cache/
 .mcp.json
 .vercel
+
+# Brainstorm visual companion
+.superpowers/

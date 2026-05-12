@@ -6,13 +6,17 @@
  * Reference: reference-code/flowers/main.js
  */
 
-type Vec3 = [number, number, number];
+import { SPECIES, type SpeciesName } from "./species";
+
+/** @internal */
+export type Vec3 = [number, number, number];
 
 // ============================================================================
 // BBS PRNG (Blum Blum Shub) — matches Nonflowers PRNG exactly
 // ============================================================================
 
-const BBS = (() => {
+/** @internal */
+export const BBS = (() => {
   let s = 1234;
   const p = 999979;
   const q = 999983;
@@ -71,7 +75,8 @@ function scaledCosine(i: number): number {
   return 0.5 * (1.0 - Math.cos(i * Math.PI));
 }
 
-function pnoise(x: number, y: number = 0, z: number = 0): number {
+/** @internal */
+export function pnoise(x: number, y: number = 0, z: number = 0): number {
   if (perlin === null) {
     perlin = new Array(PERLIN_SIZE + 1);
     for (let i = 0; i < PERLIN_SIZE + 1; i++) {
@@ -156,6 +161,11 @@ function resetPerlin(): void {
 export interface FlowerCanvasOptions {
   seed?: string | number;
   type?: "woody" | "herbal" | "random";
+  /**
+   * Species preset. When set, runs that species's dedicated pipeline and
+   * ignores `type`. Currently only `"lotus"` is supported.
+   */
+  species?: SpeciesName;
   width?: number;
   height?: number;
   /**
@@ -224,7 +234,8 @@ function distance(p0: number[], p1: number[]): number {
   return Math.sqrt((p0[0] - p1[0]) ** 2 + (p0[1] - p1[1]) ** 2);
 }
 
-function mapval(
+/** @internal */
+export function mapval(
   value: number,
   istart: number,
   istop: number,
@@ -234,15 +245,18 @@ function mapval(
   return ostart + (ostop - ostart) * ((value - istart) / (istop - istart));
 }
 
-function randChoice<T>(arr: T[]): T {
+/** @internal */
+export function randChoice<T>(arr: T[]): T {
   return arr[Math.floor(arr.length * BBS.next())];
 }
 
-function normRand(m: number, M: number): number {
+/** @internal */
+export function normRand(m: number, M: number): number {
   return mapval(BBS.next(), 0, 1, m, M);
 }
 
-function sigmoid(x: number, k: number = 10): number {
+/** @internal */
+export function sigmoid(x: number, k: number = 10): number {
   return 1 / (1 + Math.exp(-k * (x - 0.5)));
 }
 
@@ -349,11 +363,13 @@ const v3 = {
 // Color Functions
 // ============================================================================
 
-function rgba(r: number = 255, g: number = r, b: number = g, a: number = 1.0): string {
+/** @internal */
+export function rgba(r: number = 255, g: number = r, b: number = g, a: number = 1.0): string {
   return `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${a.toFixed(3)})`;
 }
 
-function hsv(h: number, s: number, v: number, a: number = 1): string {
+/** @internal */
+export function hsv(h: number, s: number, v: number, a: number = 1): string {
   const c = v * s;
   const x = c * (1 - abs(((h / 60) % 2) - 1));
   const m = v - c;
@@ -392,7 +408,8 @@ function hsv(h: number, s: number, v: number, a: number = 1): string {
   return rgba(r, g, b, a);
 }
 
-function lerpHue(h0: number, h1: number, p: number): number {
+/** @internal */
+export function lerpHue(h0: number, h1: number, p: number): number {
   const d0 = abs(h1 - h0);
   const d1 = abs(h1 + 360 - h0);
   const d2 = abs(h1 - 360 - h0);
@@ -421,7 +438,8 @@ interface PolygonArgs {
   str?: boolean;
 }
 
-function polygon(args: PolygonArgs = {}): void {
+/** @internal */
+export function polygon(args: PolygonArgs = {}): void {
   const ctx = args.ctx!;
   const xof = args.xof ?? 0;
   const yof = args.yof ?? 0;
@@ -492,7 +510,8 @@ interface StrokeArgs {
   wid?: (x: number) => number;
 }
 
-function stroke(args: StrokeArgs = {}): [Vec3[], Vec3[]] {
+/** @internal */
+export function stroke(args: StrokeArgs = {}): [Vec3[], Vec3[]] {
   const pts = args.pts ?? [];
   const ctx = args.ctx!;
   const xof = args.xof ?? 0;
@@ -591,7 +610,8 @@ interface LeafArgs {
   ben?: (x: number) => Vec3;
 }
 
-function leaf(args: LeafArgs = {}): Vec3[] {
+/** @internal */
+export function leaf(args: LeafArgs = {}): Vec3[] {
   const ctx = args.ctx!;
   const xof = args.xof ?? 0;
   const yof = args.yof ?? 0;
@@ -730,7 +750,8 @@ interface StemArgs {
   ben?: (x: number) => Vec3;
 }
 
-function stem(args: StemArgs = {}): Vec3[] {
+/** @internal */
+export function stem(args: StemArgs = {}): Vec3[] {
   const ctx = args.ctx!;
   const xof = args.xof ?? 0;
   const yof = args.yof ?? 0;
@@ -991,7 +1012,8 @@ interface LayerContext {
   ctx: CanvasRenderingContext2D;
 }
 
-const Layer = {
+/** @internal */
+export const Layer = {
   empty(w: number = 600, h: number = w): LayerContext {
     const canvas = document.createElement("canvas");
     canvas.width = w;
@@ -1083,7 +1105,8 @@ const Layer = {
   },
 };
 
-const Filter = {
+/** @internal */
+export const Filter = {
   wispy(
     x: number,
     y: number,
@@ -1508,20 +1531,22 @@ export function generateFlowerCanvas(options: FlowerCanvasOptions = {}): HTMLCan
     }
   }
 
-  // Determine plant type
-  let plantType: "woody" | "herbal";
-  if (type === "random") {
-    plantType = BBS.next() <= 0.5 ? "woody" : "herbal";
-  } else {
-    plantType = type;
-  }
-
-  // Generate plant
   const xof = width / 2;
-  if (plantType === "woody") {
-    woody({ ctx, xof, yof: height * 0.85, fast });
+  if (options.species) {
+    const draw = SPECIES[options.species];
+    draw(ctx, { xof, yof: height * 0.92, fast });
   } else {
-    herbal({ ctx, xof, yof: height * 0.92, fast });
+    let plantType: "woody" | "herbal";
+    if (type === "random") {
+      plantType = BBS.next() <= 0.5 ? "woody" : "herbal";
+    } else {
+      plantType = type;
+    }
+    if (plantType === "woody") {
+      woody({ ctx, xof, yof: height * 0.85, fast });
+    } else {
+      herbal({ ctx, xof, yof: height * 0.92, fast });
+    }
   }
 
   if (!fast) {
