@@ -420,16 +420,22 @@ function drawPetal(
   // Second anchor sits near the tip end with small perpendicular offset
   // so the curve approaches the tip softly — sharp pointed tips look
   // synthetic on a lotus.
-  const ax75 = baseX + ax * len * 0.88;
-  const ay75 = baseY + ay * len * 0.88;
+  // v7: "宽肩水滴 + 单边内卷曲线" geometry from the 11-day-ago refactor.
+  // - r2 (second control point) is pushed further off-spine (wTail=0.4)
+  //   instead of 0.22. This keeps the upper third of the petal BULGY
+  //   rather than tapering into a knife-shaped tip.
+  // - widePos is biased toward the base (passed in lower range).
+  // - After fill, a single inward-curl line is stroked to suggest the
+  //   concave inside of the petal — the visible "fold" line you see on
+  //   a real lotus petal where it cups slightly.
+  const ax75 = baseX + ax * len * 0.85;
+  const ay75 = baseY + ay * len * 0.85;
   const wMid = peakW;
-  const wTail = peakW * 0.22;
-  // Right side control points.
+  const wTail = peakW * 0.4;
   const r1x = ax25 + px * wMid * rightFactor;
   const r1y = ay25 + py * wMid * rightFactor;
   const r2x = ax75 + px * wTail * rightFactor;
   const r2y = ay75 + py * wTail * rightFactor;
-  // Left side control points (mirrored).
   const l1x = ax25 - px * wMid * leftFactor;
   const l1y = ay25 - py * wMid * leftFactor;
   const l2x = ax75 - px * wTail * leftFactor;
@@ -437,9 +443,7 @@ function drawPetal(
 
   ctx.beginPath();
   ctx.moveTo(baseX, baseY);
-  // Right edge: base → tip via two control points.
   ctx.bezierCurveTo(r1x, r1y, r2x, r2y, tipPathX, tipPathY);
-  // Left edge: tip → base via two control points.
   ctx.bezierCurveTo(l2x, l2y, l1x, l1y, baseX, baseY);
   ctx.closePath();
 
@@ -450,15 +454,24 @@ function drawPetal(
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Very thin outline — just enough to define the petal silhouette
-  // against neighbours without making it look drawn rather than painted.
+  // Inner curl — a single quadratic curve from base into the petal
+  // body, drawn on whichever side `curl` favours. Suggests the petal's
+  // concave inside surface; a real ink-painted lotus uses one such
+  // fold line per petal rather than detailed shading.
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = hsv(color.hue, Math.min(1, color.baseSat * 1.15), color.baseVal * 0.55, alpha * 0.55);
-  ctx.lineWidth = 0.45;
+  const curlSide = curl >= 0 ? 1 : -1;
+  const curlMidX = baseX + ax * len * 0.35 + px * wMid * 0.45 * curlSide;
+  const curlMidY = baseY + ay * len * 0.35 + py * wMid * 0.45 * curlSide;
+  const curlEndX = baseX + ax * len * 0.7 + px * wTail * 0.25 * curlSide;
+  const curlEndY = baseY + ay * len * 0.7 + py * wTail * 0.25 * curlSide;
+  ctx.beginPath();
+  ctx.moveTo(baseX, baseY);
+  ctx.quadraticCurveTo(curlMidX, curlMidY, curlEndX, curlEndY);
+  ctx.strokeStyle = hsv(color.hue, color.baseSat, color.baseVal * 0.55, alpha * 0.6);
+  ctx.lineWidth = 0.8;
   ctx.stroke();
 
   ctx.restore();
-
 }
 
 // ── drawFlower — full flower stack (calyx + dark core + petal fan) ──
@@ -515,7 +528,7 @@ function drawFlower(ctx: CanvasRenderingContext2D, flowerX: number, flowerY: num
       // widePos is now where the bezier anchor sits along the spine —
       // higher = bulge toward middle (classic lotus petal teardrop).
       shapePower: 1, // unused by bezier silhouette
-      widePos: normRand(0.32, 0.5),
+      widePos: normRand(0.22, 0.32),
       tipLean: (BBS.next() - 0.5) * 0.25 * PETAL_WIDTH,
     });
   }
