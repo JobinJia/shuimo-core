@@ -353,16 +353,22 @@ export class Canvas2DBackend implements RenderBackend {
     lctx.drawImage(this.maskCanvas, 0, 0);
     lctx.restore();
 
-    // --- Pass 4: Light antialiasing pass.
-    // The Hobbs mask already produces soft watercolor edges, so this no
-    // longer needs to do heavy bleeding. Direction is also flipped to
-    // respect atmospheric perspective: far mountains (depth≈0) get a
-    // touch of haze, near mountains (depth≈1) stay crisp.
+    // --- Pass 4: Light atmospheric blur via CSS filter.
+    // Uses ctx.filter instead of the straight-alpha stackBlur: the latter
+    // averages RGB across pixels including fully-transparent ones (whose
+    // RGB is stored as 0,0,0), which drags the wash's edge tone toward
+    // black and produced a visible dark halo at far-mountain silhouettes.
+    // ctx.filter blurs in premultiplied alpha space, so transparent
+    // pixels don't bleed black into the edges.
     const blurRadius = Math.max(0, Math.round(1.5 - depth * 1.5));
-    if (blurRadius >= 1) stackBlur(lctx, w, h, blurRadius);
-
-    // Composite onto main canvas
-    this.ctx.drawImage(this.layerCanvas, 0, 0);
+    if (blurRadius >= 1) {
+      this.ctx.save();
+      this.ctx.filter = `blur(${blurRadius}px)`;
+      this.ctx.drawImage(this.layerCanvas, 0, 0);
+      this.ctx.restore();
+    } else {
+      this.ctx.drawImage(this.layerCanvas, 0, 0);
+    }
   }
 
   drawCunFaStrokes(strokes: CunFaStroke[], clipLayer?: MountainLayer): void {
