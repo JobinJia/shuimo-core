@@ -24,14 +24,11 @@ describe("InkWashLayer", () => {
     expect(last.opacity).toBeGreaterThan(first.opacity);
   });
 
-  it("generates the requested number of splash regions", () => {
-    const splashCount = 5;
-    const fill = generateInkFill({ layer, seed: 99, splashCount });
-
-    expect(fill.splashes.length).toBe(splashCount);
-    for (const splash of fill.splashes) {
-      expect(splash.length).toBeGreaterThanOrEqual(3);
-    }
+  it("returns no splash regions (edge-bleed moved to silhouette mask)", () => {
+    const fill = generateInkFill({ layer, seed: 99, splashCount: 5 });
+    // Splash blobs were retired in favour of a Hobbs edge mask drawn by
+    // the renderer over the mountain silhouette.
+    expect(fill.splashes.length).toBe(0);
   });
 
   it("is deterministic for the same seed", () => {

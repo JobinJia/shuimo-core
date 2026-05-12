@@ -12,6 +12,7 @@ import FourGentlemenDemo from "../demos/FourGentlemenDemo.vue";
 import InkMountDemo from "../demos/InkMountDemo.vue";
 import LoadingShowcase from "../demos/LoadingShowcase.vue";
 import GoldfishDemo from "../demos/GoldfishDemo.vue";
+import InkBleedDemo from "../demos/InkBleedDemo.vue";
 
 const routes = [
   {
@@ -83,6 +84,11 @@ const routes = [
     path: "/ink-mount",
     name: "InkMount",
     component: InkMountDemo,
+  },
+  {
+    path: "/ink-bleed",
+    name: "InkBleed",
+    component: InkBleedDemo,
   },
 ];
 

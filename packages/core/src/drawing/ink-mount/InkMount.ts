@@ -1,7 +1,7 @@
 import { generateRidge } from "./RidgeGenerator";
 import { generateCunFaStrokes } from "./CunFaEngine";
 import { generateInkFill } from "./InkWashLayer";
-import { generateMist } from "./MistLayer";
+import { generateMist, generateForegroundMist } from "./MistLayer";
 import { Canvas2DBackend } from "./renderer/Canvas2DBackend";
 import type {
   InkMountOptions,
@@ -119,6 +119,17 @@ export class InkMount {
       });
     }
 
+    // Foreground mist band — sits in the painting's lower portion and is
+    // rendered last so it visibly veils only the lower half of the near
+    // mountain. Opacity multiplier kept low (×0.6) so the effect is a
+    // drifting veil, not a blocking wall.
+    scene.foregroundMists = generateForegroundMist({
+      width,
+      height,
+      seed: seed + 17777,
+      opacity: mistOpts.opacity * 0.6,
+    });
+
     return scene;
   }
 
@@ -215,18 +226,22 @@ export class InkMount {
       // Draw mountain fill
       backend.drawMountainFill(layer, fill);
 
-      // Draw cunfa strokes (clipped to mountain body)
-      backend.drawCunFaStrokes(strokes, layer);
+      // CunFa strokes disabled — the dotted/dashed texture marks read as
+      // visual noise over the Hobbs watercolor silhouette. Mountain body
+      // now relies on the wash + mask alone for tone.
+      // backend.drawCunFaStrokes(strokes, layer);
+      void strokes;
 
-      // Draw main ridge line
-      const ridgeOpacity = 0.15 + depth * 0.4;
-      const ridgeWidth = 0.3 + depth * 0.7;
-      backend.drawRidgeLine(layer.ridgeLine, ridgeOpacity, ridgeWidth);
-
-      // Draw sub-ridges at 40% opacity and 50% width
-      for (const subRidge of layer.subRidges) {
-        backend.drawRidgeLine(subRidge, ridgeOpacity * 0.4, ridgeWidth * 0.5);
-      }
+      // Ridge stroke calls disabled — the drawn outline traced the original
+      // undeformed ridge and clashed with the Hobbs watercolor silhouette.
+      // Temporarily commented out so the wash silhouette stands alone; if
+      // we want them back later they need to follow the deformed mask edge.
+      // const ridgeOpacity = 0.15 + depth * 0.4;
+      // const ridgeWidth = 0.3 + depth * 0.7;
+      // backend.drawRidgeLine(layer.ridgeLine, ridgeOpacity, ridgeWidth);
+      // for (const subRidge of layer.subRidges) {
+      //   backend.drawRidgeLine(subRidge, ridgeOpacity * 0.4, ridgeWidth * 0.5);
+      // }
 
       // Draw mist between this layer and the next
       if (i < scene.layers.length - 1 && scene.mists.length > 0) {
@@ -236,6 +251,11 @@ export class InkMount {
           backend.drawMist(scene.mists.slice(mistStart, mistEnd));
         }
       }
+    }
+
+    // Foreground mist drawn AFTER all mountains so it occludes them.
+    if (scene.foregroundMists && scene.foregroundMists.length > 0) {
+      backend.drawMist(scene.foregroundMists);
     }
   }
 

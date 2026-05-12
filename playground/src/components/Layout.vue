@@ -40,7 +40,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 
-const expandedGroups = ref(["Generator", "Flower", "Shanshui", "Stamp"]);
+const expandedGroups = ref(["Generator", "Flower", "Shanshui", "Stamp", "Drawing"]);
 
 const menuItems = [
   {
@@ -73,6 +73,10 @@ const menuItems = [
       { path: "/stamp", name: "Basic" },
       { path: "/stamp-playground", name: "Playground" },
     ],
+  },
+  {
+    name: "Drawing",
+    children: [{ path: "/ink-bleed", name: "Ink Bleed (Hobbs)" }],
   },
 ];
 

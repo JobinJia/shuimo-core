@@ -1,7 +1,8 @@
 import { SimplexNoise } from "../../../foundation/noise/SimplexNoise";
-import type { Vector2 } from "../../../foundation/geometry/Vector2";
+import { Vector2 } from "../../../foundation/geometry/Vector2";
 import type { CunFaStroke, InkFill, MistRegion, MountainLayer } from "../types";
 import type { RenderBackend, RenderOutput } from "./types";
+import { deformPolyline } from "../internal/hobbsDeform";
 
 /**
  * Stack-blur approximation of gaussian blur — fast O(n) per pixel.
@@ -84,6 +85,30 @@ function stackBlur(ctx: CanvasRenderingContext2D, w: number, h: number, radius: 
 }
 
 /**
+ * Build the closed mountain silhouette polygon: ridge line across the top,
+ * then a horizontal bottom edge along the canvas baseline.
+ */
+function buildMountainPolygon(ridgeLine: Vector2[], canvasHeight: number): Vector2[] {
+  const poly: Vector2[] = [];
+  for (let i = 0; i < ridgeLine.length; i++) {
+    poly.push(new Vector2(ridgeLine[i].x, ridgeLine[i].y));
+  }
+  poly.push(new Vector2(ridgeLine[ridgeLine.length - 1].x, canvasHeight));
+  poly.push(new Vector2(ridgeLine[0].x, canvasHeight));
+  return poly;
+}
+
+/** Tiny Park–Miller LCG, mirrors the seeded RNG used in InkWashLayer. */
+function seededRand(seed: number): () => number {
+  let s = Math.abs(Math.floor(seed)) % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+/**
  * Build a clip path for a mountain silhouette.
  */
 function clipToMountain(
@@ -129,6 +154,9 @@ export class Canvas2DBackend implements RenderBackend {
   // Offscreen layer for compositing with blur
   private layerCanvas: HTMLCanvasElement | OffscreenCanvas;
   private layerCtx: CanvasRenderingContext2D;
+  // Offscreen mask for the Hobbs-deformed mountain silhouette
+  private maskCanvas: HTMLCanvasElement | OffscreenCanvas;
+  private maskCtx: CanvasRenderingContext2D;
 
   constructor(options: { width: number; height: number; ctx?: CanvasRenderingContext2D }) {
     if (options.ctx) {
@@ -156,6 +184,16 @@ export class Canvas2DBackend implements RenderBackend {
       this.layerCanvas = el;
     }
     this.layerCtx = this.layerCanvas.getContext("2d") as unknown as CanvasRenderingContext2D;
+
+    if (typeof OffscreenCanvas !== "undefined") {
+      this.maskCanvas = new OffscreenCanvas(options.width, options.height);
+    } else {
+      const el = document.createElement("canvas");
+      el.width = options.width;
+      el.height = options.height;
+      this.maskCanvas = el;
+    }
+    this.maskCtx = this.maskCanvas.getContext("2d") as unknown as CanvasRenderingContext2D;
   }
 
   clear(): void {
@@ -172,18 +210,23 @@ export class Canvas2DBackend implements RenderBackend {
     const lctx = this.layerCtx;
     lctx.clearRect(0, 0, w, h);
 
-    // Clip to mountain silhouette on the layer canvas
-    lctx.save();
-    clipToMountain(lctx, ridgeLine, h);
-
     const noise = new SimplexNoise(ink.noiseSeed);
 
-    // --- Pass 1: Base ink wash with multiple soft overlapping fills ---
-    // Paint from bottom (dark) to top (light) using large soft stamps
+    // --- Pass 1: Base ink wash with multiple soft overlapping fills.
+    // The brush-stamp BASE COLOR itself now ramps top→bottom — without
+    // this the many overlapping stamps saturate to a uniform dark patch
+    // (especially for near mountains with baseGray ≈ 15), leaving no
+    // tonal headroom for the body gradient in Pass 2.7 to render.
+    // baseGrayBottom is lifted from 15 → 30 to leave room for multiply
+    // to darken further at the base.
     const passes = 8 + Math.floor(depth * 8);
-    const baseGray = Math.floor(15 + (1 - depth) * 30);
+    const baseGrayBottom = Math.floor(30 + (1 - depth) * 20); // 30 (near) .. 50 (far)
+    const baseGrayTop = baseGrayBottom + 60; // 60-shade lighter ridge
+    // baseGray as a stable reference for color-tied helpers below
+    const baseGray = baseGrayBottom;
     for (let p = 0; p < passes; p++) {
       const t = p / (passes - 1); // 0 = top, 1 = bottom
+      const bg = Math.round(baseGrayTop + (baseGrayBottom - baseGrayTop) * t);
       const y = bounds.y + t * (h - bounds.y);
       const alpha = (0.03 + t * 0.12) * (0.4 + depth * 0.6);
       const stampRadius = w * (0.15 + Math.random() * 0.2);
@@ -192,58 +235,131 @@ export class Canvas2DBackend implements RenderBackend {
       for (let x = -stampRadius; x < w + stampRadius; x += stampRadius * 0.6) {
         const nx = noise.noise2D(x * 0.003, y * 0.003 + ink.noiseSeed * 0.01);
         const offsetY = nx * h * 0.05;
-        brushStamp(lctx, x, y + offsetY, stampRadius, baseGray, baseGray, baseGray + 3, alpha);
+        brushStamp(lctx, x, y + offsetY, stampRadius, bg, bg, bg + 3, alpha);
       }
     }
 
-    // --- Pass 2: Ink texture with noise-modulated density ---
-    const texStep = 3;
-    for (let y = bounds.y; y < h; y += texStep) {
-      for (let x = bounds.x; x < bounds.x + bounds.width; x += texStep) {
-        const n1 = noise.noise2D(x * 0.008, y * 0.008);
-        const n2 = noise.noise2D(x * 0.025, y * 0.025 + 100);
-        const normalizedY = (y - bounds.y) / (h - bounds.y);
+    // --- Pass 2: Noise-grain ink texture — DISABLED.
+    // The 3x3 pixel-block noise fills read as visible grain/dither over
+    // the Hobbs-edged wash. Tone variation now comes solely from the
+    // overlapping brush stamps in Pass 1 plus the layered mask.
 
-        // Combine two octaves of noise for varied texture
-        const inkDensity = (n1 * 0.6 + n2 * 0.4) * normalizedY * (0.3 + depth * 0.7);
-
-        if (inkDensity > 0.05) {
-          const a = Math.min(0.4, inkDensity * 0.5);
-          lctx.fillStyle = `rgba(${baseGray - 5},${baseGray - 5},${baseGray},${a})`;
-          lctx.fillRect(x, y, texStep, texStep);
-        }
+    // --- Pass 2.5: Atmospheric ink gradient (reads as "cloud layer").
+    // Soft over-layer using ink.gradient's quadratic-eased opacity stops.
+    // source-atop confines it to pixels Pass 1 already painted, so it
+    // never bleeds outside the wash region. Intentionally subtle — it
+    // sells atmosphere, not body.
+    if (ink.gradient.length >= 2) {
+      lctx.save();
+      lctx.globalCompositeOperation = "source-atop";
+      const grad = lctx.createLinearGradient(0, bounds.y, 0, h);
+      for (const stop of ink.gradient) {
+        grad.addColorStop(
+          stop.stop,
+          `rgba(${baseGray - 8},${baseGray - 8},${baseGray - 4},${stop.opacity})`,
+        );
       }
+      lctx.fillStyle = grad;
+      lctx.fillRect(bounds.x, bounds.y, bounds.width, h - bounds.y);
+      lctx.restore();
     }
 
-    // --- Pass 3: Splash / 泼墨 regions with soft edges ---
-    for (const splash of ink.splashes) {
-      if (splash.length < 3) continue;
-      // Paint splash as overlapping soft stamps
-      let cx = 0,
-        cy = 0;
-      for (const p of splash) {
-        cx += p.x;
-        cy += p.y;
-      }
-      cx /= splash.length;
-      cy /= splash.length;
-
-      const splashAlpha = 0.15 + depth * 0.25;
-      const splashRadius = bounds.height * (0.06 + depth * 0.08);
-
-      // Core
-      brushStamp(lctx, cx, cy, splashRadius, 8, 8, 12, splashAlpha);
-      // Scatter around
-      for (const p of splash) {
-        brushStamp(lctx, p.x, p.y, splashRadius * 0.5, 8, 8, 12, splashAlpha * 0.5);
-      }
+    // --- Pass 2.7: Mountain body gradient (multiply).
+    // Treats the silhouette as a single shape with a top→bottom fill:
+    // white at the ridge (no darkening) → mid-dark at the base (strong
+    // pigment). Multiply over the wash so brush-stamp texture and the
+    // atmospheric layer above stay intact, only their tone is biased.
+    {
+      lctx.save();
+      lctx.globalCompositeOperation = "multiply";
+      const bodyGrad = lctx.createLinearGradient(0, bounds.y, 0, h);
+      // Top: pure white = identity under multiply
+      bodyGrad.addColorStop(0, "rgba(255,255,255,1)");
+      // Mid: subtle shoulder so the upper third stays lifted
+      bodyGrad.addColorStop(0.35, "rgba(220,222,228,1)");
+      // Bottom: depth-keyed mid-dark — heavier for near mountains
+      const baseShade = Math.floor(160 - depth * 70);
+      bodyGrad.addColorStop(1, `rgba(${baseShade},${baseShade},${baseShade + 4},1)`);
+      lctx.fillStyle = bodyGrad;
+      lctx.fillRect(bounds.x, bounds.y, bounds.width, h - bounds.y);
+      lctx.restore();
     }
 
-    lctx.restore(); // remove clip
+    // --- Pass 3: Hobbs watercolor edge mask (mirrors /ink-bleed demo).
+    // The original ridge is densely sampled (~150–200 points, segments
+    // ~3–4px). Applying Hobbs midpoint-displacement directly produces
+    // sawtooth spikes whenever variance > segment length — looks like a
+    // forest. We decimate the ridge to a small number of anchors first so
+    // initial segments are long (~50px, similar to /ink-bleed's 8-gon
+    // sides), then let Hobbs recursion regenerate fine detail from large
+    // scale down to small scale, exactly like the InkBleed demo does.
+    const mctx = this.maskCtx;
+    mctx.save();
+    mctx.setTransform(1, 0, 0, 1, 0, 0);
+    mctx.clearRect(0, 0, w, h);
 
-    // --- Pass 4: Blur the entire mountain layer for ink bleeding effect ---
-    const blurRadius = Math.max(2, Math.floor(3 + depth * 5));
-    stackBlur(lctx, w, h, blurRadius);
+    const edgeRand = seededRand(ink.noiseSeed ^ 0x5e1f);
+
+    const RIDGE_ANCHORS = 14;
+    const anchorCount = Math.min(RIDGE_ANCHORS, ridgeLine.length);
+    const anchors: Vector2[] = [];
+    for (let i = 0; i < anchorCount; i++) {
+      const t = i / (anchorCount - 1);
+      const idx = Math.floor(t * (ridgeLine.length - 1));
+      anchors.push(new Vector2(ridgeLine[idx].x, ridgeLine[idx].y));
+    }
+
+    // Open polyline: short vertical down to baseline at each end + decimated ridge.
+    const visibleEdge: Vector2[] = [
+      new Vector2(anchors[0].x, h),
+      ...anchors,
+      new Vector2(anchors[anchors.length - 1].x, h),
+    ];
+
+    // Variance scaled to anchor-segment length. Tighter than /ink-bleed's
+    // 13% blob default — for a mountain silhouette the demo's blob ratio
+    // reads as "chunky stamp impression"; refining the master amplitude
+    // and keeping more layers close to it gives a finer wet-ink edge.
+    const avgSegment = bounds.width / (anchorCount - 1);
+    const masterVar = avgSegment * 0.06;
+    const masterDepth = 5;
+    const layerVar = avgSegment * 0.02;
+    const layerDepth = 2;
+    const decay = 0.78;
+    const edgeLayers = 12;
+    const edgeAlpha = 0.13;
+
+    // Master deform establishes the jagged silhouette character.
+    const masterEdge = deformPolyline(visibleEdge, masterVar, masterDepth, decay, edgeRand);
+
+    mctx.fillStyle = `rgba(255,255,255,${edgeAlpha})`;
+    for (let li = 0; li < edgeLayers; li++) {
+      const layerEdge = deformPolyline(masterEdge, layerVar, layerDepth, decay, edgeRand);
+      mctx.beginPath();
+      mctx.moveTo(layerEdge[0].x, layerEdge[0].y);
+      for (let i = 1; i < layerEdge.length; i++) {
+        mctx.lineTo(layerEdge[i].x, layerEdge[i].y);
+      }
+      mctx.lineTo(layerEdge[layerEdge.length - 1].x, h);
+      mctx.lineTo(layerEdge[0].x, h);
+      mctx.closePath();
+      mctx.fill();
+    }
+    mctx.restore();
+
+    // Apply the soft mask to the painted layer.
+    lctx.save();
+    lctx.globalCompositeOperation = "destination-in";
+    lctx.drawImage(this.maskCanvas, 0, 0);
+    lctx.restore();
+
+    // --- Pass 4: Light antialiasing pass.
+    // The Hobbs mask already produces soft watercolor edges, so this no
+    // longer needs to do heavy bleeding. Direction is also flipped to
+    // respect atmospheric perspective: far mountains (depth≈0) get a
+    // touch of haze, near mountains (depth≈1) stay crisp.
+    const blurRadius = Math.max(0, Math.round(1.5 - depth * 1.5));
+    if (blurRadius >= 1) stackBlur(lctx, w, h, blurRadius);
 
     // Composite onto main canvas
     this.ctx.drawImage(this.layerCanvas, 0, 0);

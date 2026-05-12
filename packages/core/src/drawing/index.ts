@@ -1,5 +1,6 @@
 export { Stroke, stroke, type StrokeOptions } from "./Stroke";
 export { Blob, blob, type BlobOptions } from "./Blob";
+export { InkBleed, inkBleed, type InkBleedOptions } from "./InkBleed";
 export { Brush, brushStroke, brushDot, naturalBrushStroke, type BrushStrokeOptions } from "./Brush";
 export { Goldfish, generateGoldfishCanvas, type GoldfishCanvasOptions } from "./Goldfish";
 export {

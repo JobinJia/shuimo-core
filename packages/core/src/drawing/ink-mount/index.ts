@@ -2,7 +2,7 @@ export { InkMount } from "./InkMount";
 export { generateRidge } from "./RidgeGenerator";
 export { generateCunFaStrokes } from "./CunFaEngine";
 export { generateInkFill } from "./InkWashLayer";
-export { generateMist } from "./MistLayer";
+export { generateMist, generateForegroundMist } from "./MistLayer";
 export { Canvas2DBackend } from "./renderer/Canvas2DBackend";
 export type {
   InkMountOptions,

@@ -79,6 +79,9 @@ export interface InkMountScene {
   strokes: CunFaStroke[][];
   fills: InkFill[];
   mists: MistRegion[];
+  /** Optional foreground mist band over the painting's lower portion;
+   *  drawn last so it visibly occludes near mountains. */
+  foregroundMists?: MistRegion[];
   width: number;
   height: number;
 }
