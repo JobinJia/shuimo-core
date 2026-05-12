@@ -212,26 +212,33 @@ export class Canvas2DBackend implements RenderBackend {
 
     const noise = new SimplexNoise(ink.noiseSeed);
 
-    // --- Pass 1: Base ink wash with multiple soft overlapping fills.
-    // The brush-stamp BASE COLOR itself now ramps top→bottom — without
-    // this the many overlapping stamps saturate to a uniform dark patch
-    // (especially for near mountains with baseGray ≈ 15), leaving no
-    // tonal headroom for the body gradient in Pass 2.7 to render.
-    // baseGrayBottom is lifted from 15 → 30 to leave room for multiply
-    // to darken further at the base.
+    // --- Pass 1: Base ink wash — top-dark / bottom-light direction.
+    // Mountain peaks hold the heaviest ink; the body fades toward paper
+    // at its base. Both COLOR and ALPHA follow this direction so the
+    // top saturates dark via overlapping stamps and the base barely
+    // paints anything, letting paper show through. Sole source of body
+    // gradient now — Pass 2.5 / Pass 2.7 are disabled to avoid the
+    // opposite-direction conflicts that previously caused color bands.
     const passes = 8 + Math.floor(depth * 8);
-    const baseGrayBottom = Math.floor(30 + (1 - depth) * 20); // 30 (near) .. 50 (far)
-    const baseGrayTop = baseGrayBottom + 60; // 60-shade lighter ridge
-    // baseGray as a stable reference for color-tied helpers below
-    const baseGray = baseGrayBottom;
+    // Wider color spread (top very dark, base near-paper) + higher peak
+    // alpha so the contrast actually reads. Previous values produced
+    // ~rgb(149) at the peak and ~rgb(234) at the base after blending —
+    // technically a gradient but visually too subtle. With the new
+    // parameters the peak saturates closer to rgb(100) and the base
+    // sits near paper, making the top-dark/bottom-light direction
+    // clearly visible.
+    const baseGrayTop = Math.floor(10 + (1 - depth) * 15); // 10 (near peak) .. 25 (far peak)
+    const baseGrayBottom = Math.floor(130 + (1 - depth) * 60); // 130 (near base) .. 190 (far base)
+    const baseGray = baseGrayTop; // stable reference (peak shade) for downstream
     for (let p = 0; p < passes; p++) {
-      const t = p / (passes - 1); // 0 = top, 1 = bottom
+      const t = p / (passes - 1); // 0 = top (peak), 1 = bottom (base)
       const bg = Math.round(baseGrayTop + (baseGrayBottom - baseGrayTop) * t);
       const y = bounds.y + t * (h - bounds.y);
-      const alpha = (0.03 + t * 0.12) * (0.4 + depth * 0.6);
+      // Peak alpha lifted from 0.15 → 0.28 so overlapping stamps reach
+      // higher cumulative alpha at the ridge band; base alpha kept low.
+      const alpha = (0.28 - t * 0.25) * (0.4 + depth * 0.6);
       const stampRadius = w * (0.15 + Math.random() * 0.2);
 
-      // Paint a wide horizontal band
       for (let x = -stampRadius; x < w + stampRadius; x += stampRadius * 0.6) {
         const nx = noise.noise2D(x * 0.003, y * 0.003 + ink.noiseSeed * 0.01);
         const offsetY = nx * h * 0.05;
@@ -241,49 +248,18 @@ export class Canvas2DBackend implements RenderBackend {
 
     // --- Pass 2: Noise-grain ink texture — DISABLED.
     // The 3x3 pixel-block noise fills read as visible grain/dither over
-    // the Hobbs-edged wash. Tone variation now comes solely from the
-    // overlapping brush stamps in Pass 1 plus the layered mask.
+    // the Hobbs-edged wash.
 
-    // --- Pass 2.5: Atmospheric ink gradient (reads as "cloud layer").
-    // Soft over-layer using ink.gradient's quadratic-eased opacity stops.
-    // source-atop confines it to pixels Pass 1 already painted, so it
-    // never bleeds outside the wash region. Intentionally subtle — it
-    // sells atmosphere, not body.
-    if (ink.gradient.length >= 2) {
-      lctx.save();
-      lctx.globalCompositeOperation = "source-atop";
-      const grad = lctx.createLinearGradient(0, bounds.y, 0, h);
-      for (const stop of ink.gradient) {
-        grad.addColorStop(
-          stop.stop,
-          `rgba(${baseGray - 8},${baseGray - 8},${baseGray - 4},${stop.opacity})`,
-        );
-      }
-      lctx.fillStyle = grad;
-      lctx.fillRect(bounds.x, bounds.y, bounds.width, h - bounds.y);
-      lctx.restore();
-    }
+    // --- Pass 2.5: REMOVED.
+    // Previously a source-atop atmospheric gradient that darkened the
+    // body bottom. Conflicts with the new top-dark/bottom-light direction
+    // (would push the now-faded base back toward dark).
+    void baseGray; // keep symbol referenced (reserved for future use)
 
-    // --- Pass 2.7: Mountain body gradient (multiply).
-    // Treats the silhouette as a single shape with a top→bottom fill:
-    // white at the ridge (no darkening) → mid-dark at the base (strong
-    // pigment). Multiply over the wash so brush-stamp texture and the
-    // atmospheric layer above stay intact, only their tone is biased.
-    {
-      lctx.save();
-      lctx.globalCompositeOperation = "multiply";
-      const bodyGrad = lctx.createLinearGradient(0, bounds.y, 0, h);
-      // Top: pure white = identity under multiply
-      bodyGrad.addColorStop(0, "rgba(255,255,255,1)");
-      // Mid: subtle shoulder so the upper third stays lifted
-      bodyGrad.addColorStop(0.35, "rgba(220,222,228,1)");
-      // Bottom: depth-keyed mid-dark — heavier for near mountains
-      const baseShade = Math.floor(160 - depth * 70);
-      bodyGrad.addColorStop(1, `rgba(${baseShade},${baseShade},${baseShade + 4},1)`);
-      lctx.fillStyle = bodyGrad;
-      lctx.fillRect(bounds.x, bounds.y, bounds.width, h - bounds.y);
-      lctx.restore();
-    }
+    // --- Pass 2.7: REMOVED.
+    // Previously a multiply pass that darkened the body bottom; same
+    // direction conflict, and previously produced a visible color band
+    // at the abrupt 0→0.25 stop transition.
 
     // --- Pass 3: Hobbs watercolor edge mask (mirrors /ink-bleed demo).
     // The original ridge is densely sampled (~150–200 points, segments
