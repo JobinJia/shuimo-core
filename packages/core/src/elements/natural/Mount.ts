@@ -8,6 +8,7 @@ import { randChoice, normRand } from "../../utils/random";
 import { loopNoise } from "../../utils/math";
 import { div } from "../../drawing/div";
 import { Tree } from "./Tree";
+import { Arch } from "../objects/Arch";
 
 export interface MountainOptions {
   hei?: number;
@@ -354,10 +355,78 @@ export class Mount {
         },
         (_neighbors, _veglist, _i) => true,
       );
-    }
 
-    // Note: Architecture and rock decorations would require Arch class to be implemented
-    // Skipping those parts for now as they depend on Arch class
+      // BOTT ARCH
+      vegetate(
+        (x, y) => {
+          const tt = randChoice([0, 0, 1, 1, 1, 2]);
+          if (tt === 1) {
+            return Arch.arch02(x + xoff, y + yoff, seed, {
+              wid: normRand(40, 70),
+              sto: randChoice([1, 2, 2, 3]),
+              rot: prng.random(),
+              sty: randChoice([1, 2, 3]),
+            });
+          } else if (tt === 2) {
+            return Arch.arch04(x + xoff, y + yoff, seed, {
+              sto: randChoice([1, 1, 1, 2, 2]),
+            });
+          } else {
+            return "";
+          }
+        },
+        (i, j) => {
+          const ns = noise.noise(i * 0.2, j * 0.05, seed + 10);
+          return (
+            i !== 0 &&
+            (j === 1 || j === ptlist[i].length - 2) &&
+            ns * ns * ns * ns < 0.008
+          );
+        },
+        (_neighbors, _veglist, _i) => true,
+      );
+
+      // TOP ARCH
+      vegetate(
+        (x, y) =>
+          Arch.arch03(x + xoff, y + yoff, seed, {
+            sto: randChoice([5, 7]),
+            wid: 40 + prng.random() * 20,
+          }),
+        (i, j) =>
+          i === 1 &&
+          Math.abs(j - ptlist[i].length / 2) < 1 &&
+          prng.random() < 0.02,
+        (_neighbors, _veglist, _i) => true,
+      );
+
+      // TRANSM
+      vegetate(
+        (x, y) => Arch.transmissionTower01(x + xoff, y + yoff, seed),
+        (i, j) => {
+          const ns = noise.noise(i * 0.2, j * 0.05, seed + 20 * Math.PI);
+          return (
+            i % 2 === 0 &&
+            (j === 1 || j === ptlist[i].length - 2) &&
+            ns * ns * ns * ns < 0.002
+          );
+        },
+        (_neighbors, _veglist, _i) => true,
+      );
+
+      // BOTT ROCK
+      vegetate(
+        (x, y) =>
+          Mount.rock(x + xoff, y + yoff, seed, {
+            wid: 20 + prng.random() * 20,
+            hei: 20 + prng.random() * 20,
+            sha: 2,
+          }),
+        (i, j) =>
+          (j === 0 || j === ptlist[i].length - 1) && prng.random() < 0.1,
+        (_neighbors, _veglist, _i) => true,
+      );
+    }
 
     if (ret === 0) {
       return options.layers ? { base, overlay } : base + overlay;
