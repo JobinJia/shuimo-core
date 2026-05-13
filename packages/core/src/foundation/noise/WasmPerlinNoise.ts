@@ -4,8 +4,17 @@
  */
 
 import { prng } from "../random";
-import { initSync, shuimo_noise_init, shuimo_perlin2d, shuimo_perlin3d } from "../../../wasm/shuimo-noise/pkg/shuimo_noise";
+import {
+  initSync,
+  shuimo_noise_init,
+  shuimo_perlin2d,
+  shuimo_perlin3d,
+  shuimo_perlin_init_from_table,
+  shuimo_perlin_set_detail,
+} from "../../../wasm/shuimo-noise/pkg/shuimo_noise";
 import { WASM_NOISE_BASE64 } from "./wasm-noise-data";
+
+const PERLIN_TABLE_LEN = 4096; // matches Rust TABLE_LEN = PERLIN_SIZE + 1
 
 let wasmReady = false;
 
@@ -32,14 +41,19 @@ export class WasmPerlinNoise {
     ensureWasm();
   }
 
-  /** Lazy-init: matches JS PerlinNoise behavior — fills table from PRNG on first use */
+  /** Lazy-init: matches JS PerlinNoise.noise() lazy init — fills the perlin table by
+   *  4096 sequential prng.random() calls (not by an internal LCG seeded from one value).
+   *  Without this, WASM produces a systematically-biased table vs the JS path even at
+   *  identical seeds, which shows up as right-shoulder cliffs on every mountain peak. */
   private ensureInit(): void {
     if (this.wasmInitDone) return;
-    // Seed from PRNG state (matching JS lazy-init from prng.random())
-    const seed = Math.floor(prng.random() * 2147483647);
-    this.currentSeed = seed;
-    shuimo_noise_init(seed, seed + 1, this.perlinOctaves as number, this.perlinFalloff);
+    const table = new Float64Array(PERLIN_TABLE_LEN);
+    for (let i = 0; i < PERLIN_TABLE_LEN; i++) {
+      table[i] = prng.random();
+    }
+    shuimo_perlin_init_from_table(table, this.perlinOctaves, this.perlinFalloff);
     this.wasmInitDone = true;
+    this.currentSeed = 0; // unused on this path; kept for noiseSeed() back-compat
   }
 
   /** Matches JS PerlinNoise.noise(x, y, z) */
@@ -63,12 +77,13 @@ export class WasmPerlinNoise {
     this.wasmInitDone = true;
   }
 
-  /** Configure octaves and falloff */
+  /** Configure octaves and falloff — sampling-time knobs, table is NOT rebuilt
+   *  (rebuilding would lose the prng-derived lazy-init table values). */
   noiseDetail(lod: number, falloff: number): void {
     if (lod > 0) this.perlinOctaves = lod;
     if (falloff > 0) this.perlinFalloff = falloff;
     if (this.wasmInitDone) {
-      shuimo_noise_init(this.currentSeed, this.currentSeed + 1, this.perlinOctaves as number, this.perlinFalloff);
+      shuimo_perlin_set_detail(this.perlinOctaves, this.perlinFalloff);
     }
   }
 }

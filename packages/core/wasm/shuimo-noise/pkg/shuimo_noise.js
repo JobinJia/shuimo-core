@@ -101,6 +101,29 @@ export function shuimo_perlin3d_batch(xs, ys, zs, out) {
 }
 
 /**
+ * Initialize Perlin from an explicit table — matches shan-shui-inf's JS
+ * PerlinNoise lazy init (table filled by sequential prng.random() calls,
+ * not by an internal LCG from a single seed). Leaves Worley untouched.
+ * @param {Float64Array} table
+ * @param {number} octaves
+ * @param {number} falloff
+ */
+export function shuimo_perlin_init_from_table(table, octaves, falloff) {
+    const ptr0 = passArrayF64ToWasm0(table, wasm.__wbindgen_export);
+    const len0 = WASM_VECTOR_LEN;
+    wasm.shuimo_perlin_init_from_table(ptr0, len0, octaves, falloff);
+}
+
+/**
+ * Update Perlin octaves/falloff without rebuilding the table.
+ * @param {number} octaves
+ * @param {number} falloff
+ */
+export function shuimo_perlin_set_detail(octaves, falloff) {
+    wasm.shuimo_perlin_set_detail(octaves, falloff);
+}
+
+/**
  * Single Worley noise sample.
  * @param {number} x
  * @param {number} y

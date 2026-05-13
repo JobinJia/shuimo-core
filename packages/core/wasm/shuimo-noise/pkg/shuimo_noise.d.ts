@@ -37,6 +37,18 @@ export function shuimo_perlin3d(x: number, y: number, z: number): number;
 export function shuimo_perlin3d_batch(xs: Float64Array, ys: Float64Array, zs: Float64Array, out: Float64Array): void;
 
 /**
+ * Initialize Perlin from an explicit table — matches shan-shui-inf's JS
+ * PerlinNoise lazy init (table filled by sequential prng.random() calls,
+ * not by an internal LCG from a single seed). Leaves Worley untouched.
+ */
+export function shuimo_perlin_init_from_table(table: Float64Array, octaves: number, falloff: number): void;
+
+/**
+ * Update Perlin octaves/falloff without rebuilding the table.
+ */
+export function shuimo_perlin_set_detail(octaves: number, falloff: number): void;
+
+/**
  * Single Worley noise sample.
  */
 export function shuimo_worley2d(x: number, y: number): number;
@@ -70,6 +82,8 @@ export interface InitOutput {
     readonly shuimo_perlin2d_batch: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly shuimo_perlin3d: (a: number, b: number, c: number) => number;
     readonly shuimo_perlin3d_batch: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
+    readonly shuimo_perlin_init_from_table: (a: number, b: number, c: number, d: number) => void;
+    readonly shuimo_perlin_set_detail: (a: number, b: number) => void;
     readonly shuimo_worley2d: (a: number, b: number) => number;
     readonly shuimo_worley_edge2d: (a: number, b: number) => number;
     readonly shuimo_worley_fbm2d: (a: number, b: number, c: number, d: number, e: number) => number;

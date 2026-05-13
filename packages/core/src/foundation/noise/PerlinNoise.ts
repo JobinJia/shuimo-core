@@ -170,7 +170,9 @@ export class PerlinNoise {
   }
 }
 
-// Global instance — WASM-backed (sync init from embedded base64).
-// For JS-only fallback, use `new PerlinNoise()` directly.
+// Global instance — WASM-backed, now matching shan-shui-inf's JS PerlinNoise byte-for-byte.
+// Lazy init fills the perlin table by 4096 sequential prng.random() calls (via the
+// new `shuimo_perlin_init_from_table` export), not by an internal LCG-from-seed —
+// that was the source of the systematic right-shoulder-cliff silhouettes.
 import { WasmPerlinNoise } from "./WasmPerlinNoise";
 export const noise = new WasmPerlinNoise() as unknown as PerlinNoise;

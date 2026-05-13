@@ -25,6 +25,26 @@ pub fn shuimo_noise_init(perlin_seed: i32, worley_seed: i32, octaves: u32, fallo
     });
 }
 
+/// Initialize Perlin from an explicit table — matches shan-shui-inf's JS
+/// PerlinNoise lazy init (table filled by sequential prng.random() calls,
+/// not by an internal LCG from a single seed). Leaves Worley untouched.
+#[wasm_bindgen]
+pub fn shuimo_perlin_init_from_table(table: &[f64], octaves: u32, falloff: f64) {
+    PERLIN.with(|p| {
+        *p.borrow_mut() = Some(PerlinNoise::new_from_table(table, octaves, falloff));
+    });
+}
+
+/// Update Perlin octaves/falloff without rebuilding the table.
+#[wasm_bindgen]
+pub fn shuimo_perlin_set_detail(octaves: u32, falloff: f64) {
+    PERLIN.with(|p| {
+        if let Some(perlin) = p.borrow_mut().as_mut() {
+            perlin.set_detail(octaves, falloff);
+        }
+    });
+}
+
 /// Single 2D Perlin noise sample.
 #[wasm_bindgen]
 pub fn shuimo_perlin2d(x: f64, y: f64) -> f64 {

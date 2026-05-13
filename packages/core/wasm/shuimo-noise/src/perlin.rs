@@ -54,19 +54,46 @@ impl PerlinNoise {
         Self { table, octaves, amp_falloff: falloff }
     }
 
+    /// Build from a pre-filled table (matches shan-shui-inf's JS PerlinNoise lazy-init,
+    /// where the table is filled by 4096 sequential Math.random() / prng.random() calls
+    /// rather than by an internal LCG seeded from a single value).
+    pub fn new_from_table(values: &[f64], octaves: u32, falloff: f64) -> Self {
+        ensure_cos_lut();
+        let mut table = Box::new([0.0f64; TABLE_LEN]);
+        let n = values.len().min(TABLE_LEN);
+        for i in 0..n {
+            table[i] = values[i];
+        }
+        Self { table, octaves, amp_falloff: falloff }
+    }
+
+    /// Update octaves/falloff in place — these are sampling-time knobs, not table state,
+    /// so noiseDetail() must NOT rebuild the table (doing so loses lazy-init values).
+    pub fn set_detail(&mut self, octaves: u32, falloff: f64) {
+        self.octaves = octaves;
+        self.amp_falloff = falloff;
+    }
+
     #[inline]
     pub fn noise2d(&self, x: f64, y: f64) -> f64 {
         let x = x.abs();
         let y = y.abs();
-        let mut xi = x as i32;
-        let mut yi = y as i32;
+        // xi/yi kept as i64 so floor of f64 ≈ Date.now() (~1.77e12, beyond i32::MAX)
+        // does not saturate. JS uses doubles (safe up to 2^53) for the floor,
+        // and only the bitwise shift in `of` performs the ToInt32 truncation.
+        let mut xi: i64 = x as i64;
+        let mut yi: i64 = y as i64;
         let mut xf = x - xi as f64;
         let mut yf = y - yi as f64;
         let mut r = 0.0f64;
         let mut ampl = 0.5f64;
 
         for _ in 0..self.octaves {
-            let of_val = xi.wrapping_add(yi.wrapping_shl(PERLIN_YWRAPB as u32));
+            // Cast to i32 truncates the low 32 bits of an i64 (== JS ToInt32 for
+            // non-negative values), matching `yi << PERLIN_YWRAPB` semantics in JS.
+            let xi32 = xi as i32;
+            let yi32 = yi as i32;
+            let of_val = xi32.wrapping_add(yi32.wrapping_shl(PERLIN_YWRAPB as u32));
             let rxf = fast_scaled_cosine(xf);
             let ryf = fast_scaled_cosine(yf);
 
@@ -101,12 +128,15 @@ impl PerlinNoise {
         let x = x.abs();
         let y = y.abs();
         let z = z.abs();
-        let PERLIN_ZWRAPB: i32 = 8;
-        let PERLIN_ZWRAP: i32 = 1 << PERLIN_ZWRAPB;
+        const PERLIN_ZWRAPB_LOCAL: u32 = 8;
+        const PERLIN_ZWRAP_LOCAL: i32 = 1 << PERLIN_ZWRAPB_LOCAL;
 
-        let mut xi = x as i32;
-        let mut yi = y as i32;
-        let mut zi = z as i32;
+        // i64 for the same reason as noise2d — z is commonly a large seed like
+        // Date.now() (~1.77e12), well past i32::MAX, and saturating `as i32`
+        // makes every sample collapse to a single grid cell.
+        let mut xi: i64 = x as i64;
+        let mut yi: i64 = y as i64;
+        let mut zi: i64 = z as i64;
         let mut xf = x - xi as f64;
         let mut yf = y - yi as f64;
         let mut zf = z - zi as f64;
@@ -114,23 +144,27 @@ impl PerlinNoise {
         let mut ampl = 0.5f64;
 
         for _ in 0..self.octaves {
-            let of =
-                xi + (yi << PERLIN_YWRAPB) + (zi << PERLIN_ZWRAPB);
+            let xi32 = xi as i32;
+            let yi32 = yi as i32;
+            let zi32 = zi as i32;
+            let of = xi32
+                .wrapping_add(yi32.wrapping_shl(PERLIN_YWRAPB as u32))
+                .wrapping_add(zi32.wrapping_shl(PERLIN_ZWRAPB_LOCAL));
             let rxf = fast_scaled_cosine(xf);
             let ryf = fast_scaled_cosine(yf);
             let rzf = fast_scaled_cosine(zf);
 
             let mut n1 = self.table[(of as usize) & PERLIN_SIZE];
-            n1 += rxf * (self.table[(of as usize + 1) & PERLIN_SIZE] - n1);
-            let mut n2 = self.table[(of as usize + PERLIN_YWRAP as usize) & PERLIN_SIZE];
-            n2 += rxf * (self.table[(of as usize + PERLIN_YWRAP as usize + 1) & PERLIN_SIZE] - n2);
+            n1 += rxf * (self.table[(of as usize).wrapping_add(1) & PERLIN_SIZE] - n1);
+            let mut n2 = self.table[(of as usize).wrapping_add(PERLIN_YWRAP as usize) & PERLIN_SIZE];
+            n2 += rxf * (self.table[(of as usize).wrapping_add(PERLIN_YWRAP as usize).wrapping_add(1) & PERLIN_SIZE] - n2);
             n1 += ryf * (n2 - n1);
 
-            let of2 = of + PERLIN_ZWRAP;
+            let of2 = of.wrapping_add(PERLIN_ZWRAP_LOCAL);
             let mut n2b = self.table[(of2 as usize) & PERLIN_SIZE];
-            n2b += rxf * (self.table[(of2 as usize + 1) & PERLIN_SIZE] - n2b);
-            let mut n3 = self.table[(of2 as usize + PERLIN_YWRAP as usize) & PERLIN_SIZE];
-            n3 += rxf * (self.table[(of2 as usize + PERLIN_YWRAP as usize + 1) & PERLIN_SIZE] - n3);
+            n2b += rxf * (self.table[(of2 as usize).wrapping_add(1) & PERLIN_SIZE] - n2b);
+            let mut n3 = self.table[(of2 as usize).wrapping_add(PERLIN_YWRAP as usize) & PERLIN_SIZE];
+            n3 += rxf * (self.table[(of2 as usize).wrapping_add(PERLIN_YWRAP as usize).wrapping_add(1) & PERLIN_SIZE] - n3);
             n2b += ryf * (n3 - n2b);
 
             n1 += rzf * (n2b - n1);
@@ -140,6 +174,10 @@ impl PerlinNoise {
             xi <<= 1; xf *= 2.0;
             yi <<= 1; yf *= 2.0;
             zi <<= 1; zf *= 2.0;
+
+            if xf >= 1.0 { xi += 1; xf -= 1.0; }
+            if yf >= 1.0 { yi += 1; yf -= 1.0; }
+            if zf >= 1.0 { zi += 1; zf -= 1.0; }
         }
         r
     }
