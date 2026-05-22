@@ -135,8 +135,9 @@ pub fn stamp_square_path(
     size: f64, border_points: u32, corner_radius: f64,
     noise_amount: f64, seed: u32, regular: bool,
     noise_octaves: u32, noise_falloff: f64,
+    noise_density: f64,
 ) -> String {
-    stamp::stamp_square_path(size, border_points, corner_radius, noise_amount, seed, regular, noise_octaves, noise_falloff)
+    stamp::stamp_square_path(size, border_points, corner_radius, noise_amount, seed, regular, noise_octaves, noise_falloff, noise_density)
 }
 
 #[wasm_bindgen]
@@ -144,8 +145,9 @@ pub fn stamp_rect_path(
     w: f64, h: f64, border_points: u32, corner_radius: f64,
     noise_amount: f64, seed: u32, regular: bool,
     noise_octaves: u32, noise_falloff: f64,
+    noise_density: f64,
 ) -> String {
-    stamp::stamp_rect_path(w, h, border_points, corner_radius, noise_amount, seed, regular, noise_octaves, noise_falloff)
+    stamp::stamp_rect_path(w, h, border_points, corner_radius, noise_amount, seed, regular, noise_octaves, noise_falloff, noise_density)
 }
 
 #[wasm_bindgen]
@@ -153,8 +155,9 @@ pub fn stamp_circle_path(
     radius: f64, border_points: u32,
     noise_amount: f64, seed: u32, regular: bool,
     noise_octaves: u32, noise_falloff: f64,
+    noise_density: f64,
 ) -> String {
-    stamp::stamp_circle_path(radius, border_points, noise_amount, seed, regular, noise_octaves, noise_falloff)
+    stamp::stamp_circle_path(radius, border_points, noise_amount, seed, regular, noise_octaves, noise_falloff, noise_density)
 }
 
 #[wasm_bindgen]
@@ -162,6 +165,7 @@ pub fn stamp_ellipse_path(
     w: f64, h: f64, border_points: u32,
     noise_amount: f64, seed: u32, regular: bool,
     noise_octaves: u32, noise_falloff: f64,
+    noise_density: f64,
 ) -> String {
-    stamp::stamp_ellipse_path(w, h, border_points, noise_amount, seed, regular, noise_octaves, noise_falloff)
+    stamp::stamp_ellipse_path(w, h, border_points, noise_amount, seed, regular, noise_octaves, noise_falloff, noise_density)
 }

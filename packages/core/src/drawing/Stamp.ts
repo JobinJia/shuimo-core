@@ -17,6 +17,7 @@ import {
   type NormalizedCommand,
 } from "./internal/glyphPath";
 import { loadGlyphFontViaWorker } from "./internal/glyphFontClient";
+import { subsetFontBuffer } from "./internal/fontSubset";
 
 // ─── Reference constants ────────────────────────────────────────────
 // All distance defaults are expressed as ratios of fontSize.
@@ -132,6 +133,21 @@ export interface StampOptions {
   /** 字体二进制数据。提供后可直接用于字形路径渲染。 */
   fontData?: ArrayBuffer;
 
+  /**
+   * 兜底字体 URL（必须是 TTF/OTF，不支持 woff2）。当 `fontUrl` 加载的字体里有 text
+   * 用到但缺失的字（典型场景：primary 是按代码用字打的子集，用户输入新字），
+   * 库会一次性把 fallback 拉下来，用 harfbuzz-subset wasm 切出仅本次用到的字，
+   * 喂给现有的 fontkit / worker 流程。下载和裁剪结果都进进程内缓存。
+   */
+  fontFallbackUrl?: string;
+
+  /**
+   * harfbuzz-subset.wasm 的 URL。当用到 `fontFallbackUrl` 时需要。也可以通过
+   * `configureFontSubsetWasm()` 全局配置一次。wasm 文件随 `harfbuzzjs` npm 包
+   * 一起发，位于 `harfbuzzjs/dist/harfbuzz-subset.wasm`。
+   */
+  harfbuzzSubsetWasmUrl?: string;
+
   /** Font size in pixels (default: 70) */
   fontSize?: number;
 
@@ -191,6 +207,14 @@ export interface StampOptions {
 
   /** Amount of irregularity as a multiplier of fontSize (default: 12/70 ≈ 0.171) */
   noiseAmount?: number;
+
+  /**
+   * 边缘缺口的密度。1.0 = 默认（Perlin 波长 ~67 路径单位）。> 1 缺口更密、更多，
+   * < 1 更稀、更平滑。与 noiseAmount 解耦——noiseAmount 控每个缺口多深，
+   * noiseDensity 控一边上有几个缺口。高密度（> 2）建议同步提高 borderPoints
+   * 以免采样不足产生锯齿伪影。
+   */
+  noiseDensity?: number;
 
   /** Number of border path points as a multiplier of fontSize (default: 24/70 ≈ 0.343) */
   borderPoints?: number;
@@ -258,6 +282,13 @@ interface StampResult {
 
 const PI = Math.PI;
 const FONT_CACHE = new Map<string, Promise<GlyphFont | null>>();
+// Caches for the fallback-subset pathway. The raw cache keeps the full font's
+// ArrayBuffer alive once fetched (1-3 MB) so subsequent subset calls for new
+// char sets reuse it without re-downloading. The subset cache stores the
+// parsed GlyphFont keyed by (fallback URL, sorted-chars) so two stamps with
+// the same text don't re-subset.
+const RAW_FONT_BUFFER_CACHE = new Map<string, Promise<ArrayBuffer>>();
+const FALLBACK_FONT_CACHE = new Map<string, Promise<GlyphFont | null>>();
 
 interface CornerRadii {
   topLeft: number;
@@ -807,7 +838,14 @@ function measureVerticalGlyphColumn(
   const bbox = getBoundingBox(combinedCommands);
   const inkWidth = Math.max(0, bbox.x2 - bbox.x1);
   const width = Math.max(maxAdvanceWidth, inkWidth);
-  const height = Math.max(0, bbox.y2 - bbox.y1);
+  // Use em-square cell stacking for the column height so the stamp border is
+  // sized against the design grid, not the ink bbox. CJK glyphs are nominally
+  // square; ink height varies (e.g. seal-script "一" is a thin horizontal stroke)
+  // and falls to 0 when the font subset doesn't contain the codepoint
+  // (fontkit returns .notdef with 0 path commands). Either case used to collapse
+  // the auto/rectangle border into a horizontal sliver. Matches the em-square
+  // layout used by calculateStampTextMetrics.
+  const height = chars.length * fontSize + Math.max(0, chars.length - 1) * characterSpacingPx;
   // Center the glyph ink within the advance width so left/right margins are equal
   const centeringShift = (width - inkWidth) / 2;
 
@@ -965,6 +1003,99 @@ async function loadGlyphFont(options: StampOptions): Promise<GlyphFont | null> {
   return fontPromise;
 }
 
+function findMissingChars(font: GlyphFont, text: string[] | undefined): string[] {
+  if (!text || text.length === 0) return [];
+  const missing: string[] = [];
+  const seen = new Set<string>();
+  for (const line of text) {
+    for (const ch of Array.from(line)) {
+      if (seen.has(ch)) continue;
+      seen.add(ch);
+      // fontSize=1 is fine — we only check whether any commands come back,
+      // not their dimensions.
+      const commands = font.getPath(ch, 0, 0, 1);
+      if (commands.length === 0) missing.push(ch);
+    }
+  }
+  return missing;
+}
+
+function loadRawFontBuffer(url: string): Promise<ArrayBuffer> {
+  let cached = RAW_FONT_BUFFER_CACHE.get(url);
+  if (cached) return cached;
+  cached = (async () => {
+    if (typeof fetch === "undefined") {
+      throw new Error(`stamp fallback: fetch is unavailable, cannot load ${url}`);
+    }
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`stamp fallback: failed to fetch ${url} (status ${response.status})`);
+    }
+    return response.arrayBuffer();
+  })();
+  // Drop the cached entry on failure so retries don't lock on a rejected promise.
+  cached.catch(() => RAW_FONT_BUFFER_CACHE.delete(url));
+  RAW_FONT_BUFFER_CACHE.set(url, cached);
+  return cached;
+}
+
+async function loadFallbackSubsetFont(options: StampOptions): Promise<GlyphFont | null> {
+  if (!options.fontFallbackUrl) return null;
+  const chars = collectStampChars(options.text);
+  if (chars.length === 0) return null;
+
+  const subsetKey = `${options.fontFallbackUrl}::${[...chars].sort().join("")}`;
+  const cached = FALLBACK_FONT_CACHE.get(subsetKey);
+  if (cached) return cached;
+
+  const promise = (async (): Promise<GlyphFont | null> => {
+    try {
+      const fullBuffer = await loadRawFontBuffer(options.fontFallbackUrl!);
+      const miniBuffer = await subsetFontBuffer(fullBuffer, chars, {
+        wasmUrl: options.harfbuzzSubsetWasmUrl,
+      });
+      if (options.fontWorker) {
+        return loadGlyphFontViaWorker(options.fontWorker, {
+          fontData: miniBuffer,
+          chars,
+        });
+      }
+      return loadFont(miniBuffer);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `stamp: fallback font load failed for ${options.fontFallbackUrl}:`,
+        err instanceof Error ? err.message : err,
+      );
+      return null;
+    }
+  })();
+
+  FALLBACK_FONT_CACHE.set(subsetKey, promise);
+  return promise;
+}
+
+async function loadEffectiveFont(options: StampOptions): Promise<GlyphFont | null> {
+  const primary = await loadGlyphFont(options);
+  if (!primary) return primary;
+  if (!options.fontFallbackUrl) return primary;
+
+  const missing = findMissingChars(primary, options.text);
+  if (missing.length === 0) return primary;
+
+  const fallback = await loadFallbackSubsetFont(options);
+  if (!fallback) return primary;
+
+  const stillMissing = findMissingChars(fallback, options.text);
+  if (stillMissing.length > 0) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `stamp: chars [${stillMissing.join(", ")}] missing from both primary and fallback fonts`,
+    );
+  }
+  return fallback;
+}
+
 function replaceTextElementsWithGlyphPaths(
   svg: string,
   options: StampOptions,
@@ -1077,8 +1208,9 @@ function generateSquarePath(
   regularShape: boolean,
   noiseAmount: number,
   seed: number,
+  noiseDensity: number,
 ): string {
-  return wasmSquarePath(size, borderPoints, cornerRadius, noiseAmount, seed, regularShape);
+  return wasmSquarePath(size, borderPoints, cornerRadius, noiseAmount, seed, regularShape, noiseDensity);
 }
 
 /**
@@ -1094,8 +1226,9 @@ function generateRectanglePath(
   regularShape: boolean,
   noiseAmount: number,
   seed: number,
+  noiseDensity: number,
 ): string {
-  return wasmRectPath(width, height, borderPoints, cornerRadius, noiseAmount, seed, regularShape);
+  return wasmRectPath(width, height, borderPoints, cornerRadius, noiseAmount, seed, regularShape, noiseDensity);
 }
 
 /**
@@ -1108,8 +1241,9 @@ function generateCirclePath(
   regularShape: boolean,
   noiseAmount: number,
   seed: number,
+  noiseDensity: number,
 ): string {
-  return wasmCirclePath(radius, borderPoints, noiseAmount, seed, regularShape);
+  return wasmCirclePath(radius, borderPoints, noiseAmount, seed, regularShape, noiseDensity);
 }
 
 /**
@@ -1274,6 +1408,7 @@ export function generateStampPath(options: StampOptions): StampResult {
     borderScaleX,
     borderScaleY,
     noiseAmount = DEFAULT_NOISE_AMOUNT,
+    noiseDensity = 1.0,
     borderPoints = DEFAULT_BORDER_POINTS,
     cornerRadius = DEFAULT_CORNER_RADIUS,
     noiseAmountPx,
@@ -1390,14 +1525,16 @@ export function generateStampPath(options: StampOptions): StampResult {
   // Initialize improved Perlin Noise with seed
   const noise = createStampNoise(seed);
 
-  // Helper function to apply improved Perlin noise.
-  // When an inward normal is provided, noise is projected onto that direction
-  // and only the inward component is kept — no protrusions (凸起), no tangential drift.
+  // borderPoints scales the Perlin frequency so more path vertices resolve
+  // into more visible bumps rather than just tracing the same smooth curve.
+  const referencePPE = fontSize * DEFAULT_BORDER_POINTS / 4;
+  const bpFactor = Math.max(1, Math.floor(actualBorderPoints / 4) / referencePPE);
+  const effectiveDensity = noiseDensity * bpFactor;
+
   const applyNoise: NoiseFn = (x, y, edgeProgress, inwardNX, inwardNY) => {
-    // edgeProgress: 0 at corner, 1 at middle of edge
     const cornerFactor = edgeProgress;
 
-    const noiseScale = 0.015;
+    const noiseScale = 0.015 * effectiveDensity;
     const noiseX = noise.noise3D(x * noiseScale, y * noiseScale, 0);
     const noiseY = noise.noise3D(x * noiseScale, y * noiseScale, 100);
 
@@ -1441,6 +1578,7 @@ export function generateStampPath(options: StampOptions): StampResult {
       regularShape,
       actualNoiseAmount,
       seed,
+      effectiveDensity,
     );
     bounds = {
       left: 0,
@@ -1467,6 +1605,7 @@ export function generateStampPath(options: StampOptions): StampResult {
       regularShape,
       actualNoiseAmount,
       seed,
+      effectiveDensity,
     );
     bounds = {
       left: 0,
@@ -1490,7 +1629,7 @@ export function generateStampPath(options: StampOptions): StampResult {
     const diameter = baseDiameter * avgScale;
     const radius = diameter / 2;
 
-    path = generateCirclePath(radius, actualBorderPoints, applyNoise, regularShape, actualNoiseAmount, seed);
+    path = generateCirclePath(radius, actualBorderPoints, applyNoise, regularShape, actualNoiseAmount, seed, effectiveDensity);
     bounds = {
       left: 0,
       right: diameter,
@@ -1640,6 +1779,7 @@ export function generateStamp(options: StampOptions): string {
     columnWidthPx,
     borderWidth = DEFAULT_BORDER_WIDTH,
     textCarving = "normal",
+    noiseDensity = 1.0,
     seed = Date.now(),
   } = options;
 
@@ -1650,14 +1790,25 @@ export function generateStamp(options: StampOptions): string {
   const actualCharacterSpacing =
     characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
 
+  // noiseAmount=0 is the "regular shape" switch for the SVG filter chain.
+  // Even when the path itself has zero edge noise, the ink/border filters were
+  // still bashing the silhouette with feDisplacementMap (~10-14 px) and
+  // punching paper-fiber holes via the contrast mask. When the user dials
+  // noise to 0 they want a pristine shape, so drop the filters entirely.
+  const actualNoiseAmountForFilter =
+    options.noiseAmountPx ?? fontSize * (options.noiseAmount ?? DEFAULT_NOISE_AMOUNT);
+  const wantInkFilter = actualNoiseAmountForFilter > 0;
+  const inkFilterAttr = wantInkFilter ? ' filter="url(#stamp-ink-texture)"' : "";
+  const borderFilterAttr = wantInkFilter ? ' filter="url(#stamp-border-texture)"' : "";
+
   // SVG filter scaling — see carvingScales() for the per-dimension model.
   const k = carvingScales(fontSize);
 
-  // Body/border displacement is intentionally kept on the linear `length` ramp
-  // (not `amplitude`) to preserve the established hand-cut stamp silhouette;
-  // wobble there reads as edge wear, not as text burrs.
-  const inkDisplacement = 10 * k.length;
-  const borderDisplacement = 8 * k.length;
+  // Filter displacement: proportional to noiseAmount (so low depth stays subtle)
+  // but capped at the original reference level (10/8 × k.length) so it never
+  // overpowers path geometry at high depth or large fontSize.
+  const inkDisplacement = Math.min(actualNoiseAmountForFilter * 1.2, 10 * k.length);
+  const borderDisplacement = Math.min(actualNoiseAmountForFilter, 8 * k.length);
   const carvingProfile =
     textCarving === "stone-cut"
       ? {
@@ -1820,15 +1971,15 @@ export function generateStamp(options: StampOptions): string {
   const stampContent =
     type === "yin"
       ? `  <!-- Stamp background (阴章) -->
-  <path d="${path}" fill="${stampBgColor}" filter="url(#stamp-ink-texture)" />
+  <path d="${path}" fill="${stampBgColor}"${inkFilterAttr} />
 
   <!-- Text -->
   ${textElements}`
       : `  <!-- Yang stamp background (阳章 - white background) -->
-  <path d="${path}" fill="${stampBgColor}" filter="url(#stamp-ink-texture)" />
+  <path d="${path}" fill="${stampBgColor}"${inkFilterAttr} />
 
   <!-- Yang stamp border (阳章 - red border with custom width) -->
-  <path d="${path}" fill="none" stroke="${stampColor}" stroke-width="${fmtNum(actualBorderWidth)}" filter="url(#stamp-border-texture)" />
+  <path d="${path}" fill="none" stroke="${stampColor}" stroke-width="${fmtNum(actualBorderWidth)}"${borderFilterAttr} />
 
   <!-- Text -->
   ${textElements}`;
@@ -1838,7 +1989,7 @@ export function generateStamp(options: StampOptions): string {
     <!-- Realistic ink stamp texture - simulates paper fiber absorption and ink splatter -->
     <filter id="stamp-ink-texture" x="-20%" y="-20%" width="140%" height="140%">
       <!-- Step 1: Edge displacement for irregular border, then clip to original boundary (凹陷 only, no 凸起) -->
-      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.04 * k.frequency)}" numOctaves="4" seed="${seed + 123}" result="borderNoise"/>
+      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.04 * k.frequency * noiseDensity)}" numOctaves="4" seed="${seed + 123}" result="borderNoise"/>
       <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmtNum(inkDisplacement)}" xChannelSelector="R" yChannelSelector="G" result="rawDisplaced"/>
       <feComposite in="rawDisplaced" in2="SourceGraphic" operator="in" result="displacedShape"/>
 
@@ -1866,11 +2017,8 @@ export function generateStamp(options: StampOptions): string {
       <!-- Step 7: Apply texture mask to displaced shape -->
       <feComposite in="displacedShape" in2="contrastMask" operator="in" result="texturedShape"/>
 
-      <!-- Step 8: Slight blur for natural ink spread -->
-      <feGaussianBlur in="texturedShape" stdDeviation="${fmtNum(0.5 * k.length)}" result="blurredInk"/>
-
-      <!-- Step 9: Final opacity adjustment -->
-      <feColorMatrix in="blurredInk" type="matrix"
+      <!-- Step 8: Final opacity adjustment -->
+      <feColorMatrix in="texturedShape" type="matrix"
         values="1 0 0 0 0
                 0 1 0 0 0
                 0 0 1 0 0
@@ -1880,11 +2028,8 @@ export function generateStamp(options: StampOptions): string {
     <!-- Border texture for yang stamp - similar to ink texture but for stroke -->
     <filter id="stamp-border-texture" x="-20%" y="-20%" width="140%" height="140%">
       <!-- Edge displacement -->
-      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.04 * k.frequency)}" numOctaves="3" seed="${seed + 123}" result="borderNoise"/>
+      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.04 * k.frequency * noiseDensity)}" numOctaves="3" seed="${seed + 123}" result="borderNoise"/>
       <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmtNum(borderDisplacement)}" xChannelSelector="R" yChannelSelector="G" result="displacedBorder"/>
-
-      <!-- Slight blur for natural ink spread -->
-      <feGaussianBlur in="displacedBorder" stdDeviation="${fmtNum(0.3 * k.length)}" result="blurredBorder"/>
     </filter>
 
     <!-- Text engraving texture - keep glyph cores readable while roughening carved edges -->
@@ -1963,7 +2108,7 @@ export async function generateStampAsync(options: StampOptions): Promise<string>
 
   let resolvedMeasured = measured;
   if (!resolvedMeasured) {
-    font = await loadGlyphFont(options);
+    font = await loadEffectiveFont(options);
     if (font) {
       resolvedMeasured = measureStampTextWithGlyphFont(options, font);
       usesGlyphMetrics = !!resolvedMeasured;
@@ -1987,7 +2132,7 @@ export async function generateStampAsync(options: StampOptions): Promise<string>
 
   if (!usesGlyphMetrics && options.textCarving !== "stone-cut") return svg;
 
-  if (!font) font = await loadGlyphFont(options);
+  if (!font) font = await loadEffectiveFont(options);
   if (!font) return svg;
 
   return replaceTextElementsWithGlyphPaths(svg, resolvedOptions, resolvedMeasured, font);
@@ -2016,6 +2161,7 @@ export class Stamp {
       | "paddingY"
       | "borderScale"
       | "noiseAmount"
+      | "noiseDensity"
       | "borderPoints"
       | "cornerRadius"
       | "borderWidth"
@@ -2029,6 +2175,8 @@ export class Stamp {
       StampOptions,
       | "fontUrl"
       | "fontData"
+      | "fontFallbackUrl"
+      | "harfbuzzSubsetWasmUrl"
       | "fontWorker"
       | "columnSpacingPx"
       | "characterSpacingPx"
@@ -2057,6 +2205,8 @@ export class Stamp {
       fontFamily: options.fontFamily || "serif",
       fontUrl: options.fontUrl,
       fontData: options.fontData,
+      fontFallbackUrl: options.fontFallbackUrl,
+      harfbuzzSubsetWasmUrl: options.harfbuzzSubsetWasmUrl,
       fontWorker: options.fontWorker,
       fontSize: options.fontSize || 70,
       fontWeight: options.fontWeight || "normal",
@@ -2078,6 +2228,7 @@ export class Stamp {
       borderScaleX: options.borderScaleX,
       borderScaleY: options.borderScaleY,
       noiseAmount: options.noiseAmount ?? DEFAULT_NOISE_AMOUNT,
+      noiseDensity: options.noiseDensity ?? 1.0,
       borderPoints: options.borderPoints ?? DEFAULT_BORDER_POINTS,
       cornerRadius: options.cornerRadius ?? DEFAULT_CORNER_RADIUS,
       borderWidth: options.borderWidth ?? DEFAULT_BORDER_WIDTH,

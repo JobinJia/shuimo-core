@@ -2,14 +2,26 @@
 import { computed, onMounted, ref, watch } from "vue";
 import {
   generateStampAsync,
+  configureFontSubsetWasm,
   type StampOptions,
   type StampType,
   type StampShape,
   type StampTextCarving,
 } from "@jobinjia/shuimo-core";
+import harfbuzzSubsetWasmUrl from "@jobinjia/shuimo-core/wasm/harfbuzz-subset.wasm?url";
+
+// Tell shuimo-core where to load harfbuzz-subset.wasm from when a fallback
+// font kicks in. Idempotent — registers a process-wide source for the wasm.
+configureFontSubsetWasm(harfbuzzSubsetWasmUrl);
 
 const FONT_URLS: Record<string, string | undefined> = {
   峄山碑篆体: "/fonts/yishanbeizhuanti.demo.woff2",
+};
+
+// Full TTF for chars missing from the demo subset. Fallback URLs must be
+// TTF/OTF — harfbuzz-subset.wasm does not handle woff2 (no brotli decoder).
+const FONT_FALLBACK_URLS: Record<string, string | undefined> = {
+  峄山碑篆体: "/fonts/yishanbeizhuanti.ttf",
 };
 
 // Text configuration
@@ -27,6 +39,7 @@ interface StampTuningProfile {
   borderScaleX: number;
   borderScaleY: number;
   noiseAmountPx: number;
+  noiseDensity: number;
   borderPointsPx: number;
   cornerRadiusPx: number;
   borderWidthPx: number;
@@ -44,6 +57,7 @@ const shapeProfiles: Record<Exclude<StampShape, "auto"> | "auto", StampTuningPro
     borderScaleX: 1.0,
     borderScaleY: 1.01,
     noiseAmountPx: 11,
+    noiseDensity: 1.0,
     borderPointsPx: 28,
     cornerRadiusPx: 10,
     borderWidthPx: 6,
@@ -59,6 +73,7 @@ const shapeProfiles: Record<Exclude<StampShape, "auto"> | "auto", StampTuningPro
     borderScaleX: 1.0,
     borderScaleY: 1.0,
     noiseAmountPx: 8,
+    noiseDensity: 1.0,
     borderPointsPx: 24,
     cornerRadiusPx: 10,
     borderWidthPx: 4,
@@ -74,6 +89,7 @@ const shapeProfiles: Record<Exclude<StampShape, "auto"> | "auto", StampTuningPro
     borderScaleX: 1.0,
     borderScaleY: 1.0,
     noiseAmountPx: 9,
+    noiseDensity: 1.0,
     borderPointsPx: 24,
     cornerRadiusPx: 10,
     borderWidthPx: 4,
@@ -89,6 +105,7 @@ const shapeProfiles: Record<Exclude<StampShape, "auto"> | "auto", StampTuningPro
     borderScaleX: 1.0,
     borderScaleY: 1.0,
     noiseAmountPx: 9,
+    noiseDensity: 1.0,
     borderPointsPx: 32,
     cornerRadiusPx: 10,
     borderWidthPx: 4,
@@ -104,6 +121,7 @@ const shapeProfiles: Record<Exclude<StampShape, "auto"> | "auto", StampTuningPro
     borderScaleX: 1.0,
     borderScaleY: 1.015,
     noiseAmountPx: 10,
+    noiseDensity: 1.0,
     borderPointsPx: 32,
     cornerRadiusPx: 10,
     borderWidthPx: 4,
@@ -129,6 +147,7 @@ const paddingY = ref(0.04);
 const borderScaleX = ref(1.0);
 const borderScaleY = ref(1.015);
 const noiseAmount = ref(10);
+const noiseDensity = ref(1.0);
 const borderPoints = ref(28);
 const cornerRadius = ref(10);
 const borderWidth = ref(6);
@@ -178,6 +197,7 @@ function applyTuningProfile(profile: StampTuningProfile) {
   borderScaleX.value = profile.borderScaleX;
   borderScaleY.value = profile.borderScaleY;
   noiseAmount.value = profile.noiseAmountPx;
+  noiseDensity.value = profile.noiseDensity;
   borderPoints.value = profile.borderPointsPx;
   cornerRadius.value = profile.cornerRadiusPx;
   borderWidth.value = profile.borderWidthPx;
@@ -206,6 +226,7 @@ watch(
     borderScaleX,
     borderScaleY,
     noiseAmount,
+    noiseDensity,
     borderPoints,
     cornerRadius,
     borderWidth,
@@ -242,6 +263,7 @@ const stampOptions = computed<StampOptions>(() => ({
   borderScaleX: borderScaleX.value,
   borderScaleY: borderScaleY.value,
   noiseAmountPx: noiseAmount.value,
+  noiseDensity: noiseDensity.value,
   borderPointsPx: borderPoints.value,
   cornerRadiusPx: cornerRadius.value,
   borderWidthPx: borderWidth.value,
@@ -264,6 +286,7 @@ watch(
     const svg = await generateStampAsync({
       ...options,
       fontUrl: FONT_URLS[options.fontFamily ?? ""],
+      fontFallbackUrl: FONT_FALLBACK_URLS[options.fontFamily ?? ""],
     });
     if (currentToken === renderToken) stampSvg.value = svg;
   },
@@ -321,6 +344,7 @@ function exportConfig() {
     borderScaleX: borderScaleX.value,
     borderScaleY: borderScaleY.value,
     noiseAmountPx: noiseAmount.value,
+    noiseDensity: noiseDensity.value,
     borderPointsPx: borderPoints.value,
     cornerRadiusPx: cornerRadius.value,
     borderWidthPx: borderWidth.value,
@@ -416,6 +440,9 @@ function applyPreset(preset: (typeof presets)[0]) {
     borderScaleX: preset.config.borderScaleX,
     borderScaleY: preset.config.borderScaleY,
     noiseAmountPx: preset.config.noiseAmountPx,
+    // Older presets predate the noiseDensity field; fall back to 1.0 so they
+    // render with the original chip frequency.
+    noiseDensity: (preset.config as Partial<StampTuningProfile>).noiseDensity ?? 1.0,
     borderPointsPx: preset.config.borderPointsPx,
     cornerRadiusPx: preset.config.cornerRadiusPx,
     borderWidthPx: preset.config.borderWidthPx,
@@ -713,12 +740,26 @@ function applyPreset(preset: (typeof presets)[0]) {
           <h4>边框与效果</h4>
           <div class="control-row">
             <label>
-              <span class="label-text">不规则度: {{ noiseAmount }}</span>
+              <span class="label-text">不规则度(深度): {{ noiseAmount.toFixed(1) }}</span>
               <input
                 v-model.number="noiseAmount"
                 type="range"
                 min="0"
-                max="50"
+                max="20"
+                step="0.1"
+                class="range-input"
+              />
+            </label>
+          </div>
+          <div class="control-row">
+            <label>
+              <span class="label-text">不规则密度: {{ noiseDensity.toFixed(2) }}</span>
+              <input
+                v-model.number="noiseDensity"
+                type="range"
+                min="0.2"
+                max="4"
+                step="0.1"
                 class="range-input"
               />
             </label>

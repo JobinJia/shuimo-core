@@ -167,14 +167,15 @@ export function shuimo_worley_fbm2d(x, y, octaves, lacunarity, gain) {
  * @param {boolean} regular
  * @param {number} noise_octaves
  * @param {number} noise_falloff
+ * @param {number} noise_density
  * @returns {string}
  */
-export function stamp_circle_path(radius, border_points, noise_amount, seed, regular, noise_octaves, noise_falloff) {
+export function stamp_circle_path(radius, border_points, noise_amount, seed, regular, noise_octaves, noise_falloff, noise_density) {
     let deferred1_0;
     let deferred1_1;
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.stamp_circle_path(retptr, radius, border_points, noise_amount, seed, regular, noise_octaves, noise_falloff);
+        wasm.stamp_circle_path(retptr, radius, border_points, noise_amount, seed, regular, noise_octaves, noise_falloff, noise_density);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         deferred1_0 = r0;
@@ -195,14 +196,15 @@ export function stamp_circle_path(radius, border_points, noise_amount, seed, reg
  * @param {boolean} regular
  * @param {number} noise_octaves
  * @param {number} noise_falloff
+ * @param {number} noise_density
  * @returns {string}
  */
-export function stamp_ellipse_path(w, h, border_points, noise_amount, seed, regular, noise_octaves, noise_falloff) {
+export function stamp_ellipse_path(w, h, border_points, noise_amount, seed, regular, noise_octaves, noise_falloff, noise_density) {
     let deferred1_0;
     let deferred1_1;
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.stamp_ellipse_path(retptr, w, h, border_points, noise_amount, seed, regular, noise_octaves, noise_falloff);
+        wasm.stamp_ellipse_path(retptr, w, h, border_points, noise_amount, seed, regular, noise_octaves, noise_falloff, noise_density);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         deferred1_0 = r0;
@@ -224,14 +226,15 @@ export function stamp_ellipse_path(w, h, border_points, noise_amount, seed, regu
  * @param {boolean} regular
  * @param {number} noise_octaves
  * @param {number} noise_falloff
+ * @param {number} noise_density
  * @returns {string}
  */
-export function stamp_rect_path(w, h, border_points, corner_radius, noise_amount, seed, regular, noise_octaves, noise_falloff) {
+export function stamp_rect_path(w, h, border_points, corner_radius, noise_amount, seed, regular, noise_octaves, noise_falloff, noise_density) {
     let deferred1_0;
     let deferred1_1;
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.stamp_rect_path(retptr, w, h, border_points, corner_radius, noise_amount, seed, regular, noise_octaves, noise_falloff);
+        wasm.stamp_rect_path(retptr, w, h, border_points, corner_radius, noise_amount, seed, regular, noise_octaves, noise_falloff, noise_density);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         deferred1_0 = r0;
@@ -252,14 +255,15 @@ export function stamp_rect_path(w, h, border_points, corner_radius, noise_amount
  * @param {boolean} regular
  * @param {number} noise_octaves
  * @param {number} noise_falloff
+ * @param {number} noise_density
  * @returns {string}
  */
-export function stamp_square_path(size, border_points, corner_radius, noise_amount, seed, regular, noise_octaves, noise_falloff) {
+export function stamp_square_path(size, border_points, corner_radius, noise_amount, seed, regular, noise_octaves, noise_falloff, noise_density) {
     let deferred1_0;
     let deferred1_1;
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.stamp_square_path(retptr, size, border_points, corner_radius, noise_amount, seed, regular, noise_octaves, noise_falloff);
+        wasm.stamp_square_path(retptr, size, border_points, corner_radius, noise_amount, seed, regular, noise_octaves, noise_falloff, noise_density);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         deferred1_0 = r0;

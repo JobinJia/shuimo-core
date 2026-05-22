@@ -63,13 +63,13 @@ export function shuimo_worley_edge2d(x: number, y: number): number;
  */
 export function shuimo_worley_fbm2d(x: number, y: number, octaves: number, lacunarity: number, gain: number): number;
 
-export function stamp_circle_path(radius: number, border_points: number, noise_amount: number, seed: number, regular: boolean, noise_octaves: number, noise_falloff: number): string;
+export function stamp_circle_path(radius: number, border_points: number, noise_amount: number, seed: number, regular: boolean, noise_octaves: number, noise_falloff: number, noise_density: number): string;
 
-export function stamp_ellipse_path(w: number, h: number, border_points: number, noise_amount: number, seed: number, regular: boolean, noise_octaves: number, noise_falloff: number): string;
+export function stamp_ellipse_path(w: number, h: number, border_points: number, noise_amount: number, seed: number, regular: boolean, noise_octaves: number, noise_falloff: number, noise_density: number): string;
 
-export function stamp_rect_path(w: number, h: number, border_points: number, corner_radius: number, noise_amount: number, seed: number, regular: boolean, noise_octaves: number, noise_falloff: number): string;
+export function stamp_rect_path(w: number, h: number, border_points: number, corner_radius: number, noise_amount: number, seed: number, regular: boolean, noise_octaves: number, noise_falloff: number, noise_density: number): string;
 
-export function stamp_square_path(size: number, border_points: number, corner_radius: number, noise_amount: number, seed: number, regular: boolean, noise_octaves: number, noise_falloff: number): string;
+export function stamp_square_path(size: number, border_points: number, corner_radius: number, noise_amount: number, seed: number, regular: boolean, noise_octaves: number, noise_falloff: number, noise_density: number): string;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
@@ -87,10 +87,10 @@ export interface InitOutput {
     readonly shuimo_worley2d: (a: number, b: number) => number;
     readonly shuimo_worley_edge2d: (a: number, b: number) => number;
     readonly shuimo_worley_fbm2d: (a: number, b: number, c: number, d: number, e: number) => number;
-    readonly stamp_circle_path: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
-    readonly stamp_ellipse_path: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
-    readonly stamp_rect_path: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
-    readonly stamp_square_path: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
+    readonly stamp_circle_path: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
+    readonly stamp_ellipse_path: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
+    readonly stamp_rect_path: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => void;
+    readonly stamp_square_path: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number) => void;

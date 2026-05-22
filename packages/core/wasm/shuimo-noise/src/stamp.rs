@@ -63,21 +63,20 @@ fn generate_edge_points(
     from_x: f64, from_y: f64, to_x: f64, to_y: f64,
     count: u32, full_noise: bool,
     inward_nx: f64, inward_ny: f64,
-    noise_amount: f64, perlin: &PerlinNoise,
+    noise_amount: f64, noise_density: f64, perlin: &PerlinNoise,
 ) {
-    let ns = 0.015;
+    let ns = 0.015 * noise_density;
     for i in 1..count {
         let t = i as f64 / count as f64;
         let ep = if full_noise { 1.0 } else { dsin(t) };
         let x = from_x + t * (to_x - from_x);
         let y = from_y + t * (to_y - from_y);
 
-        let nx = perlin.noise3d(x * ns, y * ns, 0.0);
-        let ny = perlin.noise3d(x * ns, y * ns, 100.0);
+        let nx = perlin.noise3d(x * ns, y * ns, 0.0) - 0.5;
+        let ny = perlin.noise3d(x * ns, y * ns, 100.0) - 0.5;
         let tnx = nx * noise_amount * ep;
         let tny = ny * noise_amount * ep;
 
-        // Project onto inward normal, keep only inward component
         let proj = tnx * inward_nx + tny * inward_ny;
         let inward = proj.max(0.0);
 
@@ -108,6 +107,7 @@ pub fn stamp_square_path(
     size: f64, border_points: u32, corner_radius: f64,
     noise_amount: f64, seed: u32, regular: bool,
     noise_octaves: u32, noise_falloff: f64,
+    noise_density: f64,
 ) -> String {
     let mut rng = LCG::new(seed);
     if regular {
@@ -120,13 +120,13 @@ pub fn stamp_square_path(
     let mut b = PathBuilder::new((pe * 4 + 10) as usize);
 
     b.m(r, 0.0);
-    generate_edge_points(&mut b, r, 0.0, size - r, 0.0, pe, true, 0.0, 1.0, noise_amount, &perlin);
+    generate_edge_points(&mut b, r, 0.0, size - r, 0.0, pe, true, 0.0, 1.0, noise_amount, noise_density, &perlin);
     b.q(size, 0.0, size, r);
-    generate_edge_points(&mut b, size, r, size, size - r, pe, false, -1.0, 0.0, noise_amount, &perlin);
+    generate_edge_points(&mut b, size, r, size, size - r, pe, false, -1.0, 0.0, noise_amount, noise_density, &perlin);
     b.q(size, size, size - r, size);
-    generate_edge_points(&mut b, size - r, size, r, size, pe, false, 0.0, -1.0, noise_amount, &perlin);
+    generate_edge_points(&mut b, size - r, size, r, size, pe, false, 0.0, -1.0, noise_amount, noise_density, &perlin);
     b.q(0.0, size, 0.0, size - r);
-    generate_edge_points(&mut b, 0.0, size - r, 0.0, r, pe, false, 1.0, 0.0, noise_amount, &perlin);
+    generate_edge_points(&mut b, 0.0, size - r, 0.0, r, pe, false, 1.0, 0.0, noise_amount, noise_density, &perlin);
     b.q(0.0, 0.0, r, 0.0);
     b.z();
     b.build()
@@ -137,6 +137,7 @@ pub fn stamp_rect_path(
     w: f64, h: f64, border_points: u32, corner_radius: f64,
     noise_amount: f64, seed: u32, regular: bool,
     noise_octaves: u32, noise_falloff: f64,
+    noise_density: f64,
 ) -> String {
     let mut rng = LCG::new(seed);
     if regular {
@@ -149,13 +150,13 @@ pub fn stamp_rect_path(
     let mut b = PathBuilder::new((pe * 4 + 10) as usize);
 
     b.m(r, 0.0);
-    generate_edge_points(&mut b, r, 0.0, w - r, 0.0, pe, true, 0.0, 1.0, noise_amount, &perlin);
+    generate_edge_points(&mut b, r, 0.0, w - r, 0.0, pe, true, 0.0, 1.0, noise_amount, noise_density, &perlin);
     b.q(w, 0.0, w, r);
-    generate_edge_points(&mut b, w, r, w, h - r, pe, false, -1.0, 0.0, noise_amount, &perlin);
+    generate_edge_points(&mut b, w, r, w, h - r, pe, false, -1.0, 0.0, noise_amount, noise_density, &perlin);
     b.q(w, h, w - r, h);
-    generate_edge_points(&mut b, w - r, h, r, h, pe, false, 0.0, -1.0, noise_amount, &perlin);
+    generate_edge_points(&mut b, w - r, h, r, h, pe, false, 0.0, -1.0, noise_amount, noise_density, &perlin);
     b.q(0.0, h, 0.0, h - r);
-    generate_edge_points(&mut b, 0.0, h - r, 0.0, r, pe, false, 1.0, 0.0, noise_amount, &perlin);
+    generate_edge_points(&mut b, 0.0, h - r, 0.0, r, pe, false, 1.0, 0.0, noise_amount, noise_density, &perlin);
     b.q(0.0, 0.0, r, 0.0);
     b.z();
     b.build()
@@ -166,6 +167,7 @@ pub fn stamp_circle_path(
     radius: f64, border_points: u32,
     noise_amount: f64, seed: u32, regular: bool,
     noise_octaves: u32, noise_falloff: f64,
+    noise_density: f64,
 ) -> String {
     if regular {
         let k = 0.5522847498;
@@ -189,14 +191,13 @@ pub fn stamp_circle_path(
         let angle = i as f64 / n as f64 * 2.0 * PI - PI / 2.0;
         let x = cx + angle.cos() * radius;
         let y = cy + angle.sin() * radius;
-        let nx = angle.cos(); // outward normal = radial direction
+        let nx = angle.cos();
         let ny = angle.sin();
-        // Inward = -outward
         let inx = -nx; let iny = -ny;
 
-        let ns = 0.015;
-        let nx_v = perlin.noise3d(x * ns, y * ns, 0.0);
-        let ny_v = perlin.noise3d(x * ns, y * ns, 100.0);
+        let ns = 0.015 * noise_density;
+        let nx_v = perlin.noise3d(x * ns, y * ns, 0.0) - 0.5;
+        let ny_v = perlin.noise3d(x * ns, y * ns, 100.0) - 0.5;
         let tnx = nx_v * noise_amount;
         let tny = ny_v * noise_amount;
         let proj = (tnx * inx + tny * iny).max(0.0);
@@ -214,6 +215,7 @@ pub fn stamp_ellipse_path(
     w: f64, h: f64, border_points: u32,
     noise_amount: f64, seed: u32, regular: bool,
     noise_octaves: u32, noise_falloff: f64,
+    noise_density: f64,
 ) -> String {
     if regular {
         let k = 0.5522847498;
@@ -241,14 +243,13 @@ pub fn stamp_ellipse_path(
         let x = cx + ca * rx;
         let y = cy + sa * ry;
 
-        // Inward normal for ellipse: approximate as normalized gradient
         let gnx = ca / rx; let gny = sa / ry;
         let glen = (gnx * gnx + gny * gny).sqrt();
         let inx = -gnx / glen; let iny = -gny / glen;
 
-        let ns = 0.015;
-        let nx_v = perlin.noise3d(x * ns, y * ns, 0.0);
-        let ny_v = perlin.noise3d(x * ns, y * ns, 100.0);
+        let ns = 0.015 * noise_density;
+        let nx_v = perlin.noise3d(x * ns, y * ns, 0.0) - 0.5;
+        let ny_v = perlin.noise3d(x * ns, y * ns, 100.0) - 0.5;
         let tnx = nx_v * noise_amount;
         let tny = ny_v * noise_amount;
         let proj = (tnx * inx + tny * iny).max(0.0);

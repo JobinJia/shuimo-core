@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { generateStamp, generateStampAsync, generateStampPath, measureStampText } from "./Stamp";
+import { configureFontSubsetWasm } from "./internal/fontSubset";
 
 describe("Stamp layout", () => {
   afterEach(() => {
@@ -304,5 +305,159 @@ describe("Stamp layout", () => {
     expect(result.bounds.width).toBeCloseTo(expectedWidth, 3);
     expect(result.bounds.height).toBeCloseTo(expectedHeight, 3);
     expect(result.bounds.height).toBeGreaterThan(result.bounds.width);
+  });
+
+  it("renders text via fallback URL when primary subset is missing the glyph", async () => {
+    // Pre-load the harfbuzz wasm so the test doesn't depend on fetch resolving
+    // a node_modules path. Configure once; subsequent calls are no-ops.
+    const wasmPath = resolve(
+      process.cwd(),
+      "node_modules/harfbuzzjs/dist/harfbuzz-subset.wasm",
+    );
+    const wasmBuffer = readFileSync(wasmPath);
+    configureFontSubsetWasm(
+      wasmBuffer.buffer.slice(
+        wasmBuffer.byteOffset,
+        wasmBuffer.byteOffset + wasmBuffer.byteLength,
+      ),
+    );
+
+    const primaryPath = resolve(
+      process.cwd(),
+      "../../playground/public/fonts/yishanbeizhuanti.demo.woff2",
+    );
+    const fallbackPath = resolve(
+      process.cwd(),
+      "../../playground/public/fonts/yishanbeizhuanti.ttf",
+    );
+    const primaryBuffer = readFileSync(primaryPath);
+    const fallbackBuffer = readFileSync(fallbackPath);
+    const primaryData = primaryBuffer.buffer.slice(
+      primaryBuffer.byteOffset,
+      primaryBuffer.byteOffset + primaryBuffer.byteLength,
+    );
+
+    // jsdom doesn't auto-handle fetch for the fallback URL, so mock it to
+    // return the on-disk full TTF directly.
+    // Use mockImplementation so each call gets a fresh Response with an
+    // unconsumed body (mockResolvedValue would reuse the same Response).
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () =>
+        new Response(fallbackBuffer, {
+          status: 200,
+          headers: { "content-type": "font/ttf" },
+        }),
+    );
+
+    const svg = await generateStampAsync({
+      text: ["筹"],
+      type: "yang",
+      shape: "auto",
+      fontFamily: "峄山碑篆体",
+      fontSize: 100,
+      fontData: primaryData,
+      fontFallbackUrl: "http://test/yishanbeizhuanti.ttf",
+      seed: 1,
+    });
+
+    // Fallback fetch happened exactly once and produced a non-empty glyph path.
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe("http://test/yishanbeizhuanti.ttf");
+    expect(svg).toContain("<path");
+    // The glyph for "筹" should produce a non-trivial path. Look for a path
+    // element whose `d` attribute has at least one curve/line command beyond
+    // the stamp border path.
+    const glyphPaths = [...svg.matchAll(/<path[^>]*d="([^"]+)"/g)].map((m) => m[1]);
+    // First path is the border; any additional path is glyph ink.
+    expect(glyphPaths.length).toBeGreaterThanOrEqual(2);
+    expect(glyphPaths[1].length).toBeGreaterThan(10);
+  });
+
+  it("does not refetch the fallback font when a second stamp uses the same chars", async () => {
+    const wasmPath = resolve(
+      process.cwd(),
+      "node_modules/harfbuzzjs/dist/harfbuzz-subset.wasm",
+    );
+    configureFontSubsetWasm(
+      readFileSync(wasmPath).buffer.slice(0),
+    );
+
+    const primaryPath = resolve(
+      process.cwd(),
+      "../../playground/public/fonts/yishanbeizhuanti.demo.woff2",
+    );
+    const fallbackPath = resolve(
+      process.cwd(),
+      "../../playground/public/fonts/yishanbeizhuanti.ttf",
+    );
+    const primaryBuffer = readFileSync(primaryPath);
+    const fallbackBuffer = readFileSync(fallbackPath);
+    const primaryData = primaryBuffer.buffer.slice(
+      primaryBuffer.byteOffset,
+      primaryBuffer.byteOffset + primaryBuffer.byteLength,
+    );
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () =>
+        new Response(fallbackBuffer, { status: 200, headers: { "content-type": "font/ttf" } }),
+    );
+
+    // Use a URL that the previous test didn't prime, so the cache starts empty
+    // and the first generateStampAsync call must actually hit fetch.
+    const stampOptions = {
+      text: ["筹"],
+      type: "yang" as const,
+      shape: "auto" as const,
+      fontFamily: "峄山碑篆体",
+      fontSize: 100,
+      fontFallbackUrl: "http://test/yishanbeizhuanti-cache-test.ttf",
+      seed: 1,
+    };
+
+    await generateStampAsync({
+      ...stampOptions,
+      fontData: primaryData.slice(0),
+    });
+    await generateStampAsync({
+      ...stampOptions,
+      fontData: primaryData.slice(0),
+    });
+
+    // Raw fallback fetch should be cached process-wide, so a second stamp with
+    // identical chars must not re-download.
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the auto-shape border roughly square when the glyph is missing from the font subset", async () => {
+    // The demo woff2 is a subset that does not contain U+7B79 「筹」. fontkit
+    // returns .notdef with zero path commands, which used to collapse the
+    // column ink height to 0 and squash the auto-shape stamp into a horizontal
+    // sliver. Column metrics must fall back to em-square cell sizing.
+    const fontPath = resolve(
+      process.cwd(),
+      "../../playground/public/fonts/yishanbeizhuanti.demo.woff2",
+    );
+    const fontBuffer = readFileSync(fontPath);
+    const fontData = fontBuffer.buffer.slice(
+      fontBuffer.byteOffset,
+      fontBuffer.byteOffset + fontBuffer.byteLength,
+    );
+
+    const svg = await generateStampAsync({
+      text: ["筹"],
+      type: "yang",
+      shape: "auto",
+      fontFamily: "峄山碑篆体",
+      fontSize: 100,
+      fontData,
+      seed: 1,
+    });
+
+    const viewBox = svg.match(/viewBox="([^"]+)"/)?.[1];
+    expect(viewBox, "stamp svg should expose a viewBox").toBeDefined();
+    const [, , w, h] = viewBox!.split(/\s+/).map(Number);
+    // Pre-fix: h ≈ 5-10 (ink bbox collapsed to zero) and w ≈ 100, ratio > 8.
+    // Post-fix: both dimensions track the em-square, so ratio stays near 1.
+    expect(w / h).toBeLessThan(1.4);
+    expect(h / w).toBeLessThan(1.4);
   });
 });

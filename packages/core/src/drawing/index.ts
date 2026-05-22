@@ -32,6 +32,7 @@ export {
   type FontMetrics,
 } from "./StampMetrics";
 export { loadGlyphFontViaWorker, type GlyphFontWorkerInput } from "./internal/glyphFontClient";
+export { configureFontSubsetWasm, subsetFontBuffer, type SubsetOptions } from "./internal/fontSubset";
 export type {
   GlyphFontBundle,
   GlyphFontWorkerRequest,
