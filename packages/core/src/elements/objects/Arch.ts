@@ -864,10 +864,9 @@ export class Arch {
           })
         : "";
 
-      let pla: [number, string] | undefined = undefined;
-      if (sto === 1 && prng.random() < 1 / 3) {
-        pla = [1, "Pizza Hut"];
-      }
+      // Pizza Hut Easter egg removed (was: `pla = [1, "Pizza Hut"]` at 1/3
+      // chance for single-story arch02). Carried over from shan-shui-inf's
+      // index.html:3105 — explicitly stripped per user request.
 
       canv += this.roof(xoff, yoff - hoff - hei, {
         hei: hei,
@@ -875,7 +874,6 @@ export class Arch {
         rot: rot,
         wei: 1.5,
         per: per,
-        pla: pla,
       });
 
       hoff += hei * 1.5;

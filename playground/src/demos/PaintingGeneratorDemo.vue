@@ -10,7 +10,7 @@ import {
 
 // Form state
 const paintingType = ref<PaintingType>("landscape");
-const width = ref(1400);
+const width = ref(2000);
 const height = ref(800);
 const onXuanPaper = ref(true);
 const blankPosition = ref<BlankPosition>("none");

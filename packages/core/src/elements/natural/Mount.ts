@@ -263,24 +263,15 @@ export class Mount {
       yof: yoff,
       tex: tex,
       sha: randChoice([0, 0, 0, 0, 5]),
-      col: (progress: number, layerDepth: number) => {
-        // If user provided a custom color string, use it
-        if (typeof col === "string") {
-          return col;
-        }
-        // If user provided a custom color function, use it
-        if (typeof col === "function") {
-          return col(progress);
-        }
-        // Default gradient: darker at bottom (layerDepth=1), lighter at top (layerDepth=0)
-        // Exponential curve for more natural gradient
-        // layerDepth^2 creates stronger contrast at the bottom
-        const depthFactor = Math.pow(layerDepth, 1.5);
-        // Base opacity ranges from 0.05 at top to 0.6 at bottom
-        const baseOpacity = 0.05 + depthFactor * 0.55;
-        // Add some randomness for natural variation
-        const opacity = baseOpacity + prng.random() * 0.15;
-        return `rgba(100,100,100,${opacity.toFixed(3)})`;
+      // Match shan-shui-inf's default texture color — uniform random alpha 0–0.3
+      // across all layers. The earlier top-to-bottom gradient (0.05 at top → 0.6
+      // at bottom) left the upper half nearly transparent, so foot() ledges sat
+      // on a bare white body looking like isolated blisters; uniform alpha
+      // re-coats the whole body and the ledges blend into 皴法 as intended.
+      col: (progress: number, _layerDepth: number) => {
+        if (typeof col === "string") return col;
+        if (typeof col === "function") return col(progress);
+        return `rgba(100,100,100,${(prng.random() * 0.3).toFixed(3)})`;
       },
     }) as string;
 
@@ -414,18 +405,9 @@ export class Mount {
         (_neighbors, _veglist, _i) => true,
       );
 
-      // BOTT ROCK
-      vegetate(
-        (x, y) =>
-          Mount.rock(x + xoff, y + yoff, seed, {
-            wid: 20 + prng.random() * 20,
-            hei: 20 + prng.random() * 20,
-            sha: 2,
-          }),
-        (i, j) =>
-          (j === 0 || j === ptlist[i].length - 1) && prng.random() < 0.1,
-        (_neighbors, _veglist, _i) => true,
-      );
+      // BOTT ROCK omitted intentionally — shan-shui-inf has this vegetate
+      // block but the rocks read as "blisters" on slope edges at this canvas
+      // scale; explicit user call.
     }
 
     if (ret === 0) {
