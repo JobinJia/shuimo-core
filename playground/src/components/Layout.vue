@@ -75,6 +75,7 @@ const menuItems = [
     children: [
       { path: "/stamp", name: "Basic" },
       { path: "/stamp-playground", name: "Playground" },
+      { path: "/stamp-canvas", name: "Canvas" },
     ],
   },
   {

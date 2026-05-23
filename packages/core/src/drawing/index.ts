@@ -23,6 +23,7 @@ export {
   type StampShape,
   type StampTextCarving,
 } from "./Stamp";
+export { generateCanvasStamp, generateCanvasStampAsync, type CanvasStampOptions } from "./StampCanvas";
 export {
   calculateStampTextMetrics,
   registerFontMetrics,

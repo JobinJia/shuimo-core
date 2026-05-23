@@ -19,6 +19,7 @@ describe("Stamp layout", () => {
       measuredColumnHeights: [130, 130],
       seed: 1,
       regularShape: true,
+      borderBandWidth: 0,
     });
 
     expect(result.bounds.height).toBeCloseTo(155.6, 0);
@@ -33,6 +34,7 @@ describe("Stamp layout", () => {
       measuredColumnWidths: [38, 38, 38],
       measuredColumnHeights: [70, 210, 70],
       seed: 1,
+      borderBandWidth: 0,
     });
 
     expect(result.bounds.height).toBeCloseTo(235.6, 0);
@@ -295,6 +297,7 @@ describe("Stamp layout", () => {
       borderScaleY: 1.4,
       regularShape: true,
       seed: 1,
+      borderBandWidth: 0,
     });
 
     const scaledInnerWidth = (38 + 38 + 70 * 0.02 + 8) * 0.7;

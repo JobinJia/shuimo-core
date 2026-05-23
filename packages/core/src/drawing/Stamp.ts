@@ -73,6 +73,8 @@ const DEFAULT_NOISE_AMOUNT = 8 / REFERENCE_FONT_SIZE;
 const DEFAULT_CORNER_RADIUS = 15 / REFERENCE_FONT_SIZE;
 const DEFAULT_BORDER_WIDTH = 1 / REFERENCE_FONT_SIZE;
 const DEFAULT_BORDER_POINTS = 24 / REFERENCE_FONT_SIZE;
+const DEFAULT_GRID_LINE_WIDTH = 2 / REFERENCE_FONT_SIZE;
+const DEFAULT_BORDER_BAND_WIDTH = 7 / REFERENCE_FONT_SIZE;
 const MEASURED_HEIGHT_BUFFER = 0.05;
 
 /**
@@ -239,6 +241,21 @@ export interface StampOptions {
 
   /** Whether to generate regular geometric shapes without noise (default: false). Only applies to non-auto shapes (square, rectangle, circle, ellipse) */
   regularShape?: boolean;
+
+  /** 界格：阴章列间的红色分隔线。多列阴章默认启用。 */
+  gridLines?: boolean;
+
+  /** 界格线宽，fontSize 的倍率（default: 2/70 ≈ 0.029）。 */
+  gridLineWidth?: number;
+
+  /** 界格线宽的绝对像素值。提供后覆盖 gridLineWidth。 */
+  gridLineWidthPx?: number;
+
+  /** 阴章边框带宽度，fontSize 的倍率（default: 7/70 ≈ 0.1）。0 则回退到旧行为。 */
+  borderBandWidth?: number;
+
+  /** 边框带宽度的绝对像素值。提供后覆盖 borderBandWidth。 */
+  borderBandWidthPx?: number;
 
   /** 文字刀刻风格。normal 粗朴宽边带，strong 中等位移，stone-cut 精细锐利。 */
   textCarving?: StampTextCarving;
@@ -1418,13 +1435,17 @@ export function generateStampPath(options: StampOptions): StampResult {
     seed = Date.now(),
   } = options;
 
+  const isYin = (options.type ?? "yin") === "yin";
+  const borderBandWidth = options.borderBandWidth ?? (isYin ? DEFAULT_BORDER_BAND_WIDTH : 0);
+  const actualBorderBandWidth = options.borderBandWidthPx ?? fontSize * borderBandWidth;
+
   // Resolve actual pixel values — *Px takes precedence over fontSize-relative values
   const actualColumnSpacing =
     columnSpacingPx !== undefined ? columnSpacingPx / fontSize : columnSpacing;
   const actualCharacterSpacing =
     characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
-  const actualPaddingX = paddingXPx !== undefined ? paddingXPx : fontSize * paddingX;
-  const actualPaddingY = paddingYPx !== undefined ? paddingYPx : fontSize * paddingY;
+  const actualPaddingX = (paddingXPx !== undefined ? paddingXPx : fontSize * paddingX) + actualBorderBandWidth;
+  const actualPaddingY = (paddingYPx !== undefined ? paddingYPx : fontSize * paddingY) + actualBorderBandWidth;
   const actualNoiseAmount = noiseAmountPx ?? fontSize * noiseAmount;
   const actualBorderPoints = Math.round(borderPointsPx ?? fontSize * borderPoints);
   const actualCornerRadius = cornerRadiusPx ?? fontSize * cornerRadius;
@@ -1542,10 +1563,12 @@ export function generateStampPath(options: StampOptions): StampResult {
     const totalNoiseY = noiseY * actualNoiseAmount * cornerFactor;
 
     if (inwardNX !== undefined && inwardNY !== undefined) {
-      // Project noise vector onto the inward normal
       const inwardProj = totalNoiseX * inwardNX + totalNoiseY * inwardNY;
-      // Only keep the inward component (positive projection = inward displacement)
-      const inward = Math.max(0, inwardProj);
+      let inward = Math.max(0, inwardProj);
+      if (actualNoiseAmount > 0) {
+        const n = inward / actualNoiseAmount;
+        inward = n * n * actualNoiseAmount;
+      }
       return {
         x: x + inward * inwardNX,
         y: y + inward * inwardNY,
@@ -1783,10 +1806,20 @@ export function generateStamp(options: StampOptions): string {
     seed = Date.now(),
   } = options;
 
+  const isYin = type === "yin";
+  const borderBandWidth = options.borderBandWidth ?? (isYin ? DEFAULT_BORDER_BAND_WIDTH : 0);
+  const actualBorderBandWidth = options.borderBandWidthPx ?? fontSize * borderBandWidth;
+  const gridLineWidth = options.gridLineWidth ?? DEFAULT_GRID_LINE_WIDTH;
+  const actualGridLineWidth = options.gridLineWidthPx ?? fontSize * gridLineWidth;
+  const resolvedGridLines = options.gridLines ?? false;
+
   // Resolve actual pixel values — *Px takes precedence over fontSize-relative values
   const actualBorderWidth = options.borderWidthPx ?? fontSize * borderWidth;
-  const actualColumnSpacing =
+  const rawColumnSpacing =
     columnSpacingPx !== undefined ? columnSpacingPx / fontSize : columnSpacing;
+  const actualColumnSpacing = resolvedGridLines
+    ? Math.max(rawColumnSpacing, actualGridLineWidth / fontSize + 0.02)
+    : rawColumnSpacing;
   const actualCharacterSpacing =
     characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
 
@@ -1807,7 +1840,9 @@ export function generateStamp(options: StampOptions): string {
   // Filter displacement: proportional to noiseAmount (so low depth stays subtle)
   // but capped at the original reference level (10/8 × k.length) so it never
   // overpowers path geometry at high depth or large fontSize.
-  const inkDisplacement = Math.min(actualNoiseAmountForFilter * 1.2, 10 * k.length);
+  const inkDisplacement = isYin
+    ? Math.min(actualNoiseAmountForFilter * 0.12, 1.5 * k.length)
+    : Math.min(actualNoiseAmountForFilter * 1.2, 10 * k.length);
   const borderDisplacement = Math.min(actualNoiseAmountForFilter, 8 * k.length);
   const carvingProfile =
     textCarving === "stone-cut"
@@ -1883,11 +1918,14 @@ export function generateStamp(options: StampOptions): string {
   const stampTextColor = options.textColor || (type === "yin" ? "#FFFFFF" : "#C8102E");
   const stampBgColor = type === "yin" ? stampColor : "#FFFFFF";
 
-  // Yin stamps with straight-edge shapes use regularShape; ellipse/circle keep border noise
-  const yinStraightShapes = type === "yin" && shape !== "ellipse" && shape !== "circle";
-  const { path, bounds } = generateStampPath(
-    yinStraightShapes ? { ...options, regularShape: true } : options,
-  );
+  const pathOptions = {
+    ...options,
+    ...(isYin && options.noiseAmount === undefined && options.noiseAmountPx === undefined
+      ? { noiseAmount: DEFAULT_NOISE_AMOUNT * 0.12 }
+      : {}),
+    ...(resolvedGridLines ? { columnSpacingPx: actualColumnSpacing * fontSize } : {}),
+  };
+  const { path, bounds } = generateStampPath(pathOptions);
 
   // Keep text array in original order (same as in generateStampPath)
   const displayText = [...text];
@@ -1967,11 +2005,30 @@ export function generateStamp(options: StampOptions): string {
     })
     .join("\n    ");
 
+  // Generate grid line elements for yin stamps
+  const gridLineElements = (() => {
+    if (!resolvedGridLines || !isYin || visualFrame.placements.length < 2) return "";
+    const gridTop = actualBorderBandWidth;
+    const gridBottom = bounds.height - actualBorderBandWidth;
+    const gridHeight = gridBottom - gridTop;
+    if (gridHeight <= 0) return "";
+    const rects: string[] = [];
+    for (let i = 0; i < visualFrame.placements.length - 1; i++) {
+      const leftEdge = visualFrame.placements[i].visualLeft + shiftX;
+      const rightEdge = visualFrame.placements[i + 1].visualRight + shiftX;
+      const gridX = (leftEdge + rightEdge) / 2 - actualGridLineWidth / 2;
+      rects.push(
+        `<rect x="${fmtNum(gridX)}" y="${fmtNum(gridTop)}" width="${fmtNum(actualGridLineWidth)}" height="${fmtNum(gridHeight)}" fill="${stampBgColor}" stroke="${stampTextColor}" stroke-width="0.6" stroke-opacity="0.5"/>`,
+      );
+    }
+    return `\n  <!-- 界格 (grid lines between columns) -->\n  <g>\n    ${rects.join("\n    ")}\n  </g>`;
+  })();
+
   // For yang stamp, we need different rendering
   const stampContent =
     type === "yin"
       ? `  <!-- Stamp background (阴章) -->
-  <path d="${path}" fill="${stampBgColor}"${inkFilterAttr} />
+  <path d="${path}" fill="${stampBgColor}"${inkFilterAttr} />${gridLineElements}
 
   <!-- Text -->
   ${textElements}`
@@ -2030,6 +2087,23 @@ export function generateStamp(options: StampOptions): string {
       <!-- Edge displacement -->
       <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.04 * k.frequency * noiseDensity)}" numOctaves="3" seed="${seed + 123}" result="borderNoise"/>
       <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmtNum(borderDisplacement)}" xChannelSelector="R" yChannelSelector="G" result="displacedBorder"/>
+    </filter>
+
+    <!-- Grid line texture for 界格 - independent wear on thin dividers -->
+    <filter id="stamp-grid-texture" x="-30%" y="-2%" width="160%" height="104%">
+      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.06 * k.frequency * noiseDensity)}" numOctaves="3" seed="${seed + 300}" result="gridNoise"/>
+      <feDisplacementMap in="SourceGraphic" in2="gridNoise" scale="${fmtNum(Math.min(actualGridLineWidth * 0.8, inkDisplacement * 0.5))}" xChannelSelector="R" yChannelSelector="G" result="gridDisplacedRaw"/>
+      <feComposite in="gridDisplacedRaw" in2="SourceGraphic" operator="in" result="gridDisplaced"/>
+      <feTurbulence type="turbulence" baseFrequency="${fmtNum(0.12 * k.frequency)}" numOctaves="2" seed="${seed + 400}" result="gridChipNoise"/>
+      <feColorMatrix in="gridChipNoise" type="matrix"
+        values="0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0 0
+                1 1 1 0 -0.2" result="gridChipMask"/>
+      <feComponentTransfer in="gridChipMask" result="gridChipMaskFinal">
+        <feFuncA type="discrete" tableValues="0 0 0 0.3 0.6 0.8 1 1 1 1 1 1"/>
+      </feComponentTransfer>
+      <feComposite in="gridDisplaced" in2="gridChipMaskFinal" operator="in" result="gridTextured"/>
     </filter>
 
     <!-- Text engraving texture - keep glyph cores readable while roughening carved edges -->
@@ -2168,6 +2242,9 @@ export class Stamp {
       | "regularShape"
       | "textCarving"
       | "carvingIntensity"
+      | "gridLines"
+      | "gridLineWidth"
+      | "borderBandWidth"
       | "seed"
     >
   > &
@@ -2192,6 +2269,8 @@ export class Stamp {
       | "borderPointsPx"
       | "cornerRadiusPx"
       | "borderWidthPx"
+      | "gridLineWidthPx"
+      | "borderBandWidthPx"
     >;
 
   constructor(options: StampOptions) {
@@ -2239,6 +2318,11 @@ export class Stamp {
       regularShape: options.regularShape ?? false,
       textCarving: options.textCarving ?? "normal",
       carvingIntensity: options.carvingIntensity ?? 1.0,
+      gridLines: options.gridLines ?? false,
+      gridLineWidth: options.gridLineWidth ?? DEFAULT_GRID_LINE_WIDTH,
+      gridLineWidthPx: options.gridLineWidthPx,
+      borderBandWidth: options.borderBandWidth ?? (type === "yin" ? DEFAULT_BORDER_BAND_WIDTH : 0),
+      borderBandWidthPx: options.borderBandWidthPx,
       seed: options.seed || Date.now(),
     };
   }

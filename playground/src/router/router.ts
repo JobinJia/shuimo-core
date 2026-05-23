@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import Stamp from "../demos/Stamp.vue";
 import StampPlayground from "../demos/StampPlayground.vue";
+import StampCanvas from "../demos/StampCanvas.vue";
 import Shanshui from "../demos/Shanshui.vue";
 import ShanShuiElements from "../demos/ShanShuiElements.vue";
 import CloudDemo from "../demos/CloudDemo.vue";
@@ -45,6 +46,11 @@ const routes = [
     path: "/stamp-playground",
     name: "StampPlayground",
     component: StampPlayground,
+  },
+  {
+    path: "/stamp-canvas",
+    name: "StampCanvas",
+    component: StampCanvas,
   },
   {
     path: "/flower-canvas",

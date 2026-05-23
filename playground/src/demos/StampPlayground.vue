@@ -130,27 +130,27 @@ const shapeProfiles: Record<Exclude<StampShape, "auto"> | "auto", StampTuningPro
 };
 
 // Stamp parameters
-const stampType = ref<StampType>("yang");
-const stampShape = ref<StampShape>("auto");
+const stampType = ref<StampType>("yin");
+const stampShape = ref<StampShape>("rectangle");
 const color = ref("#C8102E");
 const fontFamily = ref("峄山碑篆体");
-const fontSize = ref(100);
+const fontSize = ref(200);
 const fontWeight = ref<string | number>("normal");
 const textCarving = ref<StampTextCarving>("normal");
 const carvingIntensity = ref(1.0);
 const offsetX = ref(0);
 const offsetY = ref(0);
-const columnSpacing = ref(0.012);
-const characterSpacing = ref(0.05);
-const paddingX = ref(0.025);
-const paddingY = ref(0.04);
+const columnSpacing = ref(0.01);
+const characterSpacing = ref(0.045);
+const paddingX = ref(0.015);
+const paddingY = ref(0.02);
 const borderScaleX = ref(1.0);
-const borderScaleY = ref(1.015);
-const noiseAmount = ref(10);
+const borderScaleY = ref(1.0);
+const noiseAmount = ref(9);
 const noiseDensity = ref(1.0);
-const borderPoints = ref(28);
+const borderPoints = ref(24);
 const cornerRadius = ref(10);
-const borderWidth = ref(6);
+const borderWidth = ref(4);
 const regularShape = ref(false);
 const seed = ref(12345);
 
@@ -302,15 +302,15 @@ function resetDefaults() {
   textLines.value = ["落梅", "听风", "雪"];
   userModifiedText.value = false;
   userModifiedTuning.value = false;
-  stampType.value = "yang";
-  stampShape.value = "auto";
+  stampType.value = "yin";
+  stampShape.value = "rectangle";
   color.value = "#C8102E";
   fontFamily.value = "峄山碑篆体";
-  fontSize.value = 100;
+  fontSize.value = 200;
   fontWeight.value = "normal";
   textCarving.value = "normal";
   carvingIntensity.value = 1.0;
-  applyTuningProfile(shapeProfiles.auto);
+  applyTuningProfile(shapeProfiles.rectangle);
   seed.value = 12345;
 }
 
