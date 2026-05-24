@@ -7,6 +7,7 @@ export default defineConfig({
       foundation: "src/foundation/index.ts",
       elements: "src/elements/index.ts",
       drawing: "src/drawing/index.ts",
+      "stamp-v2": "src/drawing/stampV2/index.ts",
       "xuan-paper-worker": "src/elements/natural/xuan-paper/worker.ts",
       "xuan-paper-worker-protocol": "src/elements/natural/xuan-paper/worker-protocol.ts",
       "stamp-font-worker": "src/drawing/internal/glyphFontWorker.ts",

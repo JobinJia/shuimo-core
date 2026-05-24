@@ -6,10 +6,7 @@ export type SpeciesDrawOpts = {
   fast: boolean;
 };
 
-export type SpeciesDraw = (
-  ctx: CanvasRenderingContext2D,
-  opts: SpeciesDrawOpts,
-) => void;
+export type SpeciesDraw = (ctx: CanvasRenderingContext2D, opts: SpeciesDrawOpts) => void;
 
 export type SpeciesName = "lotus";
 

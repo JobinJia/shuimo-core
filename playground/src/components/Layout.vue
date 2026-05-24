@@ -76,6 +76,7 @@ const menuItems = [
       { path: "/stamp", name: "Basic" },
       { path: "/stamp-playground", name: "Playground" },
       { path: "/stamp-canvas", name: "Canvas" },
+      { path: "/stamp-v2", name: "v2 (new)" },
     ],
   },
   {

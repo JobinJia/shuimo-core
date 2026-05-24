@@ -368,11 +368,7 @@ export class Mount {
         },
         (i, j) => {
           const ns = noise.noise(i * 0.2, j * 0.05, seed + 10);
-          return (
-            i !== 0 &&
-            (j === 1 || j === ptlist[i].length - 2) &&
-            ns * ns * ns * ns < 0.008
-          );
+          return i !== 0 && (j === 1 || j === ptlist[i].length - 2) && ns * ns * ns * ns < 0.008;
         },
         (_neighbors, _veglist, _i) => true,
       );
@@ -384,10 +380,7 @@ export class Mount {
             sto: randChoice([5, 7]),
             wid: 40 + prng.random() * 20,
           }),
-        (i, j) =>
-          i === 1 &&
-          Math.abs(j - ptlist[i].length / 2) < 1 &&
-          prng.random() < 0.02,
+        (i, j) => i === 1 && Math.abs(j - ptlist[i].length / 2) < 1 && prng.random() < 0.02,
         (_neighbors, _veglist, _i) => true,
       );
 
@@ -397,9 +390,7 @@ export class Mount {
         (i, j) => {
           const ns = noise.noise(i * 0.2, j * 0.05, seed + 20 * Math.PI);
           return (
-            i % 2 === 0 &&
-            (j === 1 || j === ptlist[i].length - 2) &&
-            ns * ns * ns * ns < 0.002
+            i % 2 === 0 && (j === 1 || j === ptlist[i].length - 2) && ns * ns * ns * ns < 0.002
           );
         },
         (_neighbors, _veglist, _i) => true,

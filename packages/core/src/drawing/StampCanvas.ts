@@ -46,10 +46,7 @@ interface MeasuredLayout {
   columns: { chars: CharMetrics[]; x: number; charYs: number[] }[];
 }
 
-function measureChars(
-  ctx: CanvasRenderingContext2D,
-  text: string[],
-): CharMetrics[][] {
+function measureChars(ctx: CanvasRenderingContext2D, text: string[]): CharMetrics[][] {
   return text.map((col) =>
     col.split("").map((ch) => {
       const m = ctx.measureText(ch);
@@ -64,11 +61,7 @@ function measureChars(
   );
 }
 
-function measureGlyphChars(
-  font: GlyphFont,
-  text: string[],
-  fontSize: number,
-): CharMetrics[][] {
+function measureGlyphChars(font: GlyphFont, text: string[], fontSize: number): CharMetrics[][] {
   return text.map((col) =>
     Array.from(col).map((ch) => {
       const commands = font.getPath(ch, 0, 0, fontSize);
@@ -118,7 +111,11 @@ function computeMeasuredLayout(
 
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
-  x: number, y: number, w: number, h: number, r: number,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
 ): void {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -133,9 +130,7 @@ function drawRoundedRect(
   ctx.closePath();
 }
 
-function distToRoundedRect(
-  px: number, py: number, w: number, h: number, r: number,
-): number {
+function distToRoundedRect(px: number, py: number, w: number, h: number, r: number): number {
   const cx = w / 2;
   const cy = h / 2;
   const dx = Math.abs(px - cx) - (cx - r);
@@ -149,11 +144,21 @@ function commandsToPath2D(commands: NormalizedCommand[]): Path2D {
   const path = new Path2D();
   for (const cmd of commands) {
     switch (cmd.type) {
-      case "M": path.moveTo(cmd.x!, cmd.y!); break;
-      case "L": path.lineTo(cmd.x!, cmd.y!); break;
-      case "Q": path.quadraticCurveTo(cmd.x1!, cmd.y1!, cmd.x!, cmd.y!); break;
-      case "C": path.bezierCurveTo(cmd.x1!, cmd.y1!, cmd.x2!, cmd.y2!, cmd.x!, cmd.y!); break;
-      case "Z": path.closePath(); break;
+      case "M":
+        path.moveTo(cmd.x!, cmd.y!);
+        break;
+      case "L":
+        path.lineTo(cmd.x!, cmd.y!);
+        break;
+      case "Q":
+        path.quadraticCurveTo(cmd.x1!, cmd.y1!, cmd.x!, cmd.y!);
+        break;
+      case "C":
+        path.bezierCurveTo(cmd.x1!, cmd.y1!, cmd.x2!, cmd.y2!, cmd.x!, cmd.y!);
+        break;
+      case "Z":
+        path.closePath();
+        break;
     }
   }
   return path;
@@ -188,7 +193,9 @@ async function loadCanvasFont(options: CanvasStampOptions): Promise<GlyphFont | 
         const res = await fetch(options.fontUrl!);
         if (!res.ok) return null;
         return loadFont(await res.arrayBuffer());
-      } catch { return null; }
+      } catch {
+        return null;
+      }
     })();
     CANVAS_FONT_CACHE.set(options.fontUrl, promise);
     return promise;
@@ -220,7 +227,8 @@ function renderCanvasStamp(options: CanvasStampOptions, font: GlyphFont | null):
   } = options;
 
   const isYang = type === "yang";
-  const effectiveBorderBandWidth = isYang && options.borderBandWidth === undefined ? 0 : borderBandWidth;
+  const effectiveBorderBandWidth =
+    isYang && options.borderBandWidth === undefined ? 0 : borderBandWidth;
 
   const textColor = textColorOpt || (isYang ? color : "#FFFFFF");
   const quotedFont = fontFamily.includes(",") ? fontFamily : `"${fontFamily}"`;
@@ -239,7 +247,13 @@ function renderCanvasStamp(options: CanvasStampOptions, font: GlyphFont | null):
   }
 
   const layout = computeMeasuredLayout(
-    measured, fontSize, effectiveBorderBandWidth, paddingX, paddingY, columnSpacing, characterSpacing,
+    measured,
+    fontSize,
+    effectiveBorderBandWidth,
+    paddingX,
+    paddingY,
+    columnSpacing,
+    characterSpacing,
   );
   const { width, height } = layout;
 
@@ -321,7 +335,14 @@ function renderCanvasStamp(options: CanvasStampOptions, font: GlyphFont | null):
     borderCtx.strokeStyle = color;
     borderCtx.lineWidth = borderWidth;
     const bw = borderWidth / 2;
-    drawRoundedRect(borderCtx, bw, bw, width - borderWidth, height - borderWidth, Math.max(0, r - bw));
+    drawRoundedRect(
+      borderCtx,
+      bw,
+      bw,
+      width - borderWidth,
+      height - borderWidth,
+      Math.max(0, r - bw),
+    );
     borderCtx.stroke();
 
     const borderImgData = borderCtx.getImageData(0, 0, canvas.width, canvas.height);
@@ -448,7 +469,9 @@ export function generateCanvasStamp(options: CanvasStampOptions): HTMLCanvasElem
   return renderCanvasStamp(options, null);
 }
 
-export async function generateCanvasStampAsync(options: CanvasStampOptions): Promise<HTMLCanvasElement> {
+export async function generateCanvasStampAsync(
+  options: CanvasStampOptions,
+): Promise<HTMLCanvasElement> {
   const font = await loadCanvasFont(options);
   return renderCanvasStamp(options, font);
 }

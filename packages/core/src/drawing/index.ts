@@ -23,7 +23,11 @@ export {
   type StampShape,
   type StampTextCarving,
 } from "./Stamp";
-export { generateCanvasStamp, generateCanvasStampAsync, type CanvasStampOptions } from "./StampCanvas";
+export {
+  generateCanvasStamp,
+  generateCanvasStampAsync,
+  type CanvasStampOptions,
+} from "./StampCanvas";
 export {
   calculateStampTextMetrics,
   registerFontMetrics,
@@ -33,7 +37,11 @@ export {
   type FontMetrics,
 } from "./StampMetrics";
 export { loadGlyphFontViaWorker, type GlyphFontWorkerInput } from "./internal/glyphFontClient";
-export { configureFontSubsetWasm, subsetFontBuffer, type SubsetOptions } from "./internal/fontSubset";
+export {
+  configureFontSubsetWasm,
+  subsetFontBuffer,
+  type SubsetOptions,
+} from "./internal/fontSubset";
 export type {
   GlyphFontBundle,
   GlyphFontWorkerRequest,

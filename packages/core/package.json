@@ -25,6 +25,10 @@
       "types": "./dist/drawing.d.mts",
       "import": "./dist/drawing.mjs"
     },
+    "./stamp-v2": {
+      "types": "./dist/stamp-v2.d.mts",
+      "import": "./dist/stamp-v2.mjs"
+    },
     "./xuan-paper/worker": {
       "types": "./dist/xuan-paper-worker.d.mts",
       "import": "./dist/xuan-paper-worker.mjs"
@@ -57,6 +61,7 @@
   "dependencies": {
     "fontkit": "^2.0.4",
     "harfbuzzjs": "^1.2.0",
+    "polygon-clipping": "^0.15.7",
     "uuid": "^14.0.0"
   },
   "devDependencies": {

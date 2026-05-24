@@ -313,16 +313,10 @@ describe("Stamp layout", () => {
   it("renders text via fallback URL when primary subset is missing the glyph", async () => {
     // Pre-load the harfbuzz wasm so the test doesn't depend on fetch resolving
     // a node_modules path. Configure once; subsequent calls are no-ops.
-    const wasmPath = resolve(
-      process.cwd(),
-      "node_modules/harfbuzzjs/dist/harfbuzz-subset.wasm",
-    );
+    const wasmPath = resolve(process.cwd(), "node_modules/harfbuzzjs/dist/harfbuzz-subset.wasm");
     const wasmBuffer = readFileSync(wasmPath);
     configureFontSubsetWasm(
-      wasmBuffer.buffer.slice(
-        wasmBuffer.byteOffset,
-        wasmBuffer.byteOffset + wasmBuffer.byteLength,
-      ),
+      wasmBuffer.buffer.slice(wasmBuffer.byteOffset, wasmBuffer.byteOffset + wasmBuffer.byteLength),
     );
 
     const primaryPath = resolve(
@@ -377,13 +371,8 @@ describe("Stamp layout", () => {
   });
 
   it("does not refetch the fallback font when a second stamp uses the same chars", async () => {
-    const wasmPath = resolve(
-      process.cwd(),
-      "node_modules/harfbuzzjs/dist/harfbuzz-subset.wasm",
-    );
-    configureFontSubsetWasm(
-      readFileSync(wasmPath).buffer.slice(0),
-    );
+    const wasmPath = resolve(process.cwd(), "node_modules/harfbuzzjs/dist/harfbuzz-subset.wasm");
+    configureFontSubsetWasm(readFileSync(wasmPath).buffer.slice(0));
 
     const primaryPath = resolve(
       process.cwd(),
@@ -399,10 +388,12 @@ describe("Stamp layout", () => {
       primaryBuffer.byteOffset,
       primaryBuffer.byteOffset + primaryBuffer.byteLength,
     );
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
-      async () =>
-        new Response(fallbackBuffer, { status: 200, headers: { "content-type": "font/ttf" } }),
-    );
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(
+        async () =>
+          new Response(fallbackBuffer, { status: 200, headers: { "content-type": "font/ttf" } }),
+      );
 
     // Use a URL that the previous test didn't prime, so the cache starts empty
     // and the first generateStampAsync call must actually hit fetch.

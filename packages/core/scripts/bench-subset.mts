@@ -14,7 +14,8 @@ const ORIG = resolve(ROOT, "playground/public/fonts/yishanbeizhuanti.ttf");
 const SUBSET = resolve(ROOT, "playground/public/fonts/yishanbeizhuanti.demo.woff2");
 const CHARS = ["水", "墨", "兰", "梅", "落", "月", "风", "听", "雪", "乌"];
 
-const isCollection = (o: Font | FontCollection): o is FontCollection => Array.isArray((o as FontCollection).fonts);
+const isCollection = (o: Font | FontCollection): o is FontCollection =>
+  Array.isArray((o as FontCollection).fonts);
 
 function bench(label: string, path: string) {
   const buf = readFileSync(path);

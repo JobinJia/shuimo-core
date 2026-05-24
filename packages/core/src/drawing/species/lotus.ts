@@ -141,7 +141,6 @@ const CALYX_HEIGHT = 42;
 const CALYX_TOP_WIDTH = 22;
 const CALYX_BOTTOM_WIDTH = 3;
 
-
 // ── inkBlob — single brush-stamp leaf ────────────────────
 
 interface InkBlobArgs {
@@ -168,7 +167,7 @@ function inkBlob(ctx: CanvasRenderingContext2D, args: InkBlobArgs): void {
   // function at local angle 0; `rotation` controls where the notch ends
   // up on screen.
   const notchDepth = 0.18 + BBS.next() * 0.16;
-  const notchSigma = 0.20 + BBS.next() * 0.10;
+  const notchSigma = 0.2 + BBS.next() * 0.1;
 
   const path: Array<[number, number]> = [];
   const cosR = cos(args.rotation);
@@ -257,7 +256,8 @@ function inkBlob(ctx: CanvasRenderingContext2D, args: InkBlobArgs): void {
     // (the notch direction) clear.
     const wedgeStart = 0.4 * PI; // skip ±0.4π around notch
     const wedgeRange = 2 * PI - 2 * wedgeStart;
-    const tAngle = wedgeStart + (v / Math.max(1, veinCount - 1)) * wedgeRange + (BBS.next() - 0.5) * 0.18;
+    const tAngle =
+      wedgeStart + (v / Math.max(1, veinCount - 1)) * wedgeRange + (BBS.next() - 0.5) * 0.18;
     const cosT = cos(tAngle);
     const sinT = sin(tAngle);
     // Sample the perimeter near this angle to find the vein tip radius.
@@ -273,8 +273,10 @@ function inkBlob(ctx: CanvasRenderingContext2D, args: InkBlobArgs): void {
     ctx.beginPath();
     for (let s = 0; s <= segs; s++) {
       const u = s / segs;
-      const px = args.cx + (tipX - args.cx) * u + (BBS.next() - 0.5) * Math.min(args.rx, args.ry) * 0.02;
-      const py = args.cy + (tipY - args.cy) * u + (BBS.next() - 0.5) * Math.min(args.rx, args.ry) * 0.02;
+      const px =
+        args.cx + (tipX - args.cx) * u + (BBS.next() - 0.5) * Math.min(args.rx, args.ry) * 0.02;
+      const py =
+        args.cy + (tipY - args.cy) * u + (BBS.next() - 0.5) * Math.min(args.rx, args.ry) * 0.02;
       if (s === 0) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     }
@@ -363,8 +365,19 @@ function drawPetal(
   },
 ): void {
   const {
-    baseX, baseY, tipX, tipY, maxWidth, widthScale, color, alpha,
-    curl, edgeSeed, shapePower, widePos, tipLean,
+    baseX,
+    baseY,
+    tipX,
+    tipY,
+    maxWidth,
+    widthScale,
+    color,
+    alpha,
+    curl,
+    edgeSeed,
+    shapePower,
+    widePos,
+    tipLean,
   } = args;
 
   const dx = tipX - baseX;
@@ -449,7 +462,15 @@ function drawPetal(
 
   const grad = ctx.createLinearGradient(baseX, baseY, tipX, tipY);
   grad.addColorStop(0, hsv(color.hue, color.baseSat, color.baseVal, alpha));
-  grad.addColorStop(0.5, hsv(color.hue, (color.baseSat + color.tipSat) * 0.5, (color.baseVal + color.tipVal) * 0.5, alpha));
+  grad.addColorStop(
+    0.5,
+    hsv(
+      color.hue,
+      (color.baseSat + color.tipSat) * 0.5,
+      (color.baseVal + color.tipVal) * 0.5,
+      alpha,
+    ),
+  );
   grad.addColorStop(1, hsv(color.hue, color.tipSat, color.tipVal, alpha * 0.95));
   ctx.fillStyle = grad;
   ctx.fill();
@@ -575,7 +596,12 @@ function drawCalyx(ctx: CanvasRenderingContext2D, x: number, y: number): void {
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.moveTo(x - CALYX_TOP_WIDTH / 2, y);
-  ctx.quadraticCurveTo(x - CALYX_TOP_WIDTH / 3, y + CALYX_HEIGHT * 0.6, x - CALYX_BOTTOM_WIDTH / 2, y + CALYX_HEIGHT);
+  ctx.quadraticCurveTo(
+    x - CALYX_TOP_WIDTH / 3,
+    y + CALYX_HEIGHT * 0.6,
+    x - CALYX_BOTTOM_WIDTH / 2,
+    y + CALYX_HEIGHT,
+  );
   ctx.lineTo(x + CALYX_BOTTOM_WIDTH / 2, y + CALYX_HEIGHT);
   ctx.quadraticCurveTo(x + CALYX_TOP_WIDTH / 3, y + CALYX_HEIGHT * 0.6, x + CALYX_TOP_WIDTH / 2, y);
   ctx.closePath();
@@ -624,10 +650,18 @@ function drawStem(ctx: CanvasRenderingContext2D, anchorX: number, anchorY: numbe
   const bezierAt = (t: number): { x: number; y: number; tx: number; ty: number } => {
     const u = 1 - t;
     return {
-      x: u * u * u * anchorX + 3 * u * u * t * ctrl1X + 3 * u * t * t * ctrl2X + t * t * t * bottomX,
-      y: u * u * u * anchorY + 3 * u * u * t * ctrl1Y + 3 * u * t * t * ctrl2Y + t * t * t * bottomY,
-      tx: 3 * u * u * (ctrl1X - anchorX) + 6 * u * t * (ctrl2X - ctrl1X) + 3 * t * t * (bottomX - ctrl2X),
-      ty: 3 * u * u * (ctrl1Y - anchorY) + 6 * u * t * (ctrl2Y - ctrl1Y) + 3 * t * t * (bottomY - ctrl2Y),
+      x:
+        u * u * u * anchorX + 3 * u * u * t * ctrl1X + 3 * u * t * t * ctrl2X + t * t * t * bottomX,
+      y:
+        u * u * u * anchorY + 3 * u * u * t * ctrl1Y + 3 * u * t * t * ctrl2Y + t * t * t * bottomY,
+      tx:
+        3 * u * u * (ctrl1X - anchorX) +
+        6 * u * t * (ctrl2X - ctrl1X) +
+        3 * t * t * (bottomX - ctrl2X),
+      ty:
+        3 * u * u * (ctrl1Y - anchorY) +
+        6 * u * t * (ctrl2Y - ctrl1Y) +
+        3 * t * t * (bottomY - ctrl2Y),
     };
   };
 
@@ -647,7 +681,8 @@ function drawStem(ctx: CanvasRenderingContext2D, anchorX: number, anchorY: numbe
     const wobbleEnvelope = sin(t * PI);
     const wobble =
       (pnoise(t * STEM_WOBBLE_FREQ + wobbleSeed, 0) - 0.5) *
-      STEM_WOBBLE_AMPLITUDE_PX * 2 *
+      STEM_WOBBLE_AMPLITUDE_PX *
+      2 *
       wobbleEnvelope;
     x += nx * wobble;
     y += ny * wobble;
@@ -655,8 +690,7 @@ function drawStem(ctx: CanvasRenderingContext2D, anchorX: number, anchorY: numbe
     const lowNoise = pnoise(t * STEM_NOISE_FREQ + noiseSeed, 0);
     const hiNoise = pnoise(t * STEM_NOISE_FREQ_HI + noiseSeed * 0.3, PI);
     const widthFraction =
-      STEM_MIN_WIDTH_FRAC +
-      (1 - STEM_MIN_WIDTH_FRAC) * (0.55 * lowNoise + 0.45 * hiNoise);
+      STEM_MIN_WIDTH_FRAC + (1 - STEM_MIN_WIDTH_FRAC) * (0.55 * lowNoise + 0.45 * hiNoise);
     const taper = t < 0.05 ? mapval(t, 0, 0.05, 0.55, 1) : 1;
     const baseW = STEM_BASE_WIDTH * widthFraction * taper;
     spine.push({ x, y, nx, ny, tangentAngle: Math.atan2(ty, tx), baseW });
@@ -762,7 +796,8 @@ function drawStem(ctx: CanvasRenderingContext2D, anchorX: number, anchorY: numbe
 
       const wobble =
         (pnoise(t * STEM_WOBBLE_FREQ + wobbleSeed, 0) - 0.5) *
-        STEM_WOBBLE_AMPLITUDE_PX * 2 *
+        STEM_WOBBLE_AMPLITUDE_PX *
+        2 *
         sin(t * PI);
       x += nx * wobble;
       y += ny * wobble;
@@ -770,8 +805,7 @@ function drawStem(ctx: CanvasRenderingContext2D, anchorX: number, anchorY: numbe
       const lowNoise = pnoise(t * STEM_NOISE_FREQ + noiseSeed, 0);
       const hiNoise = pnoise(t * STEM_NOISE_FREQ_HI + noiseSeed * 0.3, PI);
       const widthFraction =
-        STEM_MIN_WIDTH_FRAC +
-        (1 - STEM_MIN_WIDTH_FRAC) * (0.55 * lowNoise + 0.45 * hiNoise);
+        STEM_MIN_WIDTH_FRAC + (1 - STEM_MIN_WIDTH_FRAC) * (0.55 * lowNoise + 0.45 * hiNoise);
       const taper = t < 0.05 ? mapval(t, 0, 0.05, 0.55, 1) : 1;
       const halfW = STEM_BASE_WIDTH * widthFraction * taper * 0.5;
       x += nx * halfW * hairFrac;
@@ -820,7 +854,8 @@ function drawStem(ctx: CanvasRenderingContext2D, anchorX: number, anchorY: numbe
     // Match body wobble.
     const wobble =
       (pnoise(t * STEM_WOBBLE_FREQ + wobbleSeed, 0) - 0.5) *
-      STEM_WOBBLE_AMPLITUDE_PX * 2 *
+      STEM_WOBBLE_AMPLITUDE_PX *
+      2 *
       sin(t * PI);
     x += nx * wobble;
     y += ny * wobble;
@@ -829,8 +864,7 @@ function drawStem(ctx: CanvasRenderingContext2D, anchorX: number, anchorY: numbe
     const lowNoise = pnoise(t * STEM_NOISE_FREQ + noiseSeed, 0);
     const hiNoise = pnoise(t * STEM_NOISE_FREQ_HI + noiseSeed * 0.3, PI);
     const widthFraction =
-      STEM_MIN_WIDTH_FRAC +
-      (1 - STEM_MIN_WIDTH_FRAC) * (0.55 * lowNoise + 0.45 * hiNoise);
+      STEM_MIN_WIDTH_FRAC + (1 - STEM_MIN_WIDTH_FRAC) * (0.55 * lowNoise + 0.45 * hiNoise);
     const taper = t < 0.05 ? mapval(t, 0, 0.05, 0.55, 1) : 1;
     const halfW = STEM_BASE_WIDTH * widthFraction * taper * 0.5;
     // Side (left/right of stem) — perlin so adjacent prickles tend to cluster
@@ -849,7 +883,13 @@ function drawStem(ctx: CanvasRenderingContext2D, anchorX: number, anchorY: numbe
     const tipX = edgeX + dirX * prLen;
     const tipY = edgeY + dirY * prLen;
 
-    const alpha = mapval(density, PRICKLE_DENSITY_THRESHOLD, 1, PRICKLE_ALPHA_MIN, PRICKLE_ALPHA_MAX);
+    const alpha = mapval(
+      density,
+      PRICKLE_DENSITY_THRESHOLD,
+      1,
+      PRICKLE_ALPHA_MIN,
+      PRICKLE_ALPHA_MAX,
+    );
     ctx.lineWidth = 0.5 + BBS.next() * 0.5;
     ctx.strokeStyle = hsv(0, 0, PRICKLE_VAL, alpha);
     ctx.beginPath();
@@ -862,10 +902,7 @@ function drawStem(ctx: CanvasRenderingContext2D, anchorX: number, anchorY: numbe
 
 // ── drawLotus — composition entry point ──────────────────
 
-export function drawLotus(
-  ctx: CanvasRenderingContext2D,
-  opts: SpeciesDrawOpts,
-): void {
+export function drawLotus(ctx: CanvasRenderingContext2D, opts: SpeciesDrawOpts): void {
   const { xof, yof, fast } = opts;
   const cwid = CWID;
   const inkLayer = Layer.empty(cwid);
@@ -885,8 +922,7 @@ export function drawLotus(
   const leafCount = Math.floor(normRand(LEAF_COUNT_MIN, LEAF_COUNT_MAX + 1));
   const leaves: LeafSpec[] = [];
   for (let i = 0; i < leafCount; i++) {
-    const cx =
-      cwid * (CLUSTER_X_MIN_FRAC + (CLUSTER_X_MAX_FRAC - CLUSTER_X_MIN_FRAC) * BBS.next());
+    const cx = cwid * (CLUSTER_X_MIN_FRAC + (CLUSTER_X_MAX_FRAC - CLUSTER_X_MIN_FRAC) * BBS.next());
     const cy = mapval(BBS.next(), 0, 1, CLUSTER_Y_MIN, CLUSTER_Y_MAX);
     const rx = normRand(LEAF_RADIUS_MIN, LEAF_RADIUS_MAX);
     const ry = rx * normRand(LEAF_AXIS_RATIO_MIN, LEAF_AXIS_RATIO_MAX);

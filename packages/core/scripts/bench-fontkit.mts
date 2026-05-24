@@ -9,7 +9,8 @@ const FONT_PATH = resolve(__dirname, "../../../playground/src/assets/fonts/yisha
 const CHARS = ["水", "墨", "兰", "梅", "落", "月", "风", "听", "雪", "乌"];
 
 const buf = readFileSync(FONT_PATH);
-const isCollection = (o: Font | FontCollection): o is FontCollection => Array.isArray((o as FontCollection).fonts);
+const isCollection = (o: Font | FontCollection): o is FontCollection =>
+  Array.isArray((o as FontCollection).fonts);
 
 const t0 = performance.now();
 const parsed = fontkit.create(buf);
@@ -27,4 +28,6 @@ for (const ch of CHARS) {
 }
 const t2 = performance.now();
 
-console.log(`parse: ${(t1 - t0).toFixed(1)}ms, glyphs: ${(t2 - t1).toFixed(1)}ms, totalCmds: ${totalCmds}, upm: ${upm}`);
+console.log(
+  `parse: ${(t1 - t0).toFixed(1)}ms, glyphs: ${(t2 - t1).toFixed(1)}ms, totalCmds: ${totalCmds}, upm: ${upm}`,
+);

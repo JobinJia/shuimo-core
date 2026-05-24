@@ -32,7 +32,7 @@ async function main() {
 
   const ratio = (out.length / inputSize) * 100;
   console.log(
-    `${input} (${(inputSize / 1024).toFixed(1)} KB) → ${output} (${(out.length / 1024).toFixed(1)} KB, ${ratio.toFixed(2)}%) in ${(t1 - t0).toFixed(0)}ms; chars: ${[...new Set(chars)].length}`,
+    `${input} (${(inputSize / 1024).toFixed(1)} KB) → ${output} (${(out.length / 1024).toFixed(1)} KB, ${ratio.toFixed(2)}%) in ${(t1 - t0).toFixed(0)}ms; chars: ${new Set(chars).size}`,
   );
 }
 

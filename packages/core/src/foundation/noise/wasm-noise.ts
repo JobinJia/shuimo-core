@@ -20,12 +20,23 @@ let NoiseWasm: {
   shuimo_perlin2d: (x: number, y: number) => number;
   shuimo_perlin2d_batch: (xs: Float64Array, ys: Float64Array, o: Float64Array) => void;
   shuimo_perlin3d: (x: number, y: number, z: number) => number;
-  shuimo_perlin3d_batch: (xs: Float64Array, ys: Float64Array, zs: Float64Array, o: Float64Array) => void;
+  shuimo_perlin3d_batch: (
+    xs: Float64Array,
+    ys: Float64Array,
+    zs: Float64Array,
+    o: Float64Array,
+  ) => void;
   shuimo_worley2d: (x: number, y: number) => number;
   shuimo_worley_edge2d: (x: number, y: number) => number;
   shuimo_worley_fbm2d: (x: number, y: number, oct: number, lac: number, g: number) => number;
   shuimo_gabor2d: (seed: number, x: number, y: number, kr: number) => number;
-  shuimo_gabor2d_batch: (s: number, xs: Float64Array, ys: Float64Array, kr: number, o: Float64Array) => void;
+  shuimo_gabor2d_batch: (
+    s: number,
+    xs: Float64Array,
+    ys: Float64Array,
+    kr: number,
+    o: Float64Array,
+  ) => void;
 } | null = null;
 
 let initPromise: Promise<void> | null = null;
@@ -41,9 +52,7 @@ export interface WasmNoiseInitOptions {
  * Initialize the WASM noise engine. Call once before using WasmNoise.
  * The JS glue and WASM binary are copied to dist/wasm/ during build.
  */
-export async function initWasmNoiseEngine(
-  options: WasmNoiseInitOptions = {},
-): Promise<void> {
+export async function initWasmNoiseEngine(options: WasmNoiseInitOptions = {}): Promise<void> {
   if (NoiseWasm) return;
   if (!initPromise) {
     initPromise = (async () => {
@@ -105,12 +114,7 @@ export class WasmNoise {
     return NoiseWasm!.shuimo_perlin3d(x, y, z);
   }
 
-  perlin3dBatch(
-    xs: Float64Array,
-    ys: Float64Array,
-    zs: Float64Array,
-    out: Float64Array,
-  ): void {
+  perlin3dBatch(xs: Float64Array, ys: Float64Array, zs: Float64Array, out: Float64Array): void {
     NoiseWasm!.shuimo_perlin3d_batch(xs, ys, zs, out);
   }
 
@@ -124,13 +128,7 @@ export class WasmNoise {
     return NoiseWasm!.shuimo_worley_edge2d(x, y);
   }
 
-  worleyFbm2d(
-    x: number,
-    y: number,
-    octaves: number,
-    lacunarity: number,
-    gain: number,
-  ): number {
+  worleyFbm2d(x: number, y: number, octaves: number, lacunarity: number, gain: number): number {
     return NoiseWasm!.shuimo_worley_fbm2d(x, y, octaves, lacunarity, gain);
   }
 

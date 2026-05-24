@@ -199,7 +199,9 @@ export async function subsetFontBuffer(
   hb.hb_face_destroy(face);
   hb.free(ptr);
   if (subsetFace === 0) {
-    throw new Error("font-subset: hb_subset_or_fail returned 0 (corrupt input or unsupported format)");
+    throw new Error(
+      "font-subset: hb_subset_or_fail returned 0 (corrupt input or unsupported format)",
+    );
   }
 
   const result = hb.hb_face_reference_blob(subsetFace);

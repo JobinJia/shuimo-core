@@ -33,8 +33,15 @@ export function wasmSquarePath(
 ): string {
   ensureStampWasm();
   return stamp_square_path(
-    size, borderPoints, cornerRadius, noiseAmount,
-    seed >>> 0, regular, 4, 0.5, noiseDensity,
+    size,
+    borderPoints,
+    cornerRadius,
+    noiseAmount,
+    seed >>> 0,
+    regular,
+    4,
+    0.5,
+    noiseDensity,
   );
 }
 
@@ -50,8 +57,16 @@ export function wasmRectPath(
 ): string {
   ensureStampWasm();
   return stamp_rect_path(
-    width, height, borderPoints, cornerRadius, noiseAmount,
-    seed >>> 0, regular, 4, 0.5, noiseDensity,
+    width,
+    height,
+    borderPoints,
+    cornerRadius,
+    noiseAmount,
+    seed >>> 0,
+    regular,
+    4,
+    0.5,
+    noiseDensity,
   );
 }
 
@@ -65,8 +80,14 @@ export function wasmCirclePath(
 ): string {
   ensureStampWasm();
   return stamp_circle_path(
-    radius, borderPoints, noiseAmount,
-    seed >>> 0, regular, 4, 0.5, noiseDensity,
+    radius,
+    borderPoints,
+    noiseAmount,
+    seed >>> 0,
+    regular,
+    4,
+    0.5,
+    noiseDensity,
   );
 }
 
@@ -81,7 +102,14 @@ export function wasmEllipsePath(
 ): string {
   ensureStampWasm();
   return stamp_ellipse_path(
-    width, height, borderPoints, noiseAmount,
-    seed >>> 0, regular, 4, 0.5, noiseDensity,
+    width,
+    height,
+    borderPoints,
+    noiseAmount,
+    seed >>> 0,
+    regular,
+    4,
+    0.5,
+    noiseDensity,
   );
 }

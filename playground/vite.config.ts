@@ -14,6 +14,13 @@ export default defineConfig(({ mode }) => ({
         replacement: path.resolve(__dirname, "../packages/core/wasm/harfbuzz/$1"),
       },
       {
+        find: "@jobinjia/shuimo-core/stamp-v2",
+        replacement:
+          mode === "production"
+            ? path.resolve(__dirname, "../packages/core/dist/stamp-v2.mjs")
+            : path.resolve(__dirname, "../packages/core/src/drawing/stampV2/index.ts"),
+      },
+      {
         find: "@jobinjia/shuimo-core",
         replacement:
           mode === "production"

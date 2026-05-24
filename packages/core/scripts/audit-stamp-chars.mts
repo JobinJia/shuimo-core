@@ -10,10 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "../../..");
-const SCAN_DIRS = [
-  resolve(ROOT, "playground/src"),
-  resolve(ROOT, "packages/core/src/drawing"),
-];
+const SCAN_DIRS = [resolve(ROOT, "playground/src"), resolve(ROOT, "packages/core/src/drawing")];
 
 const CJK_RE = /[㐀-鿿豈-﫿\u{20000}-\u{2FFFF}]/gu;
 
@@ -27,7 +24,7 @@ function* walk(dir: string): Generator<string> {
     } else if (/\.(vue|ts|tsx|mts|js|mjs|json)$/.test(name)) {
       // Skip auto-generated metrics tables — they contain every CJK char in the
       // source font and would balloon the audit output.
-      if (/-font-metrics\.ts$/.test(name)) continue;
+      if (name.endsWith("-font-metrics.ts")) continue;
       yield p;
     }
   }

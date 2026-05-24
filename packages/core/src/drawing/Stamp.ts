@@ -1227,7 +1227,15 @@ function generateSquarePath(
   seed: number,
   noiseDensity: number,
 ): string {
-  return wasmSquarePath(size, borderPoints, cornerRadius, noiseAmount, seed, regularShape, noiseDensity);
+  return wasmSquarePath(
+    size,
+    borderPoints,
+    cornerRadius,
+    noiseAmount,
+    seed,
+    regularShape,
+    noiseDensity,
+  );
 }
 
 /**
@@ -1245,7 +1253,16 @@ function generateRectanglePath(
   seed: number,
   noiseDensity: number,
 ): string {
-  return wasmRectPath(width, height, borderPoints, cornerRadius, noiseAmount, seed, regularShape, noiseDensity);
+  return wasmRectPath(
+    width,
+    height,
+    borderPoints,
+    cornerRadius,
+    noiseAmount,
+    seed,
+    regularShape,
+    noiseDensity,
+  );
 }
 
 /**
@@ -1444,8 +1461,10 @@ export function generateStampPath(options: StampOptions): StampResult {
     columnSpacingPx !== undefined ? columnSpacingPx / fontSize : columnSpacing;
   const actualCharacterSpacing =
     characterSpacingPx !== undefined ? characterSpacingPx / fontSize : characterSpacing;
-  const actualPaddingX = (paddingXPx !== undefined ? paddingXPx : fontSize * paddingX) + actualBorderBandWidth;
-  const actualPaddingY = (paddingYPx !== undefined ? paddingYPx : fontSize * paddingY) + actualBorderBandWidth;
+  const actualPaddingX =
+    (paddingXPx !== undefined ? paddingXPx : fontSize * paddingX) + actualBorderBandWidth;
+  const actualPaddingY =
+    (paddingYPx !== undefined ? paddingYPx : fontSize * paddingY) + actualBorderBandWidth;
   const actualNoiseAmount = noiseAmountPx ?? fontSize * noiseAmount;
   const actualBorderPoints = Math.round(borderPointsPx ?? fontSize * borderPoints);
   const actualCornerRadius = cornerRadiusPx ?? fontSize * cornerRadius;
@@ -1548,7 +1567,7 @@ export function generateStampPath(options: StampOptions): StampResult {
 
   // borderPoints scales the Perlin frequency so more path vertices resolve
   // into more visible bumps rather than just tracing the same smooth curve.
-  const referencePPE = fontSize * DEFAULT_BORDER_POINTS / 4;
+  const referencePPE = (fontSize * DEFAULT_BORDER_POINTS) / 4;
   const bpFactor = Math.max(1, Math.floor(actualBorderPoints / 4) / referencePPE);
   const effectiveDensity = noiseDensity * bpFactor;
 
@@ -1652,7 +1671,15 @@ export function generateStampPath(options: StampOptions): StampResult {
     const diameter = baseDiameter * avgScale;
     const radius = diameter / 2;
 
-    path = generateCirclePath(radius, actualBorderPoints, applyNoise, regularShape, actualNoiseAmount, seed, effectiveDensity);
+    path = generateCirclePath(
+      radius,
+      actualBorderPoints,
+      applyNoise,
+      regularShape,
+      actualNoiseAmount,
+      seed,
+      effectiveDensity,
+    );
     bounds = {
       left: 0,
       right: diameter,
