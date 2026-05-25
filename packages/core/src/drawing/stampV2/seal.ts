@@ -186,22 +186,57 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     shape.kind === "circle" ||
     ((shape.kind === "rect" || shape.kind === "ellipse") && shape.aspect != null);
 
+  // Stretch decision resolved BEFORE layout so the inscribed-rect shrink
+  // (anti-clip for curved shapes) can be gated on it. With stretch on the
+  // user explicitly asked for "fill the cell to the shape edge" — they
+  // want the corner clip to kick in, not a pre-emptive shrink.
+  const stretchGlyphs = options.layout?.stretch ?? shapeForcesDims;
+
   let layoutColumnWidths = columnWidths;
   let layoutCellH = cellH;
   let layoutFontSize = sealFontSize;
   let layoutAreaW = textInnerW;
   let layoutAreaH = textInnerH;
 
+  // For curved borders (circle / ellipse), the rectangular cell grid can't
+  // reach the full inner area without clipping at the corners. Anchor the
+  // text region to the inscribed rectangle of the inner ellipse, expanded
+  // by an overflow factor:
+  //   - stretch OFF: factor=1.08 — text fits inside almost cleanly, tiny
+  //     corner spill only.
+  //   - stretch ON : factor=1.25 — text is noticeably larger and reads as
+  //     "filled", at the cost of a manageable amount of corner clipping
+  //     (much less than letting cells take innerW × innerH directly).
+  // The clip layer (render/svg.ts) trims whatever still pokes out so the
+  // visual stays inside the border.
+  const innerWActual = sealW - borderThickness * 2 - padding * 2;
+  const innerHActual = sealH - borderThickness * 2 - padding * 2;
+  let textRegionW = innerWActual;
+  let textRegionH = innerHActual;
+  const isCurvedShape = shape.kind === "circle" || shape.kind === "ellipse";
+  if (isCurvedShape) {
+    const a = innerWActual / 2;
+    const b = innerHActual / 2;
+    const grAspect = textInnerW > 0 && textInnerH > 0 ? textInnerW / textInnerH : a / b;
+    // Largest aspect-matched rect inscribed in ellipse (a, b):
+    //   (W/2)²/a² + (H/2)²/b² = 1 with W = grAspect·H
+    //   ⇒ H = 2 / √(grAspect²/a² + 1/b²)
+    const denom = (grAspect * grAspect) / (a * a) + 1 / (b * b);
+    const inscH = denom > 0 ? 2 / Math.sqrt(denom) : innerHActual;
+    const inscW = grAspect * inscH;
+    const OVERFLOW = stretchGlyphs ? 1.25 : 1.08;
+    textRegionW = Math.min(innerWActual, inscW * OVERFLOW);
+    textRegionH = Math.min(innerHActual, inscH * OVERFLOW);
+  }
+
   if (shapeForcesDims) {
-    const innerWActual = sealW - borderThickness * 2 - padding * 2;
-    const innerHActual = sealH - borderThickness * 2 - padding * 2;
     const filledCellW = Math.max(
       1,
-      (innerWActual - columnGap * Math.max(0, numCols - 1)) / Math.max(1, numCols),
+      (textRegionW - columnGap * Math.max(0, numCols - 1)) / Math.max(1, numCols),
     );
     const filledCellH = Math.max(
       1,
-      (innerHActual - rowGap * Math.max(0, maxRows - 1)) / Math.max(1, maxRows),
+      (textRegionH - rowGap * Math.max(0, maxRows - 1)) / Math.max(1, maxRows),
     );
     // Pick a single fontSize that uniform-fits every glyph into its cell —
     // limited by whichever axis is tightest per glyph, then the smallest of
@@ -218,8 +253,21 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     }
     layoutCellH = filledCellH;
     layoutColumnWidths = new Array(numCols).fill(filledCellW);
-    layoutAreaW = innerWActual;
-    layoutAreaH = innerHActual;
+    layoutAreaW = textRegionW;
+    layoutAreaH = textRegionH;
+  } else if (shape.kind === "ellipse") {
+    // Adaptive ellipse — text was hug-sized but should track the inscribed
+    // rect (with the stretch-tuned overflow factor) so curved-border clip
+    // doesn't eat too much. Circle is always shape-forced so never reaches
+    // here; only ellipse without aspect can.
+    const scaleFactor = Math.min(textRegionW / textInnerW, textRegionH / textInnerH, 1);
+    if (scaleFactor < 1 && scaleFactor > 0) {
+      layoutCellH = cellH * scaleFactor;
+      layoutFontSize = sealFontSize * scaleFactor;
+      layoutColumnWidths = columnWidths.map((w) => w * scaleFactor);
+      layoutAreaW = layoutColumnWidths.reduce((s, w) => s + w, 0) + columnGap * Math.max(0, numCols - 1);
+      layoutAreaH = layoutCellH * maxRows + rowGap * Math.max(0, maxRows - 1);
+    }
   }
 
   const area: ContentArea = {
@@ -264,12 +312,10 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
   // geometry. Without this, V2 strokes stay laser-cut-smooth and no SVG
   // filter can recover the stone-cut texture (verified empirically — see
   // angularize.ts comment).
-  // Shape-forced layouts default to 九叠篆-style stretch — each glyph fills
-  // its (uniform) cell non-uniformly so a square seal reads as fully packed.
-  // Adaptive layouts (auto, rect/ellipse without aspect) default to uniform
-  // em scaling so stroke weight stays consistent across glyphs. The caller
-  // can override either default via `layout.stretch`.
-  const stretchGlyphs = options.layout?.stretch ?? shapeForcesDims;
+  // `stretchGlyphs` was decided up-front (so the inscribed-rect shrink for
+  // curved shapes could honour it). 九叠篆-style stretch = each glyph fills
+  // its uniform cell non-uniformly; otherwise uniform em scaling keeps
+  // stroke weight consistent across glyphs.
   const fitOpts = stretchGlyphs
     ? { padding: 0.02, stretch: true } as const
     : { padding: 0.02, stretch: false, fontSize: layoutFontSize } as const;
@@ -319,7 +365,20 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
   //   ink.bleed → 阴章 body filter (印泥 cloud + edge displacement)
   //              → 阳章 border filter (just edge displacement)
   //   carving.intensity → 阳章 text filter (刀刻)
-  const filterId = `stampv2-${(seed | 0) >>> 0}`;
+  // Per-config unique slug so multiple seals in the same document don't
+  // collide on filter / clipPath IDs. The gallery used to hit one shared
+  // `stampv2-42-text` filter across tiles, so every tile rendered the
+  // first tile's clip/filter. Hash the inputs that affect rendering
+  // (text, shape, mode, size) so same options → same slug (the
+  // "deterministic SVG for same seed" contract holds) and different
+  // options → different slug (no collisions in a multi-seal document).
+  const suffixKey = `${seed}|${textInput.join("\x1f")}|${shape.kind}|${(shape as { aspect?: number }).aspect ?? ""}|${mode}|${size}`;
+  let suffixHash = 5381;
+  for (let i = 0; i < suffixKey.length; i++) {
+    suffixHash = ((suffixHash << 5) + suffixHash + suffixKey.charCodeAt(i)) | 0;
+  }
+  const uniqueSuffix = Math.abs(suffixHash).toString(36);
+  const filterId = `stampv2-${(seed | 0) >>> 0}-${uniqueSuffix}`;
   const bodyFilterIntensity = clamp01(options.ink?.bleed ?? 0);
   const textFilterIntensity = clamp01(carvingIntensity);
   let filterDefs = "";
@@ -368,6 +427,7 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     bodyFilterId,
     textFilterId,
     clipPerCell: stretchGlyphs,
+    idPrefix: filterId,
   });
 
   return {

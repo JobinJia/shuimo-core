@@ -3,6 +3,7 @@ import Stamp from "../demos/Stamp.vue";
 import StampPlayground from "../demos/StampPlayground.vue";
 import StampCanvas from "../demos/StampCanvas.vue";
 import StampV2 from "../demos/StampV2.vue";
+import StampV2Gallery from "../demos/StampV2Gallery.vue";
 import Shanshui from "../demos/Shanshui.vue";
 import ShanShuiElements from "../demos/ShanShuiElements.vue";
 import CloudDemo from "../demos/CloudDemo.vue";
@@ -57,6 +58,11 @@ const routes = [
     path: "/stamp-v2",
     name: "StampV2",
     component: StampV2,
+  },
+  {
+    path: "/stamp-v2-gallery",
+    name: "StampV2Gallery",
+    component: StampV2Gallery,
   },
   {
     path: "/flower-canvas",
