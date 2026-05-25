@@ -20,6 +20,9 @@ const controls = reactive({
   mode: "yang" as SealMode,
   shape: "square" as ShapeKind,
   script: "" as "" | SealScript,
+  polygonSides: 6,
+  polygonOrientation: "flat-top" as "flat-top" | "point-top",
+  irregularRoughness: 0.7,
   notchStrategy: "auto" as SealNotchStrategy,
   notchJitter: 0.4,
   borderThickness: 7,
@@ -95,6 +98,14 @@ const v2Shape = computed<SealShape>(() => {
       return { kind: "ellipse" };
     case "circle":
       return { kind: "circle" };
+    case "polygon":
+      return {
+        kind: "polygon",
+        sides: controls.polygonSides,
+        orientation: controls.polygonOrientation,
+      };
+    case "irregular":
+      return { kind: "irregular", roughness: controls.irregularRoughness };
     default:
       return { kind: "square" };
   }
@@ -194,6 +205,9 @@ watch(
     md: controls.mode,
     sh: controls.shape,
     sc: controls.script,
+    ps: controls.polygonSides,
+    po: controls.polygonOrientation,
+    ir: controls.irregularRoughness,
     ns: controls.notchStrategy,
     nj: controls.notchJitter,
     bt: controls.borderThickness,
@@ -242,7 +256,28 @@ watch(
             <option value="rect">长方形</option>
             <option value="circle">圆形</option>
             <option value="ellipse">椭圆</option>
+            <option value="polygon">多边形 (polygon)</option>
+            <option value="irregular">异形 (irregular)</option>
           </select>
+        </div>
+
+        <template v-if="controls.shape === 'polygon'">
+          <div class="row">
+            <label>边数 ({{ controls.polygonSides }})</label>
+            <input type="range" min="3" max="12" step="1" v-model.number="controls.polygonSides" />
+          </div>
+          <div class="row">
+            <label>朝向</label>
+            <select v-model="controls.polygonOrientation">
+              <option value="flat-top">平边朝上 (6/8 角章)</option>
+              <option value="point-top">顶点朝上 (三角/五角)</option>
+            </select>
+          </div>
+        </template>
+
+        <div v-if="controls.shape === 'irregular'" class="row">
+          <label>异形粗糙度 ({{ controls.irregularRoughness.toFixed(2) }})</label>
+          <input type="range" min="0.3" max="1" step="0.05" v-model.number="controls.irregularRoughness" />
         </div>
 
 

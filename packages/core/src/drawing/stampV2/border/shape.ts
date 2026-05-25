@@ -24,8 +24,7 @@ export interface ShapeBuildOptions {
 }
 
 export function buildBorder(shape: SealShape, opts: ShapeBuildOptions): BorderRings {
-  const kind = shape.kind;
-  switch (kind) {
+  switch (shape.kind) {
     case "auto":
       return autoBorder(opts);
     case "square":
@@ -37,8 +36,12 @@ export function buildBorder(shape: SealShape, opts: ShapeBuildOptions): BorderRi
     case "ellipse":
       return ellipseBorder(opts);
     case "polygon":
+      return polygonBorder(opts, shape.sides, shape.orientation ?? "flat-top");
     case "irregular":
-      throw new Error(`Shape "${kind}" is not implemented`);
+      // Irregular geometry is generated downstream (seal.ts applies extra
+      // erosion via border/erosion.ts). The base ring here is just a square
+      // — erosion does the hand-hewn look.
+      return rectBorder(opts);
   }
 }
 
@@ -197,6 +200,43 @@ export function ellipseBorder(opts: ShapeBuildOptions): BorderRings {
   const inner: Ring = [];
   for (let i = 0; i < segments; i++) {
     const a = (i / segments) * Math.PI * 2 - Math.PI / 2;
+    outer.push([cx + Math.cos(a) * rxOuter, cy + Math.sin(a) * ryOuter]);
+    inner.push([cx + Math.cos(a) * rxInner, cy + Math.sin(a) * ryInner]);
+  }
+  return { outer, inner, thickness };
+}
+
+/**
+ * Regular N-gon border centered in the (width, height) box. Vertices ride on
+ * the inscribed ellipse so width/height stretching produces an oval-ish
+ * polygon (useful when shape.aspect ≠ 1). Inner ring is the same polygon
+ * shrunk by `thickness` along each radius.
+ */
+export function polygonBorder(
+  opts: ShapeBuildOptions,
+  sides: number,
+  orientation: "flat-top" | "point-top",
+): BorderRings {
+  const { width: w, height: h, thickness } = opts;
+  const n = Math.max(3, Math.floor(sides));
+  const cx = w / 2;
+  const cy = h / 2;
+  // Rotation: point-top puts vertex 0 at top (-π/2). flat-top rotates by half
+  // an angle so the FIRST EDGE is centered at top (a horizontal segment).
+  const baseRotation = -Math.PI / 2;
+  const rotation = orientation === "flat-top" ? baseRotation + Math.PI / n : baseRotation;
+  const outer: Ring = [];
+  const inner: Ring = [];
+  // Inner ring: pull every radius in by `thickness`. Approximation; for
+  // moderately thick borders this is visually indistinguishable from an
+  // exact inset polygon (which would require offsetting along edge normals,
+  // not vertex normals — overkill at our thickness range).
+  const rxOuter = w / 2;
+  const ryOuter = h / 2;
+  const rxInner = Math.max(0, rxOuter - thickness);
+  const ryInner = Math.max(0, ryOuter - thickness);
+  for (let i = 0; i < n; i++) {
+    const a = rotation + (i / n) * Math.PI * 2;
     outer.push([cx + Math.cos(a) * rxOuter, cy + Math.sin(a) * ryOuter]);
     inner.push([cx + Math.cos(a) * rxInner, cy + Math.sin(a) * ryInner]);
   }

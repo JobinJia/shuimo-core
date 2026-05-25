@@ -170,10 +170,23 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
       }
       break;
     }
-    case "polygon":
+    case "polygon": {
+      // Polygon is shape-forced: caller chose `sides`, so respect the user
+      // size and pad as needed for text fit. aspect (when set) stretches into
+      // an oval-ish polygon.
+      const aspect = shape.aspect ?? 1;
+      sealH = Math.max(size, textFitH);
+      const aspectW = sealH * aspect;
+      sealW = Math.max(aspectW, textFitW);
+      break;
+    }
     case "irregular": {
-      sealW = textFitW;
-      sealH = size;
+      // Irregular hugs text dimensions; the look comes from heavy erosion
+      // (applied below via roughness boost), not from a different outer box.
+      const aspect = shape.aspect ?? 1;
+      sealH = Math.max(size, textFitH);
+      const aspectW = sealH * aspect;
+      sealW = Math.max(aspectW, textFitW);
       break;
     }
     case "auto":
@@ -206,6 +219,7 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
   const shapeForcesDims =
     shape.kind === "square" ||
     shape.kind === "circle" ||
+    shape.kind === "polygon" ||
     ((shape.kind === "rect" || shape.kind === "ellipse") && shape.aspect != null);
 
   // Resolve script profile (篆体) — gives us default angularize params and
@@ -390,7 +404,15 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     };
   });
 
-  const roughness = options.border?.roughness ?? 0;
+  // Effective roughness: irregular shape boosts the baseline so the user
+  // doesn't have to remember to crank `border.roughness` on top of picking
+  // an irregular kind. shape.roughness (when set) acts as the floor; the
+  // explicit `border.roughness` is taken as max with it.
+  let roughness = options.border?.roughness ?? 0;
+  if (shape.kind === "irregular") {
+    const shapeRoughness = shape.roughness ?? 0.7;
+    roughness = Math.max(roughness, shapeRoughness);
+  }
   const erosionInput: MultiPolygon =
     mode === "yin" ? baseBorderPoly.map((p) => [p[0]]) : baseBorderPoly;
   const erodedBorderPoly =

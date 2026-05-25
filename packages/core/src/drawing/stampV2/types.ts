@@ -6,8 +6,28 @@ export type SealShape =
   | { kind: "rect"; aspect?: number }
   | { kind: "circle" }
   | { kind: "ellipse"; aspect?: number }
-  | { kind: "polygon"; sides: number }
-  | { kind: "irregular"; roughness?: number };
+  | {
+      kind: "polygon";
+      /** Number of sides; ≥3 (3 → triangle). 6 / 8 are the common 篆刻 cases. */
+      sides: number;
+      /**
+       * Vertex orientation:
+       *   - `"flat-top"` (default): one edge horizontal at the top. Better for
+       *     even-sided regulars (6/8) — visually grounds the seal.
+       *   - `"point-top"`: a vertex points straight up. Better for triangles
+       *     and odd-sided forms.
+       */
+      orientation?: "flat-top" | "point-top";
+      /** Width-to-height aspect; default 1 (regular polygon in a square box). */
+      aspect?: number;
+    }
+  | {
+      kind: "irregular";
+      /** Erosion roughness 0..1; default 0.7 → hand-hewn stone look. */
+      roughness?: number;
+      /** Width-to-height aspect; default 1. */
+      aspect?: number;
+    };
 
 /**
  * Seal-script style (篆体). Controls **glyph geometry** — angularize grid /
