@@ -4,6 +4,7 @@ import {
   generateSealAsync,
   type SealMode,
   type SealNotchStrategy,
+  type SealScript,
   type SealShape,
 } from "@jobinjia/shuimo-core/stamp-v2";
 import { generateStampAsync, type StampOptions } from "@jobinjia/shuimo-core";
@@ -18,6 +19,7 @@ const controls = reactive({
   seed: 42,
   mode: "yang" as SealMode,
   shape: "square" as ShapeKind,
+  script: "" as "" | SealScript,
   notchStrategy: "auto" as SealNotchStrategy,
   notchJitter: 0.4,
   borderThickness: 7,
@@ -112,6 +114,7 @@ async function renderV2() {
       font: SEAL_FONT_URL,
       mode: controls.mode,
       shape: v2Shape.value,
+      script: controls.script || undefined,
       notch: { strategy: controls.notchStrategy, jitter: controls.notchJitter },
       border: {
         thickness: controls.borderThickness,
@@ -190,6 +193,7 @@ watch(
     sd: controls.seed,
     md: controls.mode,
     sh: controls.shape,
+    sc: controls.script,
     ns: controls.notchStrategy,
     nj: controls.notchJitter,
     bt: controls.borderThickness,
@@ -247,6 +251,18 @@ watch(
           <select v-model="controls.mode">
             <option value="yang">阳章 (朱文)</option>
             <option value="yin">阴章 (白文)</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <label>篆体 (script)</label>
+          <select v-model="controls.script">
+            <option value="">未设 (用 carving.intensity)</option>
+            <option value="jinwen">金文 (圆润)</option>
+            <option value="dazhuan">大篆</option>
+            <option value="xiaozhuan">小篆 (V2 默认)</option>
+            <option value="jiudiezhuan">九叠篆 (自动撑满)</option>
+            <option value="custom">custom (零基线)</option>
           </select>
         </div>
 

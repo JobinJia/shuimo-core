@@ -31,11 +31,29 @@ export interface AngularizeOptions {
   columnIndex?: number;
   /** Char index inside its column — further hash perturbation. */
   charIndex?: number;
+  /**
+   * Override the quantize grid (user units). V2 default 1.4 matches V1
+   * stone-cut. Higher grids = blockier glyph forms (九叠篆 uses smaller
+   * grid for tighter steps; 金文 uses larger grid for rounded reads).
+   */
+  grid?: number;
+  /**
+   * Override the jitter amplitude scale (V2 default 0.9). Multiplied by
+   * intensity at runtime — passing this overrides the BASE_JITTER constant
+   * but intensity scaling still applies.
+   */
+  jitter?: number;
+  /**
+   * Override the Bezier control-point pull (0..1). V2 default 0.42 (V1
+   * stone-cut). Larger pull straightens curves more aggressively — useful
+   * for the 高度角化 look of 九叠篆.
+   */
+  pull?: number;
 }
 
-const BASE_GRID = 1.4;
-const BASE_JITTER = 0.9;
-const BASE_PULL = 0.42;
+export const BASE_GRID = 1.4;
+export const BASE_JITTER = 0.9;
+export const BASE_PULL = 0.42;
 const CONTROL_SLACK = 8;
 
 export function angularizeCommands(
@@ -45,9 +63,9 @@ export function angularizeCommands(
   const intensity = clamp01(opts.intensity ?? 0);
   if (intensity <= 0 || commands.length === 0) return commands;
 
-  const grid = BASE_GRID;
-  const jitter = BASE_JITTER * intensity;
-  const pull = BASE_PULL * intensity;
+  const grid = opts.grid ?? BASE_GRID;
+  const jitter = (opts.jitter ?? BASE_JITTER) * intensity;
+  const pull = (opts.pull ?? BASE_PULL) * intensity;
   const seed = opts.seed | 0;
   const columnIndex = opts.columnIndex ?? 0;
   const charIndex = opts.charIndex ?? 0;

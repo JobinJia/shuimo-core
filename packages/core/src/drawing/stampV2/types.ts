@@ -9,6 +9,22 @@ export type SealShape =
   | { kind: "polygon"; sides: number }
   | { kind: "irregular"; roughness?: number };
 
+/**
+ * Seal-script style (篆体). Controls **glyph geometry** — angularize grid /
+ * jitter / pull and a baseline `carving.intensity`. **Does NOT switch fonts**:
+ * the user is still responsible for supplying a font that matches the era
+ * (e.g. a 金文 font for `"jinwen"`); this option only re-shapes whatever
+ * commands fontkit returns.
+ *
+ *   - `jinwen` (金文): bronze-inscription, most rounded, lowest intensity
+ *   - `dazhuan` (大篆): pre-Qin large seal, moderate angularity
+ *   - `xiaozhuan` (小篆): Qin small seal — V2's stone-cut baseline
+ *   - `jiudiezhuan` (九叠篆): "9-fold" extreme angularity; auto-enables
+ *     `layout.stretch`
+ *   - `custom`: zero baseline; user controls intensity via `carving.intensity`
+ *
+ * `carving.intensity` (when set) always wins as the final intensity value.
+ */
 export type SealScript = "xiaozhuan" | "dazhuan" | "jinwen" | "jiudiezhuan" | "custom";
 
 export type SealLayoutDirection = "ttb-rtl" | "circular";

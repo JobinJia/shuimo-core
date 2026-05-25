@@ -10,6 +10,7 @@ import {
   compositeFont,
 } from "./text/glyphs";
 import { angularizeCommands } from "./text/angularize";
+import { getScriptProfile } from "./text/scriptProfiles";
 import { buildBorder, borderPolygon, type BorderRings } from "./border/shape";
 import { erodeBorder } from "./border/erosion";
 // Geometric carving removed — SVG textFilter handles 刀刻 via erode + edge
@@ -207,11 +208,20 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     shape.kind === "circle" ||
     ((shape.kind === "rect" || shape.kind === "ellipse") && shape.aspect != null);
 
+  // Resolve script profile (篆体) — gives us default angularize params and
+  // a stretch hint. `carving.intensity` from options still wins as the final
+  // override; the script profile is just a baseline.
+  const scriptProfile = getScriptProfile(options.script);
+
   // Stretch decision resolved BEFORE layout so the inscribed-rect shrink
   // (anti-clip for curved shapes) can be gated on it. With stretch on the
   // user explicitly asked for "fill the cell to the shape edge" — they
   // want the corner clip to kick in, not a pre-emptive shrink.
-  const stretchGlyphs = options.layout?.stretch ?? shapeForcesDims;
+  // Precedence: explicit `layout.stretch` > script auto-stretch hint
+  //             (jiudiezhuan == true) > shape-forced default.
+  const stretchGlyphs = options.layout?.stretch
+    ?? scriptProfile?.autoStretch
+    ?? shapeForcesDims;
 
   let layoutColumnWidths = columnWidths;
   let layoutCellH = cellH;
@@ -326,7 +336,10 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     columnWidths: columnWidthsVisual,
   });
 
-  const carvingIntensity = options.carving?.intensity ?? 0;
+  // Carving intensity precedence: explicit `carving.intensity` wins; else
+  // fall back to the script profile's baseline; else 0 (no angularize).
+  const carvingIntensity =
+    options.carving?.intensity ?? scriptProfile?.intensity ?? 0;
 
   // Angularize glyph commands BEFORE layout flattening, so both the smooth
   // SVG path and the flattened ring set carry the same chunky/jittered
@@ -347,6 +360,10 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
       ...fitted,
       commands: angularizeCommands(fitted.commands, {
         intensity: carvingIntensity,
+        // Script profile drives angularize shape; missing → angularize uses BASE_*
+        grid: scriptProfile?.grid,
+        jitter: scriptProfile?.jitter,
+        pull: scriptProfile?.pull,
         seed,
         columnIndex: c.index,
         charIndex: 0,
