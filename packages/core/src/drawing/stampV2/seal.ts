@@ -1,7 +1,14 @@
 import { PRNG } from "../../foundation/random/prng";
 import type { SealOptions, SealResult, SealShape, SealMode } from "./types";
 import { layoutGrid, type ContentArea } from "./layout/grid";
-import { resolveFont, resolveFontSync, fitGlyphInCell } from "./text/glyphs";
+import {
+  resolveFontSync,
+  fitGlyphInCell,
+  resolveFontForSeal,
+  findMissingChars,
+  loadFallbackSubsetFont,
+  compositeFont,
+} from "./text/glyphs";
 import { angularizeCommands } from "./text/angularize";
 import { buildBorder, borderPolygon, type BorderRings } from "./border/shape";
 import { erodeBorder } from "./border/erosion";
@@ -34,8 +41,22 @@ export function generateSeal(options: SealOptions): SealResult {
 }
 
 export async function generateSealAsync(options: SealOptions): Promise<SealResult> {
-  if (!options.font) throw new Error("generateSealAsync requires options.font");
-  const font = await resolveFont(options.font);
+  if (!options.font && !options.fontData) {
+    throw new Error("generateSealAsync requires options.font or options.fontData");
+  }
+  const primary = await resolveFontForSeal(options);
+  // Fallback subset path — only kicks in when the caller supplied
+  // `fontFallbackUrl` AND the primary actually lacks some chars. We compose
+  // (primary preferred, fallback for missing) instead of V1's wholesale
+  // swap so the primary's styling survives.
+  let font = primary;
+  if (options.fontFallbackUrl) {
+    const missing = findMissingChars(primary, options.text);
+    if (missing.length > 0) {
+      const fallback = await loadFallbackSubsetFont(options, missing);
+      if (fallback) font = compositeFont(primary, fallback);
+    }
+  }
   return pipeline(font, options);
 }
 

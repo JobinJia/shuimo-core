@@ -100,6 +100,27 @@ export interface SealOptions {
   seed?: number;
   script?: SealScript;
   font?: SealFontInput;
+  /**
+   * Pre-fetched font buffer alternative to `font` URL. Useful when the caller
+   * already has the bytes (e.g. cached / bundled) or wants to hand off via
+   * transferable to a `fontWorker` without a second fetch.
+   */
+  fontData?: ArrayBuffer | Uint8Array;
+  /**
+   * Off-main-thread font decoder. When set, the woff2 / TTF decode + glyph
+   * extraction happens in this Worker (entry point shipped at
+   * `@jobinjia/shuimo-core/stamp-font-worker`). Saves ~2s of main-thread
+   * blocking on first paint for large CJK fonts.
+   */
+  fontWorker?: Worker;
+  /**
+   * URL of a full TTF/OTF used to subset-supplement the primary `font` when
+   * it doesn't ship every character in `text`. Pairs with
+   * `harfbuzzSubsetWasmUrl` for the runtime subsetting step.
+   */
+  fontFallbackUrl?: string;
+  /** URL of the harfbuzz-subset WASM. Required only when `fontFallbackUrl` is set. */
+  harfbuzzSubsetWasmUrl?: string;
   layout?: SealLayoutOptions;
   border?: SealBorderOptions;
   notch?: SealNotchSpec;
