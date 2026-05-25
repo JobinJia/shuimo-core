@@ -47,6 +47,22 @@ const FONT_CACHE = new Map<string, Promise<GlyphFont | null>>();
 const FALLBACK_FONT_CACHE = new Map<string, Promise<GlyphFont | null>>();
 const RAW_FONT_BUFFER_CACHE = new Map<string, Promise<ArrayBuffer>>();
 
+// Each unique font buffer object gets its own id so two different buffers
+// (e.g. distinct woff2 payloads in a gallery) never share a cache slot.
+// A single `<data>` sentinel previously bucketed all buffers together,
+// returning the first buffer's GlyphFont for any later call.
+const FONT_DATA_IDS = new WeakMap<object, string>();
+let nextFontDataId = 1;
+function fontDataIdentityKey(data: ArrayBuffer | Uint8Array): string {
+  const obj = data instanceof Uint8Array ? data.buffer : data;
+  let id = FONT_DATA_IDS.get(obj);
+  if (!id) {
+    id = `data-${nextFontDataId++}`;
+    FONT_DATA_IDS.set(obj, id);
+  }
+  return id;
+}
+
 /** Unique chars across all text columns (set-deduplicated, insertion-order). */
 export function collectStampChars(text: string | string[] | undefined): string[] {
   if (!text) return [];
@@ -61,7 +77,16 @@ export function collectStampChars(text: string | string[] | undefined): string[]
 
 function workerCacheKey(opts: SealOptions, chars: string[]): string {
   const sortedChars = [...chars].sort().join("");
-  const fontKey = typeof opts.font === "string" ? opts.font : "<data>";
+  let fontKey: string;
+  if (typeof opts.font === "string") {
+    fontKey = opts.font;
+  } else if (opts.fontData) {
+    fontKey = fontDataIdentityKey(opts.fontData);
+  } else if (opts.font) {
+    fontKey = fontDataIdentityKey(opts.font);
+  } else {
+    fontKey = "<empty>";
+  }
   return `${fontKey}::${sortedChars}`;
 }
 
@@ -101,7 +126,7 @@ export async function resolveFontForSeal(opts: SealOptions): Promise<GlyphFont> 
     if (!cached) {
       cached = (async () => {
         try {
-          return await loadGlyphFontViaWorker(opts.fontWorker!, {
+          const result = await loadGlyphFontViaWorker(opts.fontWorker!, {
             fontUrl: typeof opts.font === "string" ? opts.font : undefined,
             fontData: opts.fontData instanceof Uint8Array
               ? opts.fontData.buffer.slice(
@@ -111,7 +136,17 @@ export async function resolveFontForSeal(opts: SealOptions): Promise<GlyphFont> 
               : opts.fontData,
             chars,
           });
-        } catch {
+          // Don't keep a null result cached — a later retry should be able
+          // to try the worker again (e.g. transient transport error).
+          if (!result) FONT_CACHE.delete(cacheKey);
+          return result;
+        } catch (err) {
+          FONT_CACHE.delete(cacheKey);
+          // eslint-disable-next-line no-console
+          console.warn(
+            "stamp-v2: worker font load failed:",
+            err instanceof Error ? err.message : err,
+          );
           return null;
         }
       })();
@@ -172,14 +207,21 @@ export async function loadFallbackSubsetFont(
       const miniBuffer = await subsetFontBuffer(fullBuffer, missing, {
         wasmUrl: opts.harfbuzzSubsetWasmUrl,
       });
+      let result: GlyphFont | null;
       if (opts.fontWorker) {
-        return await loadGlyphFontViaWorker(opts.fontWorker, {
+        result = await loadGlyphFontViaWorker(opts.fontWorker, {
           fontData: miniBuffer,
           chars: missing,
         });
+      } else {
+        result = loadFont(miniBuffer);
       }
-      return loadFont(miniBuffer);
+      // Match RAW_FONT_BUFFER_CACHE: drop nulls so retries can try again
+      // after the wasm / network blip clears.
+      if (!result) FALLBACK_FONT_CACHE.delete(subsetKey);
+      return result;
     } catch (err) {
+      FALLBACK_FONT_CACHE.delete(subsetKey);
       // eslint-disable-next-line no-console
       console.warn(
         `stamp-v2: fallback font load failed for ${opts.fontFallbackUrl}:`,

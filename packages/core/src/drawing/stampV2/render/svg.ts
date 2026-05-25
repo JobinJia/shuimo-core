@@ -26,6 +26,16 @@ export interface RenderSvgInput {
   mode: SealMode;
   cells: RenderCell[];
   borderPoly: MultiPolygon;
+  /**
+   * Polygon used to derive the shape clip applied to the text layer (yang
+   * mode). When erosion is applied, `borderPoly`'s inner ring carries the
+   * noisy notches that the visible ink should follow — but clipping the
+   * glyphs to that same noisy ring randomly cuts strokes wherever a notch
+   * pokes inward. Callers pass the SMOOTH border poly here so the clip
+   * tracks the inscribed-rect math that text layout used. Defaults to
+   * `borderPoly` for backward compatibility / non-eroded callers.
+   */
+  clipPoly?: MultiPolygon;
   inkColor: string;
   glyphStrokeWidth?: number;
   filterDefs?: string;
@@ -54,7 +64,8 @@ export interface RenderSvgOutput {
 }
 
 export function renderSvg(input: RenderSvgInput): RenderSvgOutput {
-  const { width, height, mode, cells, borderPoly, inkColor, glyphStrokeWidth = 0, filterDefs, bodyFilterId, textFilterId, clipPerCell = false, idPrefix = "stampv2" } = input;
+  const { width, height, mode, cells, borderPoly, clipPoly, inkColor, glyphStrokeWidth = 0, filterDefs, bodyFilterId, textFilterId, clipPerCell = false, idPrefix = "stampv2" } = input;
+  const clipSource = clipPoly ?? borderPoly;
 
   // Prefer original Bezier commands for rendering (smooth edges → SVG filters
   // produce visible carving). Fall back to flattened rings if commands absent.
@@ -100,9 +111,10 @@ export function renderSvg(input: RenderSvgInput): RenderSvgOutput {
     // text is laid out in a rectangular grid, but circle / ellipse / rounded
     // rects curve inward at edges — so even un-stretched glyphs at the rim
     // of the text bbox can poke past the border outline. Clipping to the
-    // border's inner ring catches both cases (stretched fills AND adaptive
-    // grids in curved shapes).
-    const innerRings: Ring[] = borderPoly.flatMap((p) => p.slice(1));
+    // smooth border's inner ring catches both cases (stretched fills AND
+    // adaptive grids in curved shapes) without inheriting erosion notches
+    // that would randomly chop the text.
+    const innerRings: Ring[] = clipSource.flatMap((p) => p.slice(1));
     const innerClipPath = ringsToPath(innerRings);
     const outerClipAttr = innerClipPath
       ? (() => {

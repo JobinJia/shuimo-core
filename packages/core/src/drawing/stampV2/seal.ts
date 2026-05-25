@@ -231,11 +231,13 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
   // (anti-clip for curved shapes) can be gated on it. With stretch on the
   // user explicitly asked for "fill the cell to the shape edge" — they
   // want the corner clip to kick in, not a pre-emptive shrink.
-  // Precedence: explicit `layout.stretch` > script auto-stretch hint
-  //             (jiudiezhuan == true) > shape-forced default.
+  // Precedence: explicit `layout.stretch` always wins; otherwise stretch
+  // when the script asks for it (jiudiezhuan) OR the shape forces full-
+  // cell dimensions. An `autoStretch: false` script (xiaozhuan/dazhuan/
+  // jinwen/custom) must NOT cancel a square's shape-forced fill, which is
+  // what an earlier `??` chain did — leaving glyphs floating in the cell.
   const stretchGlyphs = options.layout?.stretch
-    ?? scriptProfile?.autoStretch
-    ?? shapeForcesDims;
+    ?? (Boolean(scriptProfile?.autoStretch) || shapeForcesDims);
 
   let layoutColumnWidths = columnWidths;
   let layoutCellH = cellH;
@@ -428,11 +430,25 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
   // Per-config unique slug so multiple seals in the same document don't
   // collide on filter / clipPath IDs. The gallery used to hit one shared
   // `stampv2-42-text` filter across tiles, so every tile rendered the
-  // first tile's clip/filter. Hash the inputs that affect rendering
-  // (text, shape, mode, size) so same options → same slug (the
-  // "deterministic SVG for same seed" contract holds) and different
-  // options → different slug (no collisions in a multi-seal document).
-  const suffixKey = `${seed}|${textInput.join("\x1f")}|${shape.kind}|${(shape as { aspect?: number }).aspect ?? ""}|${mode}|${size}`;
+  // first tile's clip/filter. Hash every input that distinguishes one
+  // visual output from another (text, shape variant fields, mode, size,
+  // script) so same options → same slug and different options → different
+  // slug — keeping the "deterministic SVG for same seed" contract while
+  // avoiding the multi-seal collision.
+  const shapeWithAll = shape as {
+    aspect?: number;
+    sides?: number;
+    orientation?: string;
+    roughness?: number;
+  };
+  const shapeKey = [
+    shape.kind,
+    shapeWithAll.aspect ?? "",
+    shapeWithAll.sides ?? "",
+    shapeWithAll.orientation ?? "",
+    shapeWithAll.roughness ?? "",
+  ].join(":");
+  const suffixKey = `${seed}|${textInput.join("\x1f")}|${shapeKey}|${options.script ?? ""}|${mode}|${size}`;
   let suffixHash = 5381;
   for (let i = 0; i < suffixKey.length; i++) {
     suffixHash = ((suffixHash << 5) + suffixHash + suffixKey.charCodeAt(i)) | 0;
@@ -481,6 +497,10 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     mode,
     cells: renderCells,
     borderPoly: erodedBorderPoly,
+    // Clip uses the smooth (pre-erosion) polygon so glyphs aren't chopped
+    // along the noisy inner ring when border.roughness > 0. The visible
+    // border ink still rides on the eroded version.
+    clipPoly: baseBorderPoly,
     inkColor,
     glyphStrokeWidth: 0,
     filterDefs,
