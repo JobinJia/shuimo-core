@@ -3,6 +3,7 @@ import { onMounted, ref, computed } from "vue";
 import {
   generateSealAsync,
   type SealMode,
+  type SealScript,
   type SealShape,
 } from "@jobinjia/shuimo-core/stamp-v2";
 
@@ -42,6 +43,17 @@ const SHAPE_CASES: ShapeSpec[] = [
   { label: "长方形", build: () => ({ kind: "rect" }) },
   { label: "圆形", build: () => ({ kind: "circle" }) },
   { label: "椭圆", build: () => ({ kind: "ellipse" }) },
+  { label: "六边形", build: () => ({ kind: "polygon", sides: 6, orientation: "flat-top" }) },
+  { label: "八边形", build: () => ({ kind: "polygon", sides: 8, orientation: "flat-top" }) },
+  { label: "异形", build: () => ({ kind: "irregular" }) },
+];
+
+const SCRIPT_CASES: { label: string; value: "" | SealScript }[] = [
+  { label: "未设 (carving=1.0)", value: "" },
+  { label: "金文 (jinwen)", value: "jinwen" },
+  { label: "大篆 (dazhuan)", value: "dazhuan" },
+  { label: "小篆 (xiaozhuan)", value: "xiaozhuan" },
+  { label: "九叠篆 (auto-stretch)", value: "jiudiezhuan" },
 ];
 
 const MODE_CASES: { label: string; mode: SealMode }[] = [
@@ -64,6 +76,7 @@ interface Cell {
 const cells = ref<Cell[]>([]);
 const ready = ref(false);
 const stretchAll = ref(true);
+const scriptAll = ref<"" | SealScript>("");
 
 const rows = computed(() => {
   const out: { textLabel: string; shapes: Cell[] }[] = [];
@@ -99,8 +112,11 @@ async function renderAll() {
             font: SEAL_FONT_URL,
             mode: m.mode,
             shape: s.build(),
+            script: scriptAll.value || undefined,
             border: { thickness: 5, corner: "round", cornerRadius: 8, roughness: 0.2 },
-            carving: { intensity: 0.9 },
+            // When user picks a script, let its baseline drive intensity;
+            // else use 0.9 (gallery default for the carving-only matrix).
+            carving: scriptAll.value ? undefined : { intensity: 0.9 },
             ink: { color: "#c1272d", bleed: m.mode === "yin" ? 0.7 : 1.0 },
             layout: {
               padding: 0,
@@ -142,6 +158,12 @@ function refresh() {
       <div class="controls">
         <label>
           <input type="checkbox" v-model="stretchAll" @change="refresh" /> 撑满 cell (九叠篆)
+        </label>
+        <label>
+          篆体:
+          <select v-model="scriptAll" @change="refresh">
+            <option v-for="s in SCRIPT_CASES" :key="s.value" :value="s.value">{{ s.label }}</option>
+          </select>
         </label>
         <button @click="refresh" class="btn">重新生成</button>
       </div>
