@@ -247,6 +247,7 @@ describe("Stamp layout", () => {
       fontSize: 70,
       paddingXPx: 1,
       paddingYPx: 1,
+      borderGap: false,
       seed: 1,
     } as const;
 

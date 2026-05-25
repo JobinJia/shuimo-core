@@ -244,32 +244,35 @@ watch(stampShape, (shape) => {
   }
 });
 
-const stampOptions = computed<StampOptions>(() => ({
-  text: textLines.value,
-  type: stampType.value,
-  shape: stampShape.value,
-  color: color.value,
-  fontFamily: fontFamily.value,
-  fontSize: fontSize.value,
-  fontWeight: fontWeight.value,
-  textCarving: textCarving.value,
-  carvingIntensity: carvingIntensity.value,
-  offsetX: offsetX.value,
-  offsetY: offsetY.value,
-  columnSpacing: columnSpacing.value,
-  characterSpacing: characterSpacing.value,
-  paddingX: paddingX.value,
-  paddingY: paddingY.value,
-  borderScaleX: borderScaleX.value,
-  borderScaleY: borderScaleY.value,
-  noiseAmountPx: noiseAmount.value,
-  noiseDensity: noiseDensity.value,
-  borderPointsPx: borderPoints.value,
-  cornerRadiusPx: cornerRadius.value,
-  borderWidthPx: borderWidth.value,
-  regularShape: regularShape.value,
-  seed: seed.value,
-}));
+const stampOptions = computed<StampOptions>(() => {
+  const isYin = stampType.value === "yin";
+  return {
+    text: textLines.value,
+    type: stampType.value,
+    shape: stampShape.value,
+    color: color.value,
+    fontFamily: fontFamily.value,
+    fontSize: fontSize.value,
+    fontWeight: fontWeight.value,
+    textCarving: textCarving.value,
+    carvingIntensity: carvingIntensity.value,
+    offsetX: offsetX.value,
+    offsetY: offsetY.value,
+    columnSpacing: columnSpacing.value,
+    characterSpacing: characterSpacing.value,
+    paddingX: paddingX.value,
+    paddingY: paddingY.value,
+    borderScaleX: borderScaleX.value,
+    borderScaleY: borderScaleY.value,
+    noiseAmountPx: isYin ? 0 : noiseAmount.value,
+    noiseDensity: noiseDensity.value,
+    borderPointsPx: borderPoints.value,
+    cornerRadiusPx: isYin ? 0 : cornerRadius.value,
+    borderWidthPx: isYin ? 0 : borderWidth.value,
+    regularShape: regularShape.value,
+    seed: seed.value,
+  };
+});
 
 const stampSvg = ref("");
 let renderToken = 0;

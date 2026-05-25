@@ -276,6 +276,21 @@ export interface StampOptions {
    */
   fontWorker?: Worker;
 
+  /** 留缺：阴章边框的自然缺口。true = 生成一个缺口。仅阴章有效。 */
+  borderGap?: boolean;
+
+  /** 缺口在哪条边。0=top, 1=right, 2=bottom, 3=left。不提供则由 seed 随机。 */
+  borderGapEdge?: 0 | 1 | 2 | 3;
+
+  /** 缺口中心在该边的位置比例 0-1。不提供则由 seed 随机（避开角落）。 */
+  borderGapPosition?: number;
+
+  /** 缺口长度占该边长度的比例（default: 0.25）。 */
+  borderGapLength?: number;
+
+  /** 缺口深度占垂直方向尺寸的比例（default: 0.12）。 */
+  borderGapDepth?: number;
+
   /** Random seed for reproducible generation */
   seed?: number;
 }
@@ -1418,6 +1433,109 @@ function generateEllipsePath(
   return b.toString();
 }
 
+// ─── Border gap (留缺) ──────────────────────────────────────────────
+
+interface BorderGapOptions {
+  edge?: 0 | 1 | 2 | 3;
+  position?: number;
+  length?: number;
+  depth?: number;
+  seed: number;
+}
+
+function applyBorderGap(
+  w: number,
+  h: number,
+  options: BorderGapOptions,
+): string {
+  const { seed } = options;
+
+  let seedVal = ((seed % 233280) + 233280) % 233280;
+  const random = () => {
+    seedVal = (seedVal * 9301 + 49297) % 233280;
+    return seedVal / 233280;
+  };
+  // Burn a few values so gap seed diverges from path seed
+  for (let i = 0; i < 5; i++) random();
+
+  const edge = options.edge ?? Math.floor(random() * 4);
+  const position = options.position ?? (0.25 + random() * 0.5);
+  const gapLenRatio = options.length ?? 0.25;
+  const gapDepthRatio = options.depth ?? 0.12;
+
+  const isHorizontal = edge === 0 || edge === 2;
+  const edgeLen = isHorizontal ? w : h;
+  const gapLen = edgeLen * gapLenRatio;
+  const gapDepth = (isHorizontal ? h : w) * gapDepthRatio;
+
+  const gapCenter = edgeLen * position;
+  const gapStart = Math.max(0, gapCenter - gapLen / 2);
+  const gapEnd = Math.min(edgeLen, gapCenter + gapLen / 2);
+
+  const noise = createStampNoise(seed + 7777);
+  const gapPoints = 10;
+
+  function gapProfile(t: number, baseX: number, baseY: number, inNX: number, inNY: number): { x: number; y: number } {
+    const bell = Math.sin(t * PI);
+    const ns = 0.08;
+    const nv = noise.noise3D(baseX * ns, baseY * ns, 0) * 0.3;
+    const d = gapDepth * bell * (1 + nv);
+    return { x: baseX + d * inNX, y: baseY + d * inNY };
+  }
+
+  const b = new PathBuilder();
+
+  // Edge definitions: start corner -> end corner, with inward normal
+  const edges: Array<{
+    sx: number; sy: number;
+    ex: number; ey: number;
+    inNX: number; inNY: number;
+  }> = [
+    { sx: 0, sy: 0, ex: w, ey: 0, inNX: 0, inNY: 1 },   // top
+    { sx: w, sy: 0, ex: w, ey: h, inNX: -1, inNY: 0 },   // right
+    { sx: w, sy: h, ex: 0, ey: h, inNX: 0, inNY: -1 },   // bottom
+    { sx: 0, sy: h, ex: 0, ey: 0, inNX: 1, inNY: 0 },    // left
+  ];
+
+  b.moveTo(edges[0].sx, edges[0].sy);
+
+  for (let e = 0; e < 4; e++) {
+    const { sx, sy, ex, ey, inNX, inNY } = edges[e];
+
+    if (e === edge) {
+      const dx = ex - sx;
+      const dy = ey - sy;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      const ux = dx / len;
+      const uy = dy / len;
+
+      const startT = gapStart / len;
+      const endT = gapEnd / len;
+
+      // Line to gap start
+      b.lineTo(sx + ux * gapStart, sy + uy * gapStart);
+
+      // Gap curve points
+      for (let i = 0; i <= gapPoints; i++) {
+        const t = i / gapPoints;
+        const edgeT = startT + t * (endT - startT);
+        const bx = sx + edgeT * dx;
+        const by = sy + edgeT * dy;
+        const pt = gapProfile(t, bx, by, inNX, inNY);
+        b.lineTo(pt.x, pt.y);
+      }
+
+      // Line to edge end
+      b.lineTo(ex, ey);
+    } else {
+      b.lineTo(ex, ey);
+    }
+  }
+
+  b.close();
+  return b.toString();
+}
+
 // ─── Main API ───────────────────────────────────────────────────────
 
 /**
@@ -1453,7 +1571,7 @@ export function generateStampPath(options: StampOptions): StampResult {
   } = options;
 
   const isYin = (options.type ?? "yin") === "yin";
-  const borderBandWidth = options.borderBandWidth ?? (isYin ? DEFAULT_BORDER_BAND_WIDTH : 0);
+  const borderBandWidth = options.borderBandWidth ?? 0;
   const actualBorderBandWidth = options.borderBandWidthPx ?? fontSize * borderBandWidth;
 
   // Resolve actual pixel values — *Px takes precedence over fontSize-relative values
@@ -1805,6 +1923,16 @@ export function generateStampPath(options: StampOptions): StampResult {
     path = b.toString();
   }
 
+  if (isYin && (options.borderGap ?? true)) {
+    path = applyBorderGap(bounds.width, bounds.height, {
+      edge: options.borderGapEdge,
+      position: options.borderGapPosition,
+      length: options.borderGapLength,
+      depth: options.borderGapDepth,
+      seed,
+    });
+  }
+
   return { path, bounds };
 }
 
@@ -1834,7 +1962,7 @@ export function generateStamp(options: StampOptions): string {
   } = options;
 
   const isYin = type === "yin";
-  const borderBandWidth = options.borderBandWidth ?? (isYin ? DEFAULT_BORDER_BAND_WIDTH : 0);
+  const borderBandWidth = options.borderBandWidth ?? 0;
   const actualBorderBandWidth = options.borderBandWidthPx ?? fontSize * borderBandWidth;
   const gridLineWidth = options.gridLineWidth ?? DEFAULT_GRID_LINE_WIDTH;
   const actualGridLineWidth = options.gridLineWidthPx ?? fontSize * gridLineWidth;
@@ -1857,7 +1985,7 @@ export function generateStamp(options: StampOptions): string {
   // noise to 0 they want a pristine shape, so drop the filters entirely.
   const actualNoiseAmountForFilter =
     options.noiseAmountPx ?? fontSize * (options.noiseAmount ?? DEFAULT_NOISE_AMOUNT);
-  const wantInkFilter = actualNoiseAmountForFilter > 0;
+  const wantInkFilter = !isYin && actualNoiseAmountForFilter > 0;
   const inkFilterAttr = wantInkFilter ? ' filter="url(#stamp-ink-texture)"' : "";
   const borderFilterAttr = wantInkFilter ? ' filter="url(#stamp-border-texture)"' : "";
 
@@ -1948,7 +2076,10 @@ export function generateStamp(options: StampOptions): string {
   const pathOptions = {
     ...options,
     ...(isYin && options.noiseAmount === undefined && options.noiseAmountPx === undefined
-      ? { noiseAmount: DEFAULT_NOISE_AMOUNT * 0.12 }
+      ? { noiseAmount: 0 }
+      : {}),
+    ...(isYin && options.cornerRadius === undefined && options.cornerRadiusPx === undefined
+      ? { cornerRadius: 0 }
       : {}),
     ...(resolvedGridLines ? { columnSpacingPx: actualColumnSpacing * fontSize } : {}),
   };
@@ -2072,36 +2203,31 @@ export function generateStamp(options: StampOptions): string {
   <defs>
     <!-- Realistic ink stamp texture - simulates paper fiber absorption and ink splatter -->
     <filter id="stamp-ink-texture" x="-20%" y="-20%" width="140%" height="140%">
-      <!-- Step 1: Edge displacement for irregular border, then clip to original boundary (凹陷 only, no 凸起) -->
-      <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.04 * k.frequency * noiseDensity)}" numOctaves="4" seed="${seed + 123}" result="borderNoise"/>
-      <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmtNum(inkDisplacement)}" xChannelSelector="R" yChannelSelector="G" result="rawDisplaced"/>
-      <feComposite in="rawDisplaced" in2="SourceGraphic" operator="in" result="displacedShape"/>
-
-      <!-- Step 2: Create granular texture (paper fibers) - increased visibility -->
+      <!-- Step 1: Create granular texture (paper fibers) -->
       <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.4 * k.frequency)}" numOctaves="4" seed="${seed + 456}" result="grainNoise"/>
 
-      <!-- Step 3: Create larger blotchy patterns (ink distribution) - more pronounced -->
+      <!-- Step 2: Create larger blotchy patterns (ink distribution) -->
       <feTurbulence type="turbulence" baseFrequency="${fmtNum(0.08 * k.frequency)}" numOctaves="2" seed="${seed + 789}" result="blotchNoise"/>
 
-      <!-- Step 4: Combine grain and blotches using blend multiply -->
+      <!-- Step 3: Combine grain and blotches using blend multiply -->
       <feBlend in="grainNoise" in2="blotchNoise" mode="multiply" result="combinedNoise"/>
 
-      <!-- Step 5: Convert to alpha mask with threshold -->
+      <!-- Step 4: Convert to alpha mask with threshold -->
       <feColorMatrix in="combinedNoise" type="matrix"
         values="0 0 0 0 0
                 0 0 0 0 0
                 0 0 0 0 0
                 1 1 1 0 0" result="noiseMask"/>
 
-      <!-- Step 6: Enhance contrast to create MORE visible holes and variation -->
+      <!-- Step 5: Enhance contrast to create visible holes and variation -->
       <feComponentTransfer in="noiseMask" result="contrastMask">
         <feFuncA type="discrete" tableValues="0 0 0 0 0.2 0.4 0.6 0.75 0.88 0.95 1 1"/>
       </feComponentTransfer>
 
-      <!-- Step 7: Apply texture mask to displaced shape -->
-      <feComposite in="displacedShape" in2="contrastMask" operator="in" result="texturedShape"/>
+      <!-- Step 6: Apply texture mask to source shape -->
+      <feComposite in="SourceGraphic" in2="contrastMask" operator="in" result="texturedShape"/>
 
-      <!-- Step 8: Final opacity adjustment -->
+      <!-- Step 7: Final opacity adjustment -->
       <feColorMatrix in="texturedShape" type="matrix"
         values="1 0 0 0 0
                 0 1 0 0 0
@@ -2348,7 +2474,7 @@ export class Stamp {
       gridLines: options.gridLines ?? false,
       gridLineWidth: options.gridLineWidth ?? DEFAULT_GRID_LINE_WIDTH,
       gridLineWidthPx: options.gridLineWidthPx,
-      borderBandWidth: options.borderBandWidth ?? (type === "yin" ? DEFAULT_BORDER_BAND_WIDTH : 0),
+      borderBandWidth: options.borderBandWidth ?? 0,
       borderBandWidthPx: options.borderBandWidthPx,
       seed: options.seed || Date.now(),
     };
