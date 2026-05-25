@@ -34,7 +34,7 @@ Stamp v2 (`@jobinjia/shuimo-core/stamp-v2`) 与现有 stamp v1 (`@jobinjia/shuim
 | 方形 / 长方形 / 圆形 / 椭圆 / 自动 | ✅ | ✅ |
 | **rect / ellipse 自定义 aspect**(横 / 竖比例) | ❌ | ✅🆕⭐ `shape.aspect` |
 | polygon 多边形(3-12 边,flat-top/point-top 朝向) | ❌ | ✅🆕⭐ |
-| irregular 异形(自动重磨损,roughness 默认 0.7) | ❌ | ✅🆕⭐ |
+| 异形(完全不规则 / 跟着文字走的 base) | ❌ | ❌ 尝试过 `kind: "irregular"`(rect + erosion)和 cell-union 路径,前者噪声幅度不够看不出区别,后者交互上效果不对,均已撤掉 |
 | 圆角风格 corner | ✅ 仅 round | ✅⭐ `none` / `round` / `stone` |
 | 圆角半径 cornerRadius | ✅ | ✅ |
 
@@ -78,6 +78,23 @@ Stamp v2 (`@jobinjia/shuimo-core/stamp-v2`) 与现有 stamp v1 (`@jobinjia/shuim
 | PRNG 多 salt 分流 | ❌ 单 seed 串到底 | ✅⭐ `SALT_SHAPE` / `SALT_CARVE` / `SALT_EROSION` 独立流 |
 | API 架构 | 2400 行 mega-function,SVG 字串拼接 | ⭐ 多阶段 pipeline:layout → glyph fit → angularize → border → erosion → filter → render |
 
+## 性能(实测)
+
+vitest bench,jsdom 环境,1500ms / bench,样本数 ≥ 10。完整脚本:`packages/core/src/drawing/stampV2/stamp-v1-vs-v2.bench.ts`,跑法 `pnpm bench`(在 `packages/core/`)。
+
+| 场景 | V1 mean | V2 mean | V2 优势 |
+|---|---|---|---|
+| 单印章(2 字单列) | 11.1 ms | 8.9 ms | **1.25×** |
+| 50 个不同 seed(无 dedup) | 568 ms | 451 ms | **1.26×** |
+| 50 个相同 options(cache friendly) | 642 ms | 491 ms | **1.31×** |
+| 长文(11 字 3 列) | 14.0 ms | 10.4 ms | **1.34×** |
+
+V2 在每个场景都比 V1 快 25-35%。当时 spec 设计阶段曾估计"V2 多阶段 pipeline 会慢于 V1 mega-function",实测反向 —— 可能是 V8 对 V2 的小函数内联更友好,加上 V1 SVG 字符串拼接成本更高。
+
+**Cache 友好场景没拉开差距**(450 ms vs 491 ms):字体 cache 在两边 warm 状态都命中,多印章 dedup 主要降低**输出 SVG 体积**(共享 filter defs),不是降低生成速度。
+
+V1 在 cache-friendly 场景反而比 cache-cold 场景慢 13%(642 > 568 ms),原因不明;可能噪声(10 样本,RME 4.5%),也可能 V1 有某条 seed 不变时的退化路径。
+
 ## V2 placeholder(类型里定义了但未实现)
 
 | 字段 | 状态 |
@@ -91,11 +108,11 @@ Stamp v2 (`@jobinjia/shuimo-core/stamp-v2`) 与现有 stamp v1 (`@jobinjia/shuim
 
 **V1 还独占的能力**:界格(`gridLines`)、`borderBandWidth`、`noiseDensity` 独立旋钮、Canvas 渲染器。
 
-**V2 已经追平 / 反超 V1 的能力**:字体 fallback(composite 优于 swap)、harfbuzz 子集化、fontWorker、5 档篆体风格、polygon/irregular 异形、aspect 自定义、九叠篆 stretch、分层 SVG 输出、同页多印章 ID 隔离。
+**V2 已经追平 / 反超 V1 的能力**:字体 fallback(composite 优于 swap)、harfbuzz 子集化、fontWorker、5 档篆体风格、polygon 多边形、aspect 自定义、九叠篆 stretch、分层 SVG 输出、同页多印章 ID 隔离、25-35% 的纯生成性能优势。
 
 **目前怎么选**:
 - 需要**界格 / canvas / 像素级 noiseDensity 控制** → V1
-- 其他情况 → V2(尤其是 gallery 同页多印章 / 古文字风格 / 异形 shape / 分层输出)
+- 其他情况 → V2(尤其是 gallery 同页多印章 / 古文字风格 / 多边形 / 分层输出)
 
 **V2 类型里仍未接通**(别依赖):`notch` / `pressing` / `output.format: "canvas"` / `ink.density-grain-aging`
 
@@ -117,4 +134,4 @@ Stamp v2 (`@jobinjia/shuimo-core/stamp-v2`) 与现有 stamp v1 (`@jobinjia/shuim
 - `/stamp-playground` — V1 完整控制面板
 - `/stamp-canvas` — V1 canvas 渲染
 - `/stamp-v2` — V2 主 playground(全控制面板 + 同 seed v1 对比)
-- `/stamp-v2-gallery` — V2 全量测试矩阵(11 字数布局 × 5 形状 × 2 模式)
+- `/stamp-v2-gallery` — V2 全量测试矩阵(13 字数布局 × 7 形状 × 2 模式)
