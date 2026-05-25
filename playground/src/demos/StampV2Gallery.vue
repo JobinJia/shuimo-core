@@ -34,6 +34,8 @@ const TEXT_CASES: TextSpec[] = [
   { label: "2 列 3 行 (3+3)", text: ["落梅听", "风雪雨"] },
   { label: "3 列 2 行", text: ["山高", "水长", "无尽"] },
   { label: "3 列 3 行", text: ["山高水", "长流远", "无尽时"] },
+  { label: "3 列 2/3/2", text: ["山高", "水长流", "无尽"] },
+  { label: "3 列 1/2/3", text: ["山", "水长", "无尽时"] },
   { label: "4 列 2 行", text: ["山高", "水长", "书剑", "飘零"] },
 ];
 
@@ -45,7 +47,6 @@ const SHAPE_CASES: ShapeSpec[] = [
   { label: "椭圆", build: () => ({ kind: "ellipse" }) },
   { label: "六边形", build: () => ({ kind: "polygon", sides: 6, orientation: "flat-top" }) },
   { label: "八边形", build: () => ({ kind: "polygon", sides: 8, orientation: "flat-top" }) },
-  { label: "异形", build: () => ({ kind: "irregular" }) },
 ];
 
 const SCRIPT_CASES: { label: string; value: "" | SealScript }[] = [

@@ -37,11 +37,6 @@ export function buildBorder(shape: SealShape, opts: ShapeBuildOptions): BorderRi
       return ellipseBorder(opts);
     case "polygon":
       return polygonBorder(opts, shape.sides, shape.orientation ?? "flat-top");
-    case "irregular":
-      // Irregular geometry is generated downstream (seal.ts applies extra
-      // erosion via border/erosion.ts). The base ring here is just a square
-      // — erosion does the hand-hewn look.
-      return rectBorder(opts);
   }
 }
 

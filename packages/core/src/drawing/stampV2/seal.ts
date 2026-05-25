@@ -180,15 +180,6 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
       sealW = Math.max(aspectW, textFitW);
       break;
     }
-    case "irregular": {
-      // Irregular hugs text dimensions; the look comes from heavy erosion
-      // (applied below via roughness boost), not from a different outer box.
-      const aspect = shape.aspect ?? 1;
-      sealH = Math.max(size, textFitH);
-      const aspectW = sealH * aspect;
-      sealW = Math.max(aspectW, textFitW);
-      break;
-    }
     case "auto":
     default: {
       sealW = textFitW;
@@ -406,15 +397,7 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     };
   });
 
-  // Effective roughness: irregular shape boosts the baseline so the user
-  // doesn't have to remember to crank `border.roughness` on top of picking
-  // an irregular kind. shape.roughness (when set) acts as the floor; the
-  // explicit `border.roughness` is taken as max with it.
-  let roughness = options.border?.roughness ?? 0;
-  if (shape.kind === "irregular") {
-    const shapeRoughness = shape.roughness ?? 0.7;
-    roughness = Math.max(roughness, shapeRoughness);
-  }
+  const roughness = options.border?.roughness ?? 0;
   const erosionInput: MultiPolygon =
     mode === "yin" ? baseBorderPoly.map((p) => [p[0]]) : baseBorderPoly;
   const erodedBorderPoly =
@@ -439,14 +422,12 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     aspect?: number;
     sides?: number;
     orientation?: string;
-    roughness?: number;
   };
   const shapeKey = [
     shape.kind,
     shapeWithAll.aspect ?? "",
     shapeWithAll.sides ?? "",
     shapeWithAll.orientation ?? "",
-    shapeWithAll.roughness ?? "",
   ].join(":");
   const suffixKey = `${seed}|${textInput.join("\x1f")}|${shapeKey}|${options.script ?? ""}|${mode}|${size}`;
   let suffixHash = 5381;

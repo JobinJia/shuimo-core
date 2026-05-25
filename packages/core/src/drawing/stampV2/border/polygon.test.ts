@@ -74,33 +74,3 @@ describe("generateSeal with polygon shape", () => {
   });
 });
 
-describe("generateSeal with irregular shape", () => {
-  it("renders without error and uses heavy erosion by default", () => {
-    const r = generateSeal({
-      text: "水墨",
-      size: 200,
-      seed: 42,
-      font: fontBuf,
-      shape: { kind: "irregular" },
-    });
-    expect(r.svg).toMatch(/^<svg /);
-  });
-
-  it("higher roughness → different SVG (more deformation)", () => {
-    const low = generateSeal({
-      text: "水墨",
-      size: 200,
-      seed: 42,
-      font: fontBuf,
-      shape: { kind: "irregular", roughness: 0.4 },
-    });
-    const high = generateSeal({
-      text: "水墨",
-      size: 200,
-      seed: 42,
-      font: fontBuf,
-      shape: { kind: "irregular", roughness: 0.95 },
-    });
-    expect(low.svg).not.toBe(high.svg);
-  });
-});

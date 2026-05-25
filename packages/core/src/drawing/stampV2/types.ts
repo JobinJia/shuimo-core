@@ -20,13 +20,6 @@ export type SealShape =
       orientation?: "flat-top" | "point-top";
       /** Width-to-height aspect; default 1 (regular polygon in a square box). */
       aspect?: number;
-    }
-  | {
-      kind: "irregular";
-      /** Erosion roughness 0..1; default 0.7 → hand-hewn stone look. */
-      roughness?: number;
-      /** Width-to-height aspect; default 1. */
-      aspect?: number;
     };
 
 /**

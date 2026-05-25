@@ -22,7 +22,6 @@ const controls = reactive({
   script: "" as "" | SealScript,
   polygonSides: 6,
   polygonOrientation: "flat-top" as "flat-top" | "point-top",
-  irregularRoughness: 0.7,
   notchStrategy: "auto" as SealNotchStrategy,
   notchJitter: 0.4,
   borderThickness: 7,
@@ -104,8 +103,6 @@ const v2Shape = computed<SealShape>(() => {
         sides: controls.polygonSides,
         orientation: controls.polygonOrientation,
       };
-    case "irregular":
-      return { kind: "irregular", roughness: controls.irregularRoughness };
     default:
       return { kind: "square" };
   }
@@ -207,7 +204,6 @@ watch(
     sc: controls.script,
     ps: controls.polygonSides,
     po: controls.polygonOrientation,
-    ir: controls.irregularRoughness,
     ns: controls.notchStrategy,
     nj: controls.notchJitter,
     bt: controls.borderThickness,
@@ -257,7 +253,6 @@ watch(
             <option value="circle">圆形</option>
             <option value="ellipse">椭圆</option>
             <option value="polygon">多边形 (polygon)</option>
-            <option value="irregular">异形 (irregular)</option>
           </select>
         </div>
 
@@ -274,12 +269,6 @@ watch(
             </select>
           </div>
         </template>
-
-        <div v-if="controls.shape === 'irregular'" class="row">
-          <label>异形粗糙度 ({{ controls.irregularRoughness.toFixed(2) }})</label>
-          <input type="range" min="0.3" max="1" step="0.05" v-model.number="controls.irregularRoughness" />
-        </div>
-
 
         <div class="row">
           <label>模式</label>
