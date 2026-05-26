@@ -1985,9 +1985,9 @@ export function generateStamp(options: StampOptions): string {
   // noise to 0 they want a pristine shape, so drop the filters entirely.
   const actualNoiseAmountForFilter =
     options.noiseAmountPx ?? fontSize * (options.noiseAmount ?? DEFAULT_NOISE_AMOUNT);
-  const wantInkFilter = !isYin && actualNoiseAmountForFilter > 0;
+  const wantInkFilter = isYin || actualNoiseAmountForFilter > 0;
   const inkFilterAttr = wantInkFilter ? ' filter="url(#stamp-ink-texture)"' : "";
-  const borderFilterAttr = wantInkFilter ? ' filter="url(#stamp-border-texture)"' : "";
+  const borderFilterAttr = wantInkFilter && !isYin ? ' filter="url(#stamp-border-texture)"' : "";
 
   // SVG filter scaling — see carvingScales() for the per-dimension model.
   const k = carvingScales(fontSize);
@@ -2203,31 +2203,18 @@ export function generateStamp(options: StampOptions): string {
   <defs>
     <!-- Realistic ink stamp texture - simulates paper fiber absorption and ink splatter -->
     <filter id="stamp-ink-texture" x="-20%" y="-20%" width="140%" height="140%">
-      <!-- Step 1: Create granular texture (paper fibers) -->
       <feTurbulence type="fractalNoise" baseFrequency="${fmtNum(0.4 * k.frequency)}" numOctaves="4" seed="${seed + 456}" result="grainNoise"/>
-
-      <!-- Step 2: Create larger blotchy patterns (ink distribution) -->
       <feTurbulence type="turbulence" baseFrequency="${fmtNum(0.08 * k.frequency)}" numOctaves="2" seed="${seed + 789}" result="blotchNoise"/>
-
-      <!-- Step 3: Combine grain and blotches using blend multiply -->
       <feBlend in="grainNoise" in2="blotchNoise" mode="multiply" result="combinedNoise"/>
-
-      <!-- Step 4: Convert to alpha mask with threshold -->
       <feColorMatrix in="combinedNoise" type="matrix"
         values="0 0 0 0 0
                 0 0 0 0 0
                 0 0 0 0 0
                 1 1 1 0 0" result="noiseMask"/>
-
-      <!-- Step 5: Enhance contrast to create visible holes and variation -->
       <feComponentTransfer in="noiseMask" result="contrastMask">
         <feFuncA type="discrete" tableValues="0 0 0 0 0.2 0.4 0.6 0.75 0.88 0.95 1 1"/>
       </feComponentTransfer>
-
-      <!-- Step 6: Apply texture mask to source shape -->
       <feComposite in="SourceGraphic" in2="contrastMask" operator="in" result="texturedShape"/>
-
-      <!-- Step 7: Final opacity adjustment -->
       <feColorMatrix in="texturedShape" type="matrix"
         values="1 0 0 0 0
                 0 1 0 0 0

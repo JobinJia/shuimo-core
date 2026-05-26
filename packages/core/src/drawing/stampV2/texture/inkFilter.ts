@@ -72,12 +72,12 @@ export function inkFilterDefs(opts: InkFilterOptions): string {
   // geometric simplex perturbation (border/erosion.ts) + borderFilter. This
   // filter ONLY produces the ink-density texture (white patches in the body).
   return `<filter id="${id}" x="-5%" y="-5%" width="110%" height="110%">
-  <feTurbulence type="fractalNoise" baseFrequency="0.4" numOctaves="4" seed="${seedB}" result="grainNoise"/>
-  <feTurbulence type="turbulence" baseFrequency="0.08" numOctaves="2" seed="${seedC}" result="blotchNoise"/>
+  <feTurbulence type="fractalNoise" baseFrequency="0.25" numOctaves="3" seed="${seedB}" result="grainNoise"/>
+  <feTurbulence type="turbulence" baseFrequency="0.07" numOctaves="2" seed="${seedC}" result="blotchNoise"/>
   <feBlend in="grainNoise" in2="blotchNoise" mode="multiply" result="combinedNoise"/>
   <feColorMatrix in="combinedNoise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 1 1 0 0" result="noiseMask"/>
   <feComponentTransfer in="noiseMask" result="contrastMask">
-    <feFuncA type="discrete" tableValues="0 0 0 0 0.2 0.4 0.6 0.75 0.88 0.95 1 1"/>
+    <feFuncA type="discrete" tableValues="0 0 0 0 0 0 0 0.5 0.82 0.96 1 1"/>
   </feComponentTransfer>
   <feComposite in="SourceGraphic" in2="contrastMask" operator="in" result="texturedShape"/>
   <feColorMatrix in="texturedShape" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.98 0"/>
