@@ -121,7 +121,39 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
   // Choose fontSize so the tallest glyph occupies 96% of cellH; shorter
   // glyphs leave proportionally more vertical padding in their cell.
   const globalMaxPh = allMetrics.length > 0 ? Math.max(...allMetrics.map((g) => g.ph)) : PROBE_SIZE;
-  const sealFontSize = (cellH * 0.96 * PROBE_SIZE) / globalMaxPh;
+
+  // Per-row max ink height (used by cellHeightMode='fit' to size each row
+  // to its tallest glyph instead of uniform-splitting innerH). Row index
+  // matches position within a column (0 = top row).
+  const rowMaxPh: number[] = new Array(maxRows).fill(0);
+  for (const colMetrics of glyphMetricsByCol) {
+    for (let r = 0; r < colMetrics.length; r++) {
+      if (colMetrics[r].ph > rowMaxPh[r]) rowMaxPh[r] = colMetrics[r].ph;
+    }
+  }
+  const sumRowMaxPh = rowMaxPh.reduce((s, v) => s + v, 0);
+  const availInnerH = innerH - rowGap * Math.max(0, maxRows - 1);
+
+  const cellHeightMode = options.layout?.cellHeightMode ?? "uniform";
+
+  // Per-row heights. Uniform (default, V1 parity) = every row equal to cellH.
+  // Fit = apportion availInnerH in proportion to each row's max ink height,
+  // so short-char rows shrink and the visible inter-row gap stops opening
+  // under chars like "下" / "山".
+  let rowHeights: number[];
+  let sealFontSize: number;
+  if (cellHeightMode === "fit" && sumRowMaxPh > 0) {
+    rowHeights = rowMaxPh.map((ph) => (availInnerH * ph) / sumRowMaxPh);
+    // fontSize derivation: for the tallest glyph in any row r,
+    //   fontSize * rowMaxPh[r] / PROBE_SIZE = 0.96 * rowHeights[r]
+    //                                       = 0.96 * availInnerH * rowMaxPh[r] / sumRowMaxPh
+    // The rowMaxPh[r] cancels, so fontSize is row-independent — every
+    // glyph keeps the same em scale (no per-glyph stroke-weight drift).
+    sealFontSize = (availInnerH * 0.96 * PROBE_SIZE) / sumRowMaxPh;
+  } else {
+    rowHeights = new Array(maxRows).fill(cellH);
+    sealFontSize = (cellH * 0.96 * PROBE_SIZE) / globalMaxPh;
+  }
   const scale = sealFontSize / PROBE_SIZE;
 
   const columnWidths = glyphMetricsByCol.map((metrics) => {
@@ -227,11 +259,16 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
   // cell dimensions. An `autoStretch: false` script (xiaozhuan/dazhuan/
   // jinwen/custom) must NOT cancel a square's shape-forced fill, which is
   // what an earlier `??` chain did — leaving glyphs floating in the cell.
-  const stretchGlyphs = options.layout?.stretch
-    ?? (Boolean(scriptProfile?.autoStretch) || shapeForcesDims);
+  // `cellHeightMode: "fit"` forces stretch off because per-row heights
+  // already vary — stretching on top would scale each glyph's y by a
+  // different factor and re-introduce the deformation we just avoided.
+  const stretchGlyphs = cellHeightMode === "fit"
+    ? false
+    : (options.layout?.stretch
+        ?? (Boolean(scriptProfile?.autoStretch) || shapeForcesDims));
 
   let layoutColumnWidths = columnWidths;
-  let layoutCellH = cellH;
+  let layoutRowHeights = rowHeights;
   let layoutFontSize = sealFontSize;
   let layoutAreaW = textInnerW;
   let layoutAreaH = textInnerH;
@@ -272,24 +309,36 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
       1,
       (textRegionW - columnGap * Math.max(0, numCols - 1)) / Math.max(1, numCols),
     );
-    const filledCellH = Math.max(
-      1,
-      (textRegionH - rowGap * Math.max(0, maxRows - 1)) / Math.max(1, maxRows),
-    );
+    const availFilledH = Math.max(1, textRegionH - rowGap * Math.max(0, maxRows - 1));
+    // Per-row filled heights. Uniform splits availFilledH evenly; fit weights
+    // each row by its tallest glyph's ink height (matches the adaptive-path
+    // logic above so 'fit' stays consistent across shape kinds).
+    let filledRowHeights: number[];
+    if (cellHeightMode === "fit" && sumRowMaxPh > 0) {
+      filledRowHeights = rowMaxPh.map((ph) => (availFilledH * ph) / sumRowMaxPh);
+    } else {
+      const uniformH = availFilledH / Math.max(1, maxRows);
+      filledRowHeights = new Array(maxRows).fill(uniformH);
+    }
     // Pick a single fontSize that uniform-fits every glyph into its cell —
-    // limited by whichever axis is tightest per glyph, then the smallest of
-    // those across all glyphs so no glyph overflows.
+    // limited by whichever axis is tightest per glyph (using the glyph's
+    // own row height when 'fit'), then the smallest across all glyphs so no
+    // glyph overflows.
     let bestScale = Infinity;
-    for (const g of allMetrics) {
-      const sW = (filledCellW * 0.96) / g.pw;
-      const sH = (filledCellH * 0.96) / g.ph;
-      const s = Math.min(sW, sH);
-      if (s < bestScale) bestScale = s;
+    for (let col = 0; col < glyphMetricsByCol.length; col++) {
+      const colMetrics = glyphMetricsByCol[col];
+      for (let r = 0; r < colMetrics.length; r++) {
+        const g = colMetrics[r];
+        const sW = (filledCellW * 0.96) / g.pw;
+        const sH = (filledRowHeights[r] * 0.96) / g.ph;
+        const s = Math.min(sW, sH);
+        if (s < bestScale) bestScale = s;
+      }
     }
     if (Number.isFinite(bestScale) && bestScale > 0) {
       layoutFontSize = bestScale * PROBE_SIZE;
     }
-    layoutCellH = filledCellH;
+    layoutRowHeights = filledRowHeights;
     layoutColumnWidths = new Array(numCols).fill(filledCellW);
     layoutAreaW = textRegionW;
     layoutAreaH = textRegionH;
@@ -300,11 +349,11 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     // here; only ellipse without aspect can.
     const scaleFactor = Math.min(textRegionW / textInnerW, textRegionH / textInnerH, 1);
     if (scaleFactor < 1 && scaleFactor > 0) {
-      layoutCellH = cellH * scaleFactor;
+      layoutRowHeights = rowHeights.map((h) => h * scaleFactor);
       layoutFontSize = sealFontSize * scaleFactor;
       layoutColumnWidths = columnWidths.map((w) => w * scaleFactor);
       layoutAreaW = layoutColumnWidths.reduce((s, w) => s + w, 0) + columnGap * Math.max(0, numCols - 1);
-      layoutAreaH = layoutCellH * maxRows + rowGap * Math.max(0, maxRows - 1);
+      layoutAreaH = layoutRowHeights.reduce((s, h) => s + h, 0) + rowGap * Math.max(0, maxRows - 1);
     }
   }
 
@@ -341,6 +390,7 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     rowGap,
     columnGap,
     columnWidths: columnWidthsVisual,
+    rowHeights: layoutRowHeights,
   });
 
   // Carving intensity precedence: explicit `carving.intensity` wins; else
@@ -393,7 +443,10 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
       cellY: g.cell.y,
       cellW: g.cell.w,
       cellH: g.cell.h,
-      fontSize: layoutCellH * 0.88,
+      // Per-cell fontSize from the cell's own height so cellHeightMode='fit'
+      // (rows with varying heights) still renders each cell at a size that
+      // matches its own slot.
+      fontSize: g.cell.h * 0.88,
     };
   });
 

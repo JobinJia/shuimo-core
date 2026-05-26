@@ -45,6 +45,47 @@ describe("layoutGrid ttb-rtl", () => {
   });
 });
 
+describe("layoutGrid column-major rowHeights", () => {
+  it("uses per-row heights when supplied (cellHeightMode='fit' upstream)", () => {
+    // 2 columns × 2 rows; row 0 should be twice as tall as row 1.
+    const rowHeights = [60, 30];
+    const columnWidths = [40, 40];
+    const cells = layoutGrid({
+      text: ["AB", "CD"],
+      area: { x: 0, y: 0, w: 100, h: 100 },
+      direction: "ttb-rtl",
+      columnWidths,
+      rowHeights,
+      rowGap: 0,
+      columnGap: 0,
+    });
+    expect(cells).toHaveLength(4);
+    // Row 0 cells (chars at index [0] of each column) → "A" + "C"
+    const row0 = cells.filter((c) => c.char === "A" || c.char === "C");
+    const row1 = cells.filter((c) => c.char === "B" || c.char === "D");
+    expect(row0.every((c) => c.h === 60)).toBe(true);
+    expect(row1.every((c) => c.h === 30)).toBe(true);
+    // Row 1 y starts where row 0 ends.
+    const r0Y = row0[0].y;
+    const r1Y = row1[0].y;
+    expect(r1Y - r0Y).toBeCloseTo(60, 6);
+  });
+
+  it("ignores rowHeights of mismatched length and falls back to uniform", () => {
+    const cells = layoutGrid({
+      text: ["AB", "CD"],
+      area: { x: 0, y: 0, w: 100, h: 100 },
+      direction: "ttb-rtl",
+      columnWidths: [40, 40],
+      rowHeights: [10, 20, 30], // wrong length for maxRows=2
+      rowGap: 0,
+    });
+    // Every cell same height → uniform fallback.
+    const heights = new Set(cells.map((c) => c.h));
+    expect(heights.size).toBe(1);
+  });
+});
+
 describe("layoutGrid circular", () => {
   it("places n chars at distinct angles around center", () => {
     const cells = layoutGrid({ text: "甲乙丙丁", area, direction: "circular" });

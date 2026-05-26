@@ -33,6 +33,7 @@ const controls = reactive({
   columnGap: 3,
   stretchAuto: true,
   stretch: true,
+  cellHeightMode: "uniform" as "uniform" | "fit",
   roughness: 0.2,
   carvingIntensity: 1.0,
   bleed: 1.0,
@@ -140,6 +141,7 @@ async function renderV2() {
         stretch: controls.stretchAuto ? undefined : controls.stretch,
         offsetX: controls.offsetX,
         offsetY: controls.offsetY,
+        cellHeightMode: controls.cellHeightMode,
       },
     });
     v2Svg.value = r.svg ?? "";
@@ -220,6 +222,7 @@ watch(
     strA: controls.stretchAuto,
     ox: controls.offsetX,
     oy: controls.offsetY,
+    chm: controls.cellHeightMode,
   }),
   () => {
     regenerate();
@@ -332,6 +335,14 @@ watch(
           <label>
             <input type="checkbox" v-model="controls.stretch" /> 撑满 cell (九叠篆)
           </label>
+        </div>
+
+        <div class="row">
+          <label>行高模式 (cellHeightMode)</label>
+          <select v-model="controls.cellHeightMode">
+            <option value="uniform">uniform (默认，等高分行)</option>
+            <option value="fit">fit (按字墨高比例分行 — 消除短字下方空缺)</option>
+          </select>
         </div>
 
         <div class="row">

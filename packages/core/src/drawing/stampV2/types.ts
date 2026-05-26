@@ -67,6 +67,22 @@ export interface SealLayoutOptions {
   offsetX?: number;
   /** Vertical text offset within border. -1 = flush top, 0 = center, +1 = flush bottom. */
   offsetY?: number;
+  /**
+   * How row heights are apportioned within the inner content area:
+   *   - `"uniform"` (default): every row is `innerH / rows` tall, matching V1
+   *     behavior. Glyph fontSize is normalized to the tallest glyph anywhere
+   *     in the seal, so short-ink chars (e.g. "下") render smaller than their
+   *     row and leave visible vertical padding inside their cell.
+   *   - `"fit"`: each row's height is proportional to the tallest ink
+   *     bounding-box height *in that row*. Short-char rows shrink, tall-char
+   *     rows grow — eliminating the empty space under short glyphs while
+   *     keeping every glyph at the same em scale (no per-glyph stretching).
+   *
+   * Incompatible with `stretch: true` (which would re-introduce per-glyph
+   * deformation); when `cellHeightMode === "fit"` is set, stretch is forced
+   * off regardless of the `stretch` field or shape default.
+   */
+  cellHeightMode?: "uniform" | "fit";
 }
 
 export type SealCorner = "none" | "round" | "stone";

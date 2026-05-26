@@ -36,6 +36,14 @@ export interface GridLayoutOptions {
    * Indices match `text` array order (left→right == columns[0..n-1]).
    */
   columnWidths?: number[];
+  /**
+   * Optional per-row heights (column-major layouts only). Indices match
+   * row position (0 = top row, maxRows-1 = bottom). When provided, each row
+   * gets its own height and rows stack with `rowGap` between them; without
+   * it, every row is the same uniform `cellH` (legacy behavior).
+   * Length must equal `maxRows` across all columns or the array is ignored.
+   */
+  rowHeights?: number[];
 }
 
 export function layoutGrid(opts: GridLayoutOptions): LayoutCell[] {
@@ -70,23 +78,32 @@ function layoutColumns(columns: string[], opts: GridLayoutOptions): LayoutCell[]
   const columnGap = opts.columnGap ?? fallback;
 
   // Two modes: explicit per-column widths (caller measured glyph aspects) or
-  // square fallback. Row height is shared across columns either way.
-  let cellH: number;
+  // square fallback. Row heights are either per-row (when `rowHeights` is
+  // supplied — `cellHeightMode: "fit"` upstream) or uniform.
   let colWidths: number[];
+  let rowHs: number[];
   const provided = opts.columnWidths;
+  const providedRows = opts.rowHeights;
   if (provided && provided.length === numCols) {
-    cellH = (opts.area.h - rowGap * (maxRows - 1)) / maxRows;
     colWidths = provided;
+    if (providedRows && providedRows.length === maxRows) {
+      rowHs = providedRows;
+    } else {
+      const uniformH = (opts.area.h - rowGap * (maxRows - 1)) / maxRows;
+      rowHs = new Array(maxRows).fill(uniformH);
+    }
   } else {
     const availW = opts.area.w - columnGap * (numCols - 1);
     const availH = opts.area.h - rowGap * (maxRows - 1);
     const cellSide = Math.min(availW / numCols, availH / maxRows);
-    cellH = cellSide;
     colWidths = new Array(numCols).fill(cellSide);
+    // Square fallback ignores explicit rowHeights so cells stay square —
+    // there's no metric pass to anchor against.
+    rowHs = new Array(maxRows).fill(cellSide);
   }
 
   const gridW = colWidths.reduce((s, w) => s + w, 0) + columnGap * (numCols - 1);
-  const gridH = cellH * maxRows + rowGap * (maxRows - 1);
+  const gridH = rowHs.reduce((s, h) => s + h, 0) + rowGap * (maxRows - 1);
   const ox = opts.area.x + (opts.area.w - gridW) / 2;
   const oy = opts.area.y + (opts.area.h - gridH) / 2;
 
@@ -100,6 +117,15 @@ function layoutColumns(columns: string[], opts: GridLayoutOptions): LayoutCell[]
     xCur += colWidths[j] + columnGap;
   }
 
+  // Y offset per row index (top→bottom). Pre-summed so per-row heights
+  // can vary without recomputing on each iteration.
+  const rowYFromTop: number[] = [];
+  let yCur = 0;
+  for (let r = 0; r < maxRows; r++) {
+    rowYFromTop.push(yCur);
+    yCur += rowHs[r] + rowGap;
+  }
+
   const cells: LayoutCell[] = [];
   let index = 0;
   for (let col = 0; col < numCols; col++) {
@@ -108,8 +134,8 @@ function layoutColumns(columns: string[], opts: GridLayoutOptions): LayoutCell[]
     const cellW = colWidths[colFromLeft];
     for (let row = 0; row < chars.length; row++) {
       const x = ox + colXFromLeft[colFromLeft];
-      const y = oy + row * (cellH + rowGap);
-      cells.push({ index: index++, char: chars[row], x, y, w: cellW, h: cellH });
+      const y = oy + rowYFromTop[row];
+      cells.push({ index: index++, char: chars[row], x, y, w: cellW, h: rowHs[row] });
     }
   }
   return cells;

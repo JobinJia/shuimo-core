@@ -149,3 +149,55 @@ describe("generateSealAsync", () => {
     expect(r.svg).toMatch(/^<svg /);
   });
 });
+
+describe("generateSeal cellHeightMode", () => {
+  // The bundled demo subset (yishanbeizhuanti.demo.woff2) covers the chars in
+  // the V2 perf bench (水/墨/丹/青). "水" and "丹" have noticeably different
+  // ink-bbox heights in this 篆 font, so a 2-row column should produce two
+  // different cell heights under 'fit' but a single uniform one under
+  // 'uniform'.
+  it("'fit' mode yields per-row cell heights that differ from uniform mode", () => {
+    const baseOpts = {
+      text: ["水丹"],
+      size: 240,
+      seed: 7,
+      font: fontBuf,
+      shape: { kind: "rect" as const },
+      // Stretch off so layoutFontSize / placeAtFontSize path is used —
+      // matches the user-visible vertical-gap bug.
+      layout: { padding: 0, gap: 0 },
+      mode: "yang" as const,
+      border: { thickness: 0, roughness: 0 },
+      carving: { intensity: 0 },
+      ink: { bleed: 0 },
+    };
+    const uniform = generateSeal({ ...baseOpts, layout: { ...baseOpts.layout, cellHeightMode: "uniform" } });
+    const fit = generateSeal({ ...baseOpts, layout: { ...baseOpts.layout, cellHeightMode: "fit" } });
+    // Output should structurally differ — different cell heights → different
+    // glyph positions → different commands. (We can't introspect cell h
+    // through the public result, but identical SVG would mean fit was a
+    // no-op.)
+    expect(fit.svg).not.toBe(uniform.svg);
+  });
+
+  it("defaults to 'uniform' (back-compat with V1 layout)", () => {
+    const baseOpts = {
+      text: ["水丹"],
+      size: 240,
+      seed: 7,
+      font: fontBuf,
+      shape: { kind: "rect" as const },
+      layout: { padding: 0, gap: 0 },
+      mode: "yang" as const,
+      border: { thickness: 0, roughness: 0 },
+      carving: { intensity: 0 },
+      ink: { bleed: 0 },
+    };
+    const noMode = generateSeal(baseOpts);
+    const explicitUniform = generateSeal({
+      ...baseOpts,
+      layout: { ...baseOpts.layout, cellHeightMode: "uniform" },
+    });
+    expect(noMode.svg).toBe(explicitUniform.svg);
+  });
+});
