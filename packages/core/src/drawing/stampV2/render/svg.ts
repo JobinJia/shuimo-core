@@ -41,6 +41,7 @@ export interface RenderSvgInput {
   filterDefs?: string;
   bodyFilterId?: string | null;
   textFilterId?: string | null;
+  inkOverlayFilterId?: string | null;
   /**
    * Emit a `<clipPath>` per cell and render each glyph inside it. Used in
    * stretch mode so any sub-pixel overflow (angularize jitter, displacement
@@ -56,6 +57,15 @@ export interface RenderSvgInput {
    * shapes. Defaults to "stampv2".
    */
   idPrefix?: string;
+  /**
+   * Font URL for yin-mode `<text>` rendering. When set, yin stamps emit SVG
+   * `<text>` elements (with an embedded @font-face) instead of `<path>` for
+   * the glyph layer. Browser-native text rendering produces crisper glyphs
+   * at small sizes than geometric paths.
+   */
+  fontUrl?: string;
+  /** Border edge displacement filter for yin mode (worn/rough rim). */
+  yinBorderFilterId?: string | null;
 }
 
 export interface RenderSvgOutput {
@@ -64,7 +74,7 @@ export interface RenderSvgOutput {
 }
 
 export function renderSvg(input: RenderSvgInput): RenderSvgOutput {
-  const { width, height, mode, cells, borderPoly, clipPoly, inkColor, glyphStrokeWidth = 0, filterDefs, bodyFilterId, textFilterId, clipPerCell = false, idPrefix = "stampv2" } = input;
+  const { width, height, mode, cells, borderPoly, clipPoly, inkColor, glyphStrokeWidth = 0, filterDefs, bodyFilterId, textFilterId, inkOverlayFilterId, clipPerCell = false, idPrefix = "stampv2", fontUrl, yinBorderFilterId } = input;
   const clipSource = clipPoly ?? borderPoly;
 
   // Prefer original Bezier commands for rendering (smooth edges → SVG filters
@@ -146,23 +156,26 @@ export function renderSvg(input: RenderSvgInput): RenderSvgOutput {
         : "";
       text = inner ? `<g${outerClipAttr}>${inner}</g>` : "";
     }
-    extraDefs = clipDefs.join("");
+    extraDefs += clipDefs.join("");
   } else {
     const bodyRings: Ring[] = borderPoly.flatMap((p) => (p[0] ? [p[0]] : []));
     const bodyPath = ringsToPath(bodyRings);
-    const parts = [bodyPath, glyphPathCombined].filter(Boolean).join(" ");
     const bodyFilterAttr = bodyFilterId ? ` filter="url(#${bodyFilterId})"` : "";
-    if (parts) {
-      // Yin merges body + glyph via evenodd so glyphs read as cuts in the
-      // red body. The catch: any glyph point that lands OUTSIDE the body
-      // ring still counts as one ring crossing — evenodd then FILLS those
-      // patches (a glyph stroke that sticks out reads as a red bump past
-      // the seal outline). Wrapping the merged path in a clip-path to the
-      // body outline drops those phantom fills without changing the inner
-      // cut behaviour.
+    const textFilterAttr = textFilterId ? ` filter="url(#${textFilterId})"` : "";
+    if (bodyPath) {
       const bodyClipId = `${idPrefix}-yin-clip-${stableHash(cells)}`;
       extraDefs += `<clipPath id="${bodyClipId}"><path d="${bodyPath}"/></clipPath>`;
-      background = `<g clip-path="url(#${bodyClipId})"><path d="${parts}" fill="${inkColor}"${strokeAttr} fill-rule="evenodd"${bodyFilterAttr}/></g>`;
+      // Body uses border displacement for rough rim; ink overlay wraps it
+      // for 印泥 white patches. Same pattern as yang mode.
+      const yinBorderAttr = yinBorderFilterId ? ` filter="url(#${yinBorderFilterId})"` : "";
+      const yinInkAttr = bodyFilterId ? ` filter="url(#${bodyFilterId})"` : "";
+      const bodyEl = `<path d="${bodyPath}" fill="${inkColor}"${strokeAttr}${yinBorderAttr}/>`;
+      background = yinInkAttr
+        ? `<g clip-path="url(#${bodyClipId})"><g${yinInkAttr}>${bodyEl}</g></g>`
+        : `<g clip-path="url(#${bodyClipId})">${bodyEl}</g>`;
+      if (glyphPathCombined) {
+        text = `<g clip-path="url(#${bodyClipId})"><path d="${glyphPathCombined}" fill="#FFFFFF" fill-rule="evenodd"${textFilterAttr}/></g>`;
+      }
     } else {
       background = "";
     }
@@ -170,7 +183,9 @@ export function renderSvg(input: RenderSvgInput): RenderSvgOutput {
 
   const allDefs = [filterDefs, extraDefs].filter(Boolean).join("");
   const defs = allDefs ? `<defs>${allDefs}</defs>` : "";
-  const inner = `${defs}${background}${text}${border}`;
+  const inkWrapOpen = inkOverlayFilterId ? `<g filter="url(#${inkOverlayFilterId})">` : "";
+  const inkWrapClose = inkOverlayFilterId ? "</g>" : "";
+  const inner = `${defs}${background}${inkWrapOpen}${text}${border}${inkWrapClose}`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${fmt(width)} ${fmt(height)}" width="${fmt(width)}" height="${fmt(height)}">${inner}</svg>`;
   return { svg, layers: { background, text, border } };
 }
@@ -217,4 +232,8 @@ function ringToPath(ring: Ring): string {
 function fmt(v: number): string {
   if (Math.round(v) === v) return String(Math.round(v));
   return v.toFixed(2);
+}
+
+function escapeXml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

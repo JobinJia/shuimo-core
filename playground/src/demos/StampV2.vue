@@ -16,23 +16,23 @@ type ShapeKind = SealShape["kind"];
 const controls = reactive({
   text: "落梅听,风雪",
   size: 280,
-  seed: 42,
+  seed: Math.floor(1000000 + Math.random() * 9000000),
   mode: "yang" as SealMode,
-  shape: "square" as ShapeKind,
+  shape: "auto" as ShapeKind,
   script: "" as "" | SealScript,
   polygonSides: 6,
   polygonOrientation: "flat-top" as "flat-top" | "point-top",
   notchStrategy: "auto" as SealNotchStrategy,
   notchJitter: 0.4,
-  borderThickness: 7,
-  cornerRadius: 11,
+  borderThickness: 4,
+  cornerRadius: 4,
   cornerMode: "round" as "none" | "round",
   inkColor: "#c1272d",
   padding: 0,
-  gap: 3,
-  columnGap: 3,
-  stretchAuto: true,
-  stretch: true,
+  gap: 0,
+  columnGap: 0,
+  stretchAuto: false,
+  stretch: false,
   cellHeightMode: "uniform" as "uniform" | "fit",
   roughness: 0.2,
   carvingIntensity: 1.0,
@@ -46,21 +46,22 @@ const isYinPreset = ref(false);
 function toggleModePreset() {
   if (!isYinPreset.value) {
     controls.mode = "yin";
-    controls.shape = "square";
-    controls.borderThickness = 8;
+    controls.shape = "auto";
+    controls.borderThickness = 4;
     controls.roughness = 0.5;
     controls.carvingIntensity = 0.7;
     controls.bleed = 0.7;
   } else {
     controls.mode = "yang";
-    controls.shape = "square";
-    controls.borderThickness = 7;
+    controls.shape = "auto";
+    controls.borderThickness = 4;
     controls.roughness = 0.2;
     controls.carvingIntensity = 1.0;
     controls.bleed = 1.0;
   }
   isYinPreset.value = !isYinPreset.value;
 }
+
 
 const savedTexture = reactive({ roughness: 0.2, carvingIntensity: 1.0, bleed: 1.0 });
 const textureOn = ref(true);
@@ -302,12 +303,12 @@ watch(
 
         <div class="row">
           <label>尺寸 ({{ controls.size }}px)</label>
-          <input type="range" min="160" max="480" step="20" v-model.number="controls.size" />
+          <input type="range" min="1" max="480" step="1" v-model.number="controls.size" />
         </div>
 
         <div class="row">
           <label>边框粗细 ({{ controls.borderThickness }}px)</label>
-          <input type="range" min="2" max="20" step="1" v-model.number="controls.borderThickness" />
+          <input type="range" min="0.5" max="20" step="0.5" v-model.number="controls.borderThickness" />
         </div>
 
 

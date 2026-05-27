@@ -47,10 +47,6 @@ export async function generateSealAsync(options: SealOptions): Promise<SealResul
     throw new Error("generateSealAsync requires options.font or options.fontData");
   }
   const primary = await resolveFontForSeal(options);
-  // Fallback subset path — only kicks in when the caller supplied
-  // `fontFallbackUrl` AND the primary actually lacks some chars. We compose
-  // (primary preferred, fallback for missing) instead of V1's wholesale
-  // swap so the primary's styling survives.
   let font = primary;
   if (options.fontFallbackUrl) {
     const missing = findMissingChars(primary, options.text);
@@ -78,7 +74,7 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
   const inkColor = options.ink?.color ?? DEFAULT_INK_COLOR;
   const direction = options.layout?.direction ?? defaultDirection(shape);
   const padding = options.layout?.padding ?? size * 0.04;
-  const borderThickness = options.border?.thickness ?? Math.max(2, size * 0.025);
+  const borderThickness = options.border?.thickness ?? Math.max(1, size * 0.025);
 
   // Compute text grid dimensions FIRST so the seal can size to fit the text
   // (like V1) rather than forcing text into a fixed square.
@@ -424,14 +420,14 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
   const fitOpts = stretchGlyphs
     ? { padding: 0.02, stretch: true } as const
     : { padding: 0.02, stretch: false, fontSize: layoutFontSize } as const;
+  const skipAngularize = mode === "yin";
   const glyphCells = layoutCells.map((c) => {
     const fitted = fitGlyphInCell(font, c, fitOpts);
-    if (carvingIntensityForGlyph <= 0) return fitted;
+    if (skipAngularize || carvingIntensityForGlyph <= 0) return fitted;
     return {
       ...fitted,
       commands: angularizeCommands(fitted.commands, {
         intensity: carvingIntensityForGlyph,
-        // Script profile drives angularize shape; missing → angularize uses BASE_*
         grid: scriptProfile?.grid,
         jitter: scriptProfile?.jitter,
         pull: scriptProfile?.pull,
@@ -503,20 +499,83 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
   }
   const uniqueSuffix = Math.abs(suffixHash).toString(36);
   const filterId = `stampv2-${(seed | 0) >>> 0}-${uniqueSuffix}`;
+  const fontUrl = typeof options.font === "string" ? options.font : undefined;
   const bodyFilterIntensity = clamp01(options.ink?.bleed ?? 0);
   const textFilterIntensity = clamp01(carvingIntensity);
   let filterDefs = "";
   let bodyFilterId: string | null = null;
   let textFilterId: string | null = null;
+  let inkOverlayFilterId: string | null = null;
+  let yinBorderFilterId: string | null = null;
+  const sealMaxDim = Math.max(box.width, box.height);
+  const cellFontSize = renderCells[0]?.fontSize ?? 70;
   if (mode === "yin") {
+    // Yin filters: V1's exact filter strings with V1's fontSize-based scaling.
+    // No V2 abstractions — proven to produce clear stamps at all sizes.
+    const v1s = cellFontSize / 70;
+    const v1freq = 1 / v1s;
+    const v1subCapped = Math.sqrt(Math.min(v1s, 1.5));
+    const v1fineFreq = 1 / v1subCapped;
+    const v1amplitude = v1subCapped;
+
     if (bodyFilterIntensity > 0) {
-      bodyFilterId = `${filterId}-ink`;
-      filterDefs += inkFilterDefs({
-        id: bodyFilterId,
+      yinBorderFilterId = `${filterId}-border`;
+      filterDefs += borderFilterDefs({
+        id: yinBorderFilterId,
         seed,
         intensity: bodyFilterIntensity,
-        size: Math.max(box.width, box.height),
+        thickness: borderThickness,
+        size: sealRefDim,
       });
+    }
+    if (bodyFilterIntensity > 0) {
+      bodyFilterId = `${filterId}-ink`;
+      filterDefs += `<filter id="${bodyFilterId}" x="-20%" y="-20%" width="140%" height="140%">
+  <feTurbulence type="fractalNoise" baseFrequency="${fmtN(0.4 * v1freq)}" numOctaves="4" seed="${seed + 456}" result="grainNoise"/>
+  <feTurbulence type="turbulence" baseFrequency="${fmtN(0.08 * v1freq)}" numOctaves="2" seed="${seed + 789}" result="blotchNoise"/>
+  <feBlend in="grainNoise" in2="blotchNoise" mode="multiply" result="combinedNoise"/>
+  <feColorMatrix in="combinedNoise" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 0 0" result="noiseMask"/>
+  <feComponentTransfer in="noiseMask" result="contrastMask">
+    <feFuncA type="discrete" tableValues="0 0 0 0 0.2 0.4 0.6 0.75 0.88 0.95 1 1"/>
+  </feComponentTransfer>
+  <feComposite in="SourceGraphic" in2="contrastMask" operator="in" result="texturedShape"/>
+  <feColorMatrix in="texturedShape" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0.98 0"/>
+</filter>`;
+    }
+    if (textFilterIntensity > 0) {
+      textFilterId = `${filterId}-text`;
+      // V1 "strong" carving profile — more visible than "normal" at small sizes.
+      const coreErode = 0.14 * v1s;
+      const edgeDisp = 1.45 * v1amplitude;
+      const edgeFreq = 0.22 * v1fineFreq;
+      const chipFreq = 0.11 * v1fineFreq;
+      const chipThreshold = -0.26;
+      const grainFreq = 0.38 * v1fineFreq;
+      const grainThreshold = -0.62;
+      filterDefs += `<filter id="${textFilterId}" x="-18%" y="-18%" width="136%" height="136%">
+  <feMorphology in="SourceGraphic" operator="erode" radius="${fmtN(coreErode)}" result="textCore"/>
+  <feComposite in="SourceGraphic" in2="textCore" operator="out" result="textEdgeBand"/>
+  <feTurbulence type="fractalNoise" baseFrequency="${fmtN(edgeFreq)}" numOctaves="3" seed="${seed}" result="textEdgeNoise"/>
+  <feDisplacementMap in="textEdgeBand" in2="textEdgeNoise" scale="${fmtN(edgeDisp)}" xChannelSelector="R" yChannelSelector="G" result="textDisplacedEdgeRaw"/>
+  <feComposite in="textDisplacedEdgeRaw" in2="SourceGraphic" operator="in" result="textDisplacedEdge"/>
+  <feTurbulence type="turbulence" baseFrequency="${fmtN(chipFreq)}" numOctaves="2" seed="${seed + 999}" result="textChipNoise"/>
+  <feColorMatrix in="textChipNoise" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 0 ${fmtN(chipThreshold)}" result="textChipMaskRaw"/>
+  <feComponentTransfer in="textChipMaskRaw" result="textChipMask">
+    <feFuncA type="discrete" tableValues="0 0 0 0 1 1 1"/>
+  </feComponentTransfer>
+  <feComposite in="textDisplacedEdge" in2="textChipMask" operator="out" result="textChippedEdge"/>
+  <feTurbulence type="fractalNoise" baseFrequency="${fmtN(grainFreq)}" numOctaves="2" seed="${seed + 321}" result="textGrainNoise"/>
+  <feColorMatrix in="textGrainNoise" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 0 ${fmtN(grainThreshold)}" result="textGrainMaskRaw"/>
+  <feComponentTransfer in="textGrainMaskRaw" result="textGrainMask">
+    <feFuncA type="discrete" tableValues="0 0 0 0 0 1"/>
+  </feComponentTransfer>
+  <feComposite in="textChippedEdge" in2="textGrainMask" operator="out" result="textCarvedEdge"/>
+  <feMerge result="textCarved">
+    <feMergeNode in="textCore"/>
+    <feMergeNode in="textCarvedEdge"/>
+  </feMerge>
+  <feColorMatrix in="textCarved" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1.08 -0.03"/>
+</filter>`;
     }
   } else {
     if (bodyFilterIntensity > 0) {
@@ -528,6 +587,14 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
         thickness: borderThickness,
         size: sealRefDim,
       });
+      inkOverlayFilterId = `${filterId}-ink`;
+      filterDefs += inkFilterDefs({
+        id: inkOverlayFilterId,
+        seed,
+        intensity: bodyFilterIntensity,
+        size: sealMaxDim,
+        fontSize: cellFontSize,
+      });
     }
     if (textFilterIntensity > 0) {
       textFilterId = `${filterId}-text`;
@@ -535,7 +602,8 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
         id: textFilterId,
         seed,
         intensity: textFilterIntensity,
-        size: Math.max(box.width, box.height),
+        size: sealMaxDim,
+        fontSize: cellFontSize,
       });
     }
   }
@@ -546,17 +614,17 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     mode,
     cells: renderCells,
     borderPoly: erodedBorderPoly,
-    // Clip uses the smooth (pre-erosion) polygon so glyphs aren't chopped
-    // along the noisy inner ring when border.roughness > 0. The visible
-    // border ink still rides on the eroded version.
     clipPoly: baseBorderPoly,
     inkColor,
     glyphStrokeWidth: 0,
     filterDefs,
     bodyFilterId,
     textFilterId,
+    inkOverlayFilterId,
     clipPerCell: stretchGlyphs,
     idPrefix: filterId,
+    fontUrl,
+    yinBorderFilterId,
   });
 
   return {
@@ -576,6 +644,12 @@ function stagePrng(baseSeed: number, salt: number): PRNG {
 
 function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+function fmtN(v: number): string {
+  if (Math.abs(v) < 1e-6) return "0";
+  if (Math.round(v) === v) return String(Math.round(v));
+  return v.toFixed(3);
 }
 
 function defaultDirection(shape: SealShape): "ttb-rtl" | "circular" {

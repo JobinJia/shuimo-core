@@ -33,6 +33,8 @@ export interface InkFilterOptions {
   intensity?: number;
   /** Stamp size in px; used to scale displacement so it looks proportional. */
   size: number;
+  /** When set, use V1-style font-relative frequency scaling. */
+  fontSize?: number;
 }
 
 export interface BorderFilterOptions {
@@ -54,6 +56,12 @@ export interface TextFilterOptions {
   seed: number;
   intensity?: number;
   size: number;
+  /**
+   * When set, use V1-style font-relative scaling instead of stamp-size
+   * scaling. Produces visible carving on SVG `<text>` elements where
+   * browser text hinting absorbs the finer stamp-size-scaled values.
+   */
+  fontSize?: number;
 }
 
 /**
@@ -87,19 +95,36 @@ export function inkFilterDefs(opts: InkFilterOptions): string {
   // Size-adaptive frequencies: at REF_SIZE these match V1's tuned values;
   // smaller seals get proportionally higher frequencies so wavelengths
   // shrink with the seal and texture density stays visually constant.
-  const { frequencyScale } = scaleForSize(opts.size);
-  const grainFreq = 0.25 * frequencyScale;
-  const blotchFreq = 0.07 * frequencyScale;
-  // No edge displacement here — border edge irregularity is handled by the
-  // geometric simplex perturbation (border/erosion.ts) + borderFilter. This
-  // filter ONLY produces the ink-density texture (white patches in the body).
+  let grainFreq: number;
+  let blotchFreq: number;
+  if (opts.fontSize && opts.fontSize > 0) {
+    // V1-style font-relative scaling: coarser noise that reads as natural
+    // ink-pad unevenness rather than dense pixel noise.
+    const freqK = 70 / opts.fontSize;
+    grainFreq = 0.4 * freqK;
+    blotchFreq = 0.08 * freqK;
+  } else {
+    const { frequencyScale: rawFreqScale } = scaleForSize(opts.size);
+    const frequencyScale = Math.min(rawFreqScale, 2.5);
+    grainFreq = 0.25 * frequencyScale;
+    blotchFreq = 0.07 * frequencyScale;
+  }
+  // Discrete alpha table modulated by intensity: each base value is
+  // interpolated toward 1.0 (fully opaque) as intensity drops, so fewer
+  // noise bins produce transparent patches. intensity=1 → V1 defaults;
+  // intensity=0 → all bins opaque (no white patches).
+  // V1's hardcoded table — hard zero bins create distinct white patches
+  // (natural ink-pad texture). NO intensity interpolation: interpolating
+  // turns zeros into semi-transparent gray, losing the sharp ink/paper
+  // contrast that makes the texture read as "stamp on paper."
+  const tableStr = "0 0 0 0 0.2 0.4 0.6 0.75 0.88 0.95 1 1";
   return `<filter id="${id}" x="-5%" y="-5%" width="110%" height="110%">
   <feTurbulence type="fractalNoise" baseFrequency="${fmt(grainFreq)}" numOctaves="3" seed="${seedB}" result="grainNoise"/>
   <feTurbulence type="turbulence" baseFrequency="${fmt(blotchFreq)}" numOctaves="2" seed="${seedC}" result="blotchNoise"/>
   <feBlend in="grainNoise" in2="blotchNoise" mode="multiply" result="combinedNoise"/>
   <feColorMatrix in="combinedNoise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 1 1 0 0" result="noiseMask"/>
   <feComponentTransfer in="noiseMask" result="contrastMask">
-    <feFuncA type="discrete" tableValues="0 0 0 0 0 0 0 0.5 0.82 0.96 1 1"/>
+    <feFuncA type="discrete" tableValues="${tableStr}"/>
   </feComponentTransfer>
   <feComposite in="SourceGraphic" in2="contrastMask" operator="in" result="texturedShape"/>
   <feColorMatrix in="texturedShape" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.98 0"/>
@@ -121,8 +146,9 @@ export function borderFilterDefs(opts: BorderFilterOptions): string {
   // Only frequency size-adapts (so the wave count around the rim stays the
   // same across sizes). When `size` is omitted we fall back to no-op for
   // backwards compatibility.
-  const { frequencyScale } = scaleForSize(opts.size ?? 0);
-  const baseFreq = 0.04 * (opts.size ? frequencyScale : 1);
+  const { frequencyScale: rawFS } = scaleForSize(opts.size ?? 0);
+  const cappedFS = Math.min(rawFS, 2.5);
+  const baseFreq = 0.04 * (opts.size ? cappedFS : 1);
   return `<filter id="${opts.id}" x="-15%" y="-15%" width="130%" height="130%">
   <feTurbulence type="fractalNoise" baseFrequency="${fmt(baseFreq)}" numOctaves="3" seed="${seedA}" result="borderNoise"/>
   <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmt(displacement)}" xChannelSelector="R" yChannelSelector="G" result="rawDisplaced"/>
@@ -159,44 +185,63 @@ export function textFilterDefs(opts: TextFilterOptions): string {
   const seedB = seedA + 999;
   const seedC = seedA + 321;
 
-  // Size-adaptive scaling: at REF_SIZE these multipliers are 1.0 → V1 values.
-  // At small sizes lengthScale<1 → displacement and erode radius shrink so
-  // they stay proportional to stroke width (the "edge-eaten at 200px" bug);
-  // frequencyScale>1 → noise wavelengths shrink so texture density stays
-  // visually constant rather than coarsening.
-  const { lengthScale, frequencyScale } = scaleForSize(opts.size);
+  let coreErode: number;
+  let edgeDisp: number;
+  let edgeFreq: number;
+  let chipFreq: number;
+  let grainFreq: number;
 
-  // V1 stone-cut profile values at fontSize=70 / intensity=1, now anchored
-  // to REF_SIZE=480 instead of "whatever size the caller happens to pass".
-  const coreErode = 0.12 * lengthScale;
-  const edgeDisp = 1.9 * intensity * lengthScale;
-  // Thresholds drift toward -∞ as intensity drops, suppressing chips/grain
-  // until at intensity≈0 the masks emit ~zero alpha and the subtractions are
-  // no-ops → output ≈ SourceGraphic. Threshold values are alpha-space
-  // (unitless) so they don't take lengthScale; the chip/grain frequencies
-  // below DO take frequencyScale so the speck count per unit area stays
-  // size-invariant.
+  if (opts.fontSize && opts.fontSize > 0) {
+    // V1-style font-relative scaling: works on SVG <text> elements where
+    // browser text hinting demands coarser noise and larger displacement
+    // than stamp-size scaling produces.
+    const REF_FONT = 70;
+    const s = opts.fontSize / REF_FONT;
+    const subCapped = Math.sqrt(Math.min(s, 1.5));
+    const fineFreq = 1 / subCapped;
+    const amplitude = subCapped;
+    // V1 "normal" profile values — coarser, more readable at small sizes.
+    coreErode = 0.18 * s;
+    edgeDisp = 1.1 * intensity * amplitude;
+    edgeFreq = 0.18 * fineFreq;
+    chipFreq = 0.09 * fineFreq;
+    grainFreq = 0.32 * fineFreq;
+  } else {
+    // Stamp-size scaling for geometric <path> rendering.
+    const { lengthScale, frequencyScale: rawTFS } = scaleForSize(opts.size);
+    const frequencyScale = Math.min(rawTFS, 2.5);
+    coreErode = 0.12 * lengthScale;
+    edgeDisp = 1.9 * intensity * lengthScale;
+    edgeFreq = 0.28 * frequencyScale;
+    chipFreq = 0.14 * frequencyScale;
+    grainFreq = 0.46 * frequencyScale;
+  }
+
   const chipThreshold = -0.18 - (1 - intensity) * 0.5;
   const grainThreshold = -0.5 - (1 - intensity) * 0.5;
   const alphaGain = 1 + 0.03 * intensity;
   const alphaBias = -0.04 * intensity;
 
-  const edgeFreq = 0.28 * frequencyScale;
-  const chipFreq = 0.14 * frequencyScale;
-  const grainFreq = 0.46 * frequencyScale;
+  // V1 "normal" mode: fractalNoise without posterize → smooth continuous
+  // displacement that works on anti-aliased <text> edges.
+  // V2 "stone-cut" mode: turbulence with posterize → blocky stepped
+  // displacement designed for geometric <path> edges.
+  const useV1Noise = !!opts.fontSize;
+  const edgeNoiseType = useV1Noise ? "fractalNoise" : "turbulence";
+  const edgeNoiseRef = useV1Noise ? "textEdgeNoise" : "textEdgeNoiseStepped";
 
   return `<filter id="${opts.id}" x="-18%" y="-18%" width="136%" height="136%">
   <feMorphology in="SourceGraphic" operator="erode" radius="${fmt(coreErode)}" result="textCore"/>
   <feComposite in="SourceGraphic" in2="textCore" operator="out" result="textEdgeBand"/>
 
-  <feTurbulence type="turbulence" baseFrequency="${fmt(edgeFreq)}" numOctaves="3" seed="${seedA}" result="textEdgeNoise"/>
+  <feTurbulence type="${edgeNoiseType}" baseFrequency="${fmt(edgeFreq)}" numOctaves="3" seed="${seedA}" result="textEdgeNoise"/>${useV1Noise ? "" : `
   <feComponentTransfer in="textEdgeNoise" result="textEdgeNoiseStepped">
     <feFuncR type="discrete" tableValues="0 0.18 0.18 0.5 0.5 0.82 0.82 1"/>
     <feFuncG type="discrete" tableValues="0 0.18 0.18 0.5 0.5 0.82 0.82 1"/>
     <feFuncB type="discrete" tableValues="0 0.18 0.18 0.5 0.5 0.82 0.82 1"/>
     <feFuncA type="table" tableValues="0 1"/>
-  </feComponentTransfer>
-  <feDisplacementMap in="textEdgeBand" in2="textEdgeNoiseStepped" scale="${fmt(edgeDisp)}" xChannelSelector="R" yChannelSelector="G" result="textDisplacedEdgeRaw"/>
+  </feComponentTransfer>`}
+  <feDisplacementMap in="textEdgeBand" in2="${edgeNoiseRef}" scale="${fmt(edgeDisp)}" xChannelSelector="R" yChannelSelector="G" result="textDisplacedEdgeRaw"/>
   <feComposite in="textDisplacedEdgeRaw" in2="SourceGraphic" operator="in" result="textDisplacedEdge"/>
 
   <feTurbulence type="turbulence" baseFrequency="${fmt(chipFreq)}" numOctaves="2" seed="${seedB}" result="textChipNoise"/>

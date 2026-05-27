@@ -76,7 +76,7 @@ interface Cell {
 
 const cells = ref<Cell[]>([]);
 const ready = ref(false);
-const stretchAll = ref(true);
+const stretchAll = ref(false);
 const scriptAll = ref<"" | SealScript>("");
 
 const rows = computed(() => {
@@ -114,7 +114,7 @@ async function renderAll() {
             mode: m.mode,
             shape: s.build(),
             script: scriptAll.value || undefined,
-            border: { thickness: 5, corner: "round", cornerRadius: 8, roughness: 0.2 },
+            border: { corner: "round", cornerRadius: 8, roughness: 0.2 },
             // When user picks a script, let its baseline drive intensity;
             // else use 0.9 (gallery default for the carving-only matrix).
             carving: scriptAll.value ? undefined : { intensity: 0.9 },
