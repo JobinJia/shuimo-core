@@ -20,6 +20,7 @@ import { flattenCommands, type Ring } from "./geometry/flatten";
 import type { MultiPolygon } from "./geometry/boolean";
 import { renderSvg, type RenderCell } from "./render/svg";
 import { getBoundingBox, type GlyphFont } from "../internal/glyphPath";
+import { scaleForSize } from "./internal/visualScale";
 
 const DEFAULT_INK_COLOR = "#c1272d";
 // Per-stage PRNG salts so each derived stream is independent + reproducible.
@@ -398,6 +399,19 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
   const carvingIntensity =
     options.carving?.intensity ?? scriptProfile?.intensity ?? 0;
 
+  // Size-adaptive scale for visual-texture parameters. Computed once here
+  // so the angularize pass, erosion, and SVG filters all share the same
+  // reference. See internal/visualScale.ts for the full rationale.
+  const sealRefDim = Math.max(sealW, sealH);
+  const { lengthScale } = scaleForSize(sealRefDim);
+
+  // Angularize jitter (and pull) are in user units, so at a small seal they
+  // overpower the proportionally smaller glyph strokes — producing the
+  // "edge-eaten / 糊" look users hit when running V2 at 100-200px sizes.
+  // Scaling intensity by lengthScale keeps the jitter/pull proportional to
+  // glyph size so the angularize chunkiness reads the same across sizes.
+  const carvingIntensityForGlyph = carvingIntensity * lengthScale;
+
   // Angularize glyph commands BEFORE layout flattening, so both the smooth
   // SVG path and the flattened ring set carry the same chunky/jittered
   // geometry. Without this, V2 strokes stay laser-cut-smooth and no SVG
@@ -412,11 +426,11 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     : { padding: 0.02, stretch: false, fontSize: layoutFontSize } as const;
   const glyphCells = layoutCells.map((c) => {
     const fitted = fitGlyphInCell(font, c, fitOpts);
-    if (carvingIntensity <= 0) return fitted;
+    if (carvingIntensityForGlyph <= 0) return fitted;
     return {
       ...fitted,
       commands: angularizeCommands(fitted.commands, {
-        intensity: carvingIntensity,
+        intensity: carvingIntensityForGlyph,
         // Script profile drives angularize shape; missing → angularize uses BASE_*
         grid: scriptProfile?.grid,
         jitter: scriptProfile?.jitter,
@@ -455,7 +469,7 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     mode === "yin" ? baseBorderPoly.map((p) => [p[0]]) : baseBorderPoly;
   const erodedBorderPoly =
     roughness > 0
-      ? erodeBorder(border, erosionInput, { roughness }, stagePrng(seed, SALT_EROSION))
+      ? erodeBorder(border, erosionInput, { roughness, size: sealRefDim }, stagePrng(seed, SALT_EROSION))
       : erosionInput;
 
   // Build SVG filter definitions. Filter intensities are linked to the
@@ -512,6 +526,7 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
         seed,
         intensity: bodyFilterIntensity,
         thickness: borderThickness,
+        size: sealRefDim,
       });
     }
     if (textFilterIntensity > 0) {

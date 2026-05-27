@@ -91,6 +91,16 @@ export interface SealBorderOptions {
   thickness?: number;
   corner?: SealCorner;
   cornerRadius?: number;
+  /**
+   * 0..1; rim wobble / 缺角 intensity for `border/erosion.ts`.
+   *
+   * @since 2.0.4-beta.1 Visual intensity is now anchored to a reference seal
+   * size (REF_SIZE = 480 px). The amplitude and noise wavelength both scale
+   * proportionally with the seal so the rim looks equally "chewed" at 200 px
+   * and at 600 px under the same `roughness` value. Old behaviour (absolute
+   * pixel amplitude / wavelength) is recoverable by multiplying the input
+   * by 480 / size at the call site.
+   */
   roughness?: number;
 }
 
@@ -112,6 +122,18 @@ export interface SealInkOptions {
 }
 
 export interface SealCarvingOptions {
+  /**
+   * 0..1; 刀刻 intensity for both the angularize pass (glyph jitter / pull)
+   * and the SVG text filter (edge displacement, chip / grain cutoffs).
+   *
+   * @since 2.0.4-beta.1 Visual intensity is now size-adaptive: the angularize
+   * jitter amplitude and the text-filter edge displacement both scale by
+   * `size / 480`, and the feTurbulence wavelengths scale by `480 / size`, so
+   * the same `intensity` value reads as the same "cut depth" at 200 px and
+   * 600 px. Previously, a value tuned for ~480 px would "eat" 200 px strokes
+   * because the displacement was absolute. See `internal/visualScale.ts` for
+   * the full rationale.
+   */
   intensity?: number;
   breakage?: number;
 }

@@ -4,12 +4,20 @@ import type { Point2, Ring } from "../geometry/flatten";
 import { ringBBox } from "../geometry/flatten";
 import type { MultiPolygon } from "../geometry/boolean";
 import type { BorderRings } from "./shape";
+import { scaleForSize } from "../internal/visualScale";
 
 export interface ErosionOptions {
   /** 0-1; 0 returns input untouched. */
   roughness?: number;
   /** Densification target: max segment length on the outer ring before perturbing. */
   minSegLen?: number;
+  /**
+   * Seal size in px (typically max(width, height)). Used to size-adapt the
+   * simplex noise wavelength so the rim wobble pattern reads the same at
+   * 200px and 480px. Defaults to REF_SIZE (no-op) for back-compat.
+   * @since 2.0.4-beta.1
+   */
+  size?: number;
 }
 
 /**
@@ -35,7 +43,18 @@ export function erodeBorder(
   const roughness = opts.roughness ?? 0;
   if (roughness <= 0 || base.length === 0) return base;
   const minSegLen = opts.minSegLen ?? 6;
-  const amp = roughness * border.thickness * 0.5;
+  // amp is already in seal user units and `border.thickness` typically
+  // scales with size, so amplitude is naturally size-adaptive. The simplex
+  // noise frequencies (0.03 / 0.18 below) are NOT — they're in absolute
+  // user units, so at a small seal you get fewer waves around the rim.
+  // Scaling frequency by frequencyScale keeps the wave-count-per-perimeter
+  // constant across sizes; lengthScale on amp keeps amplitude proportional
+  // to seal size even if the caller pinned `border.thickness` to a fixed px
+  // value (otherwise we'd over-erode small seals with a pinned thick rim).
+  const { lengthScale, frequencyScale } = scaleForSize(opts.size ?? 0);
+  const ampScale = opts.size ? lengthScale : 1;
+  const freqScale = opts.size ? frequencyScale : 1;
+  const amp = roughness * border.thickness * 0.5 * ampScale;
   const noiseLo = new SimplexNoise(prng.next() * 65536);
   const noiseHi = new SimplexNoise(prng.next() * 65536);
 
@@ -52,7 +71,7 @@ export function erodeBorder(
       // dangerously thin where outer-out and inner-in displacement coincide.
       const ringAmp = ringIdx === 0 ? amp : amp * 0.7;
       const salt = polyIdx * 31 + ringIdx * 113;
-      return perturbRing(dense, noiseLo, noiseHi, ringAmp, salt);
+      return perturbRing(dense, noiseLo, noiseHi, ringAmp, freqScale, salt);
     }),
   );
 
@@ -101,7 +120,14 @@ function densify(ring: Ring, maxLen: number): Ring {
  * along the edge to nearest corner". On left/right/bottom edges the boundary
  * distance was ~0 → progress ~0 → no noise on three sides.
  */
-function perturbRing(ring: Ring, noiseLo: SimplexNoise, noiseHi: SimplexNoise, amp: number, salt: number): Ring {
+function perturbRing(
+  ring: Ring,
+  noiseLo: SimplexNoise,
+  noiseHi: SimplexNoise,
+  amp: number,
+  freqScale: number,
+  salt: number,
+): Ring {
   const bb = ringBBox(ring);
   const w = bb.x2 - bb.x1;
   const h = bb.y2 - bb.y1;
@@ -145,9 +171,13 @@ function perturbRing(ring: Ring, noiseLo: SimplexNoise, noiseHi: SimplexNoise, a
     // Two-layer noise: low-freq for gentle overall shape (30%) + high-freq
     // for small-scale stone roughness (70%). Single low-freq alone produces
     // smooth "wave" edges; the high-freq layer adds the crunchy notches that
-    // real carved stone edges have.
-    const lo = noiseLo.noise2D(x * 0.03 + salt * 13.7, y * 0.03 + salt * 13.7);
-    const hi = noiseHi.noise2D(x * 0.18 + salt * 7.3, y * 0.18 + salt * 7.3);
+    // real carved stone edges have. Frequencies are scaled by freqScale so a
+    // smaller seal still sees the same number of wobbles around its rim
+    // instead of one slow wave + nothing.
+    const loFreq = 0.03 * freqScale;
+    const hiFreq = 0.18 * freqScale;
+    const lo = noiseLo.noise2D(x * loFreq + salt * 13.7, y * loFreq + salt * 13.7);
+    const hi = noiseHi.noise2D(x * hiFreq + salt * 7.3, y * hiFreq + salt * 7.3);
     const offset = (lo * 0.3 + hi * 0.7) * amp * progress;
     return [x + nx * offset, y + ny * offset] as Point2;
   });
