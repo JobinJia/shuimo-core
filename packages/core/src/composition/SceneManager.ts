@@ -302,19 +302,6 @@ export class SceneManager {
               canv: rendered,
             });
           }
-        } else if (plan[i].tag === "tower") {
-          // Transmission tower
-          const rendered = Arch.transmissionTower01(plan[i].x, plan[i].y, prng.random() * 1000, {
-            hei: 150 + prng.random() * 100,
-          });
-          if (this.shouldRender(plan[i].tag)) {
-            this.addChunk({
-              tag: plan[i].tag,
-              x: plan[i].x,
-              y: plan[i].y,
-              canv: rendered,
-            });
-          }
         } else if (plan[i].tag === "redcirc") {
           this.addChunk({
             tag: plan[i].tag,

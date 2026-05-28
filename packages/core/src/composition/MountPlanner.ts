@@ -13,8 +13,7 @@ export type PlanTag =
   | "arch01"
   | "arch02"
   | "arch03"
-  | "arch04"
-  | "tower";
+  | "arch04";
 
 export interface PlanItem {
   /** Element type tag */
@@ -76,7 +75,6 @@ const TAG_PLACEMENT: Record<PlanTag, TagPlacement> = {
   arch02: { yBase: 700, yJitter: 30, mind: 200 },
   arch03: { yBase: 620, yJitter: 80, mind: 120 },
   arch04: { yBase: 690, yJitter: 40, mind: 250 },
-  tower: { yBase: 720, yJitter: 30, mind: 500 },
 };
 
 /** Tags that must be snapped onto the nearest real mountain spine. */
@@ -649,19 +647,6 @@ export class MountPlanner {
           h: 0,
         };
         if (this.chaddSameTag(reg, r, 100)) count++;
-      }
-    }
-
-    // Place transmission towers (rare, industrial element)
-    for (let i = xmin; i < xmax; i += xstep) {
-      if (prng.random() < 0.005) {
-        const r: PlanItem = {
-          tag: "tower",
-          x: i,
-          y: 720 + prng.random() * 30, // Ground level
-          h: 0,
-        };
-        this.chadd(reg, r, 500, planmtx);
       }
     }
 

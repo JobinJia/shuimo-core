@@ -384,18 +384,6 @@ export class Mount {
         (_neighbors, _veglist, _i) => true,
       );
 
-      // TRANSM
-      vegetate(
-        (x, y) => Arch.transmissionTower01(x + xoff, y + yoff, seed),
-        (i, j) => {
-          const ns = noise.noise(i * 0.2, j * 0.05, seed + 20 * Math.PI);
-          return (
-            i % 2 === 0 && (j === 1 || j === ptlist[i].length - 2) && ns * ns * ns * ns < 0.002
-          );
-        },
-        (_neighbors, _veglist, _i) => true,
-      );
-
       // BOTT ROCK omitted intentionally — shan-shui-inf has this vegetate
       // block but the rocks read as "blisters" on slope edges at this canvas
       // scale; explicit user call.

@@ -105,13 +105,13 @@ describe("MountPlanner.fillShortfall", () => {
   it("does not loop forever when mind is too restrictive to satisfy minCounts", () => {
     const plan: PlanItem[] = [];
     const planmtx: number[] = [];
-    // Ask for 100 towers with mind=500 in a 1000-wide canvas — cannot fit.
+    // Ask for 100 boats with mind=400 in a 1000-wide canvas — cannot fit.
     const start = Date.now();
     MountPlanner.fillShortfall(plan, {
       xmin: 0,
       xmax: 1000,
       planmtx,
-      minCounts: { tower: 100 },
+      minCounts: { boat: 100 },
       width: 1000,
       height: 800,
     });
@@ -119,8 +119,8 @@ describe("MountPlanner.fillShortfall", () => {
 
     // Completes quickly (no infinite loop) and caps at the physically feasible count.
     expect(elapsed).toBeLessThan(1000);
-    const towerCount = plan.filter((p) => p.tag === "tower").length;
-    expect(towerCount).toBeLessThan(100);
+    const boatCount = plan.filter((p) => p.tag === "boat").length;
+    expect(boatCount).toBeLessThan(100);
   });
 
   it("is backward-compatible: calling it with an empty minCounts mutates nothing", () => {

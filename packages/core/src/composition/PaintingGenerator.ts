@@ -317,13 +317,6 @@ function renderPlanItem(
       return inkOnly(visible ? svg : "");
     }
 
-    case "tower": {
-      const svg = Arch.transmissionTower01(item.x, item.y, randomSeed, {
-        hei: 150 + prng.random() * 100,
-      });
-      return inkOnly(visible ? svg : "");
-    }
-
     default:
       return inkOnly("");
   }
