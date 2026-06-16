@@ -60,12 +60,13 @@ function generateElement(type: ElementType, seed: number): string {
       height = 550;
       content = WinterPlum.generate(100, 500, seed, {
         hei: 350,
-        wid: 12,
-        branches: 2,
-        flowerDensity: 0.5,
-        flowerColor: "rgba(200,170,120,0.85)",
+        wid: 14,
+        branches: 1,
+        flowerDensity: 0.55,
         withBuds: true,
-        col: "rgba(60,45,35,0.9)",
+        petalStyle: "quanhua",
+        composition: "upright-s",
+        flyingWhite: "strong",
       });
       break;
 

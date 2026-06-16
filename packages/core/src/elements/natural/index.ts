@@ -32,7 +32,7 @@ export { Whale, whale, type WhaleOptions } from "./Whale";
 // Four Gentlemen (四君子)
 export { Bamboo, bamboo, bambooLeaves, type BambooOptions } from "./Bamboo";
 export { Orchid, orchid, orchidLeaves, type OrchidOptions } from "./Orchid";
-export { WinterPlum, winterPlum, plumBlossoms, type WinterPlumOptions } from "./WinterPlum";
+export { WinterPlum, winterPlum, plumBlossoms, type WinterPlumOptions } from "./winter-plum";
 export {
   Chrysanthemum,
   chrysanthemum,
