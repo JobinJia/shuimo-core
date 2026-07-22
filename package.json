@@ -17,7 +17,7 @@
     "upgrade": "pnpm dlx taze -r -w major --install"
   },
   "devDependencies": {
-    "bumpp": "^11.1.0",
+    "bumpp": "^12.0.0",
     "subset-font": "^2.5.0",
     "vite-plus": "catalog:"
   },

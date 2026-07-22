@@ -14,13 +14,13 @@
   },
   "dependencies": {
     "@jobinjia/shuimo-core": "workspace:*",
-    "@vitejs/plugin-vue": "^6.0.7",
-    "vue": "^3.5.38",
-    "vue-router": "^5.1.0"
+    "@vitejs/plugin-vue": "^6.0.8",
+    "vue": "^3.5.40",
+    "vue-router": "^5.2.0"
   },
   "devDependencies": {
     "tslib": "^2.8.1",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vite": "catalog:",
     "vite-plus": "catalog:"
   }
