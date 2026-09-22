@@ -303,7 +303,7 @@ The WASM binary is embedded as base64 in the noise chunk (sync init, zero fetch 
 
 ### Prerequisites
 
-- Node.js >= 18
+- Node.js >= 22
 - pnpm >= 8
 - Rust + wasm-pack (for WASM rebuilds)
 
