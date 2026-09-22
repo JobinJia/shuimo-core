@@ -14,9 +14,9 @@
   },
   "dependencies": {
     "@jobinjia/shuimo-core": "workspace:*",
-    "@vitejs/plugin-vue": "^6.0.8",
-    "vue": "^3.5.40",
-    "vue-router": "^5.2.0"
+    "@vitejs/plugin-vue": "^6.0.9",
+    "vue": "^3.5.43",
+    "vue-router": "^5.3.1"
   },
   "devDependencies": {
     "tslib": "^2.8.1",
