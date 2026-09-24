@@ -8,15 +8,23 @@ import {
   findMissingChars,
   loadFallbackSubsetFont,
   compositeFont,
+  type CellGlyph,
+  type GlyphProbe,
 } from "./text/glyphs";
 import { angularizeCommands } from "./text/angularize";
+import { varyGlyph } from "./text/variation";
 import { getScriptProfile } from "./text/scriptProfiles";
 import { buildBorder, borderPolygon, type BorderRings } from "./border/shape";
 import { erodeBorder } from "./border/erosion";
 // Geometric carving removed — SVG textFilter handles 刀刻 via erode + edge
 // displacement, which preserves stroke width (V1 approach).
-import { inkFilterDefs, borderFilterDefs, textFilterDefs } from "./texture/inkFilter";
-import { flattenCommands, type Ring } from "./geometry/flatten";
+import {
+  inkFilterDefs,
+  borderFilterDefs,
+  textFilterDefs,
+  octavesFor,
+  type FilterRegion,
+} from "./texture/inkFilter";
 import type { MultiPolygon } from "./geometry/boolean";
 import { renderSvg, type RenderCell } from "./render/svg";
 import { getBoundingBox, type GlyphFont } from "../internal/glyphPath";
@@ -27,6 +35,13 @@ const DEFAULT_INK_COLOR = "#c1272d";
 const SALT_SHAPE = 0x5ea1;
 const SALT_CARVE = 0x5acafe;
 const SALT_EROSION = 0xe70510;
+const SALT_VARY = 0x7a41a7;
+/** @since 3.0.0 default `border.roughness` (was 0 = pristine rim). */
+const DEFAULT_ROUGHNESS = 0.25;
+/** Max vertical elongation of short-column glyphs (@since 3.0.0). */
+const MAX_SHORT_COLUMN_ELONGATION = 1.3;
+/** Filter-region margin in user units: antialiasing + angularize spill. */
+const FILTER_PAD = 3;
 
 export function generateSeal(options: SealOptions): SealResult {
   const buf = options.font;
@@ -102,12 +117,24 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
   // "one column thin, one column bold" bug).
   const PROBE_SIZE = 100;
   type GlyphMetric = { ch: string; pw: number; ph: number };
+  // Each distinct char is decoded exactly once; the probe is reused for
+  // placement below (rescaled) instead of decoding the outline again.
+  const probes = new Map<string, GlyphProbe>();
+  const probeFor = (ch: string): GlyphProbe => {
+    let p = probes.get(ch);
+    if (!p) {
+      const commands = font.getPath(ch, 0, 0, PROBE_SIZE);
+      p = { fontSize: PROBE_SIZE, commands, bbox: getBoundingBox(commands) };
+      probes.set(ch, p);
+    }
+    return p;
+  };
   const glyphMetricsByCol: GlyphMetric[][] = textInput.map((line) => {
     const out: GlyphMetric[] = [];
     for (const ch of Array.from(line)) {
-      const probe = font.getPath(ch, 0, 0, PROBE_SIZE);
-      if (probe.length === 0) continue;
-      const bb = getBoundingBox(probe);
+      const probe = probeFor(ch);
+      if (probe.commands.length === 0) continue;
+      const bb = probe.bbox;
       const pw = bb.x2 - bb.x1;
       const ph = bb.y2 - bb.y1;
       if (pw > 0 && ph > 0) out.push({ ch, pw, ph });
@@ -388,6 +415,7 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     columnGap,
     columnWidths: columnWidthsVisual,
     rowHeights: layoutRowHeights,
+    shortColumn: options.layout?.shortColumn,
   });
 
   // Carving intensity precedence: explicit `carving.intensity` wins; else
@@ -401,12 +429,11 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
   const sealRefDim = Math.max(sealW, sealH);
   const { lengthScale } = scaleForSize(sealRefDim);
 
-  // Angularize jitter (and pull) are in user units, so at a small seal they
-  // overpower the proportionally smaller glyph strokes — producing the
-  // "edge-eaten / 糊" look users hit when running V2 at 100-200px sizes.
-  // Scaling intensity by lengthScale keeps the jitter/pull proportional to
-  // glyph size so the angularize chunkiness reads the same across sizes.
-  const carvingIntensityForGlyph = carvingIntensity * lengthScale;
+  // Angularize grid / jitter / slack are in user units; angularize scales
+  // them by lengthScale itself (@since 3.0.0 — previously intensity was
+  // pre-multiplied here, which also weakened the unitless pull on small
+  // seals and left the grid size-blind).
+  const variation = Math.max(0, Math.min(2, options.layout?.variation ?? 1));
 
   // Angularize glyph commands BEFORE layout flattening, so both the smooth
   // SVG path and the flattened ring set carry the same chunky/jittered
@@ -422,30 +449,47 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     : { padding: 0.02, stretch: false, fontSize: layoutFontSize } as const;
   const skipAngularize = mode === "yin";
   const glyphCells = layoutCells.map((c) => {
-    const fitted = fitGlyphInCell(font, c, fitOpts);
-    if (skipAngularize || carvingIntensityForGlyph <= 0) return fitted;
-    return {
-      ...fitted,
-      commands: angularizeCommands(fitted.commands, {
-        intensity: carvingIntensityForGlyph,
+    let fitted = fitGlyphInCell(font, c, { ...fitOpts, probe: probeFor(c.char) });
+    // Short-column glyphs sit in taller cells (layout `shortColumn:
+    // "spread"`). Elongate them vertically — as 篆刻 does for the short
+    // column of a 3+2 seal — capped at 1.3× so horizontal strokes don't
+    // visibly thicken; the rest of the extra height becomes even spacing.
+    // Stretch mode already fills the cell.
+    if (!stretchGlyphs && c.spread && c.spread > 1 && fitted.commands.length > 0) {
+      fitted = elongateY(fitted, Math.min(c.spread, MAX_SHORT_COLUMN_ELONGATION));
+    }
+    let commands = fitted.commands;
+    if (variation > 0 && commands.length > 0) {
+      commands = varyGlyph(
+        commands,
+        { amount: variation, cellW: c.w, cellH: c.h, bbox: fitted.bbox },
+        stagePrng(seed, SALT_VARY ^ Math.imul(c.index + 1, 0x9e3779b1)),
+      );
+    }
+    if (!skipAngularize && carvingIntensity > 0) {
+      commands = angularizeCommands(commands, {
+        intensity: carvingIntensity,
+        lengthScale,
         grid: scriptProfile?.grid,
         jitter: scriptProfile?.jitter,
         pull: scriptProfile?.pull,
         seed,
         columnIndex: c.index,
         charIndex: 0,
-      }),
-    };
+      });
+    }
+    return commands === fitted.commands ? fitted : { ...fitted, commands };
   });
 
   const baseBorderPoly = borderPolygon(border);
 
+  // Glyphs render from their Bezier commands; the flattened-ring fallback in
+  // render/svg.ts is only for callers that have no commands, so no
+  // flattening pass here (it used to run and be discarded every seal).
   const renderCells: RenderCell[] = glyphCells.map((g) => {
-    const flat = flattenCommands(g.commands, { tolerance: 0.5 });
     return {
       index: g.index,
       char: g.char,
-      rings: flat,
       commands: g.commands,
       cx: g.cell.x + g.cell.w / 2,
       cy: g.cell.y + g.cell.h / 2,
@@ -460,7 +504,7 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     };
   });
 
-  const roughness = options.border?.roughness ?? 0;
+  const roughness = options.border?.roughness ?? DEFAULT_ROUGHNESS;
   const erosionInput: MultiPolygon =
     mode === "yin" ? baseBorderPoly.map((p) => [p[0]]) : baseBorderPoly;
   const erodedBorderPoly =
@@ -509,6 +553,36 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
   let yinBorderFilterId: string | null = null;
   const sealMaxDim = Math.max(box.width, box.height);
   const cellFontSize = renderCells[0]?.fontSize ?? 70;
+
+  // Tight filter regions (@since 3.0.0): every chain ends `in SourceGraphic`
+  // so only an antialiasing margin around the filtered element is needed.
+  // Percentages are relative to that element's bbox: the seal box for the
+  // body / border / ink filters; for text, the union of glyph boxes — or the
+  // smallest single glyph box when each glyph is filtered on its own (the
+  // per-cell clip path in stretch mode), so every glyph gets ≥ FILTER_PAD.
+  const padRegion = (w: number, h: number): FilterRegion => ({
+    padX: FILTER_PAD / Math.max(1, w),
+    padY: FILTER_PAD / Math.max(1, h),
+  });
+  const bodyRegion = padRegion(box.width, box.height);
+  let textRegion: FilterRegion = bodyRegion;
+  {
+    let ux1 = Infinity, uy1 = Infinity, ux2 = -Infinity, uy2 = -Infinity;
+    let minW = Infinity, minH = Infinity;
+    for (const g of glyphCells) {
+      if (g.commands.length === 0) continue;
+      const b = g.bbox;
+      if (b.x1 < ux1) ux1 = b.x1;
+      if (b.y1 < uy1) uy1 = b.y1;
+      if (b.x2 > ux2) ux2 = b.x2;
+      if (b.y2 > uy2) uy2 = b.y2;
+      minW = Math.min(minW, b.x2 - b.x1);
+      minH = Math.min(minH, b.y2 - b.y1);
+    }
+    if (ux2 > ux1) {
+      textRegion = stretchGlyphs ? padRegion(minW, minH) : padRegion(ux2 - ux1, uy2 - uy1);
+    }
+  }
   if (mode === "yin") {
     // Yin filters: V1's exact filter strings with V1's fontSize-based scaling.
     // No V2 abstractions — proven to produce clear stamps at all sizes.
@@ -526,12 +600,18 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
         intensity: bodyFilterIntensity,
         thickness: borderThickness,
         size: sealRefDim,
+        region: bodyRegion,
       });
     }
     if (bodyFilterIntensity > 0) {
       bodyFilterId = `${filterId}-ink`;
-      filterDefs += `<filter id="${bodyFilterId}" x="-20%" y="-20%" width="140%" height="140%">
-  <feTurbulence type="fractalNoise" baseFrequency="${fmtN(0.4 * v1freq)}" numOctaves="4" seed="${seed + 456}" result="grainNoise"/>
+      // @since 3.0.0: tight region, sub-pixel grain octaves dropped, and the
+      // same low-frequency pressing-unevenness mask as the yang ink filter.
+      const grainF = 0.4 * v1freq;
+      const pressGain = 0.45 * bodyFilterIntensity;
+      const pressBias = 1 - 0.23 * bodyFilterIntensity;
+      filterDefs += `<filter id="${bodyFilterId}" ${regionAttr(bodyRegion)}>
+  <feTurbulence type="fractalNoise" baseFrequency="${fmtN(grainF)}" numOctaves="${octavesFor(grainF, 4)}" seed="${seed + 456}" result="grainNoise"/>
   <feTurbulence type="turbulence" baseFrequency="${fmtN(0.08 * v1freq)}" numOctaves="2" seed="${seed + 789}" result="blotchNoise"/>
   <feBlend in="grainNoise" in2="blotchNoise" mode="multiply" result="combinedNoise"/>
   <feColorMatrix in="combinedNoise" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 0 0" result="noiseMask"/>
@@ -539,23 +619,29 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
     <feFuncA type="discrete" tableValues="0 0 0 0 0.2 0.4 0.6 0.75 0.88 0.95 1 1"/>
   </feComponentTransfer>
   <feComposite in="SourceGraphic" in2="contrastMask" operator="in" result="texturedShape"/>
-  <feColorMatrix in="texturedShape" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0.98 0"/>
+  <feTurbulence type="fractalNoise" baseFrequency="${fmtN(grainF * 0.024)}" numOctaves="1" seed="${seed + 2027}" result="pressNoise"/>
+  <feColorMatrix in="pressNoise" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ${fmtN(pressGain)} 0 0 0 ${fmtN(pressBias)}" result="pressMask"/>
+  <feComposite in="texturedShape" in2="pressMask" operator="in" result="pressedShape"/>
+  <feColorMatrix in="pressedShape" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0.98 0"/>
 </filter>`;
     }
     if (textFilterIntensity > 0) {
       textFilterId = `${filterId}-text`;
       // V1 "strong" carving profile — more visible than "normal" at small sizes.
-      const coreErode = 0.14 * v1s;
+      // @since 3.0.0 carving band widened 0.14 → 0.26 × v1s so it survives
+      // device-pixel snapping and the chip / grain masks have an edge band
+      // to bite (see textFilterDefs).
+      const coreErode = 0.26 * v1s;
       const edgeDisp = 1.45 * v1amplitude;
       const edgeFreq = 0.22 * v1fineFreq;
       const chipFreq = 0.11 * v1fineFreq;
       const chipThreshold = -0.26;
       const grainFreq = 0.38 * v1fineFreq;
       const grainThreshold = -0.62;
-      filterDefs += `<filter id="${textFilterId}" x="-18%" y="-18%" width="136%" height="136%">
+      filterDefs += `<filter id="${textFilterId}" ${regionAttr(textRegion)}>
   <feMorphology in="SourceGraphic" operator="erode" radius="${fmtN(coreErode)}" result="textCore"/>
   <feComposite in="SourceGraphic" in2="textCore" operator="out" result="textEdgeBand"/>
-  <feTurbulence type="fractalNoise" baseFrequency="${fmtN(edgeFreq)}" numOctaves="3" seed="${seed}" result="textEdgeNoise"/>
+  <feTurbulence type="fractalNoise" baseFrequency="${fmtN(edgeFreq)}" numOctaves="${octavesFor(edgeFreq, 3)}" seed="${seed}" result="textEdgeNoise"/>
   <feDisplacementMap in="textEdgeBand" in2="textEdgeNoise" scale="${fmtN(edgeDisp)}" xChannelSelector="R" yChannelSelector="G" result="textDisplacedEdgeRaw"/>
   <feComposite in="textDisplacedEdgeRaw" in2="SourceGraphic" operator="in" result="textDisplacedEdge"/>
   <feTurbulence type="turbulence" baseFrequency="${fmtN(chipFreq)}" numOctaves="2" seed="${seed + 999}" result="textChipNoise"/>
@@ -586,6 +672,7 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
         intensity: bodyFilterIntensity,
         thickness: borderThickness,
         size: sealRefDim,
+        region: bodyRegion,
       });
       inkOverlayFilterId = `${filterId}-ink`;
       filterDefs += inkFilterDefs({
@@ -594,6 +681,7 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
         intensity: bodyFilterIntensity,
         size: sealMaxDim,
         fontSize: cellFontSize,
+        region: bodyRegion,
       });
     }
     if (textFilterIntensity > 0) {
@@ -604,6 +692,7 @@ function pipeline(font: GlyphFont, options: SealOptions): SealResult {
         intensity: textFilterIntensity,
         size: sealMaxDim,
         fontSize: cellFontSize,
+        region: textRegion,
       });
     }
   }
@@ -650,6 +739,24 @@ function fmtN(v: number): string {
   if (Math.abs(v) < 1e-6) return "0";
   if (Math.round(v) === v) return String(Math.round(v));
   return v.toFixed(3);
+}
+
+function elongateY(g: CellGlyph, sy: number): CellGlyph {
+  const cy = (g.bbox.y1 + g.bbox.y2) / 2;
+  const f = (y: number) => cy + (y - cy) * sy;
+  const commands = g.commands.map((c) => {
+    const n = { ...c };
+    if (n.y != null) n.y = f(n.y);
+    if (n.y1 != null) n.y1 = f(n.y1);
+    if (n.y2 != null) n.y2 = f(n.y2);
+    return n;
+  });
+  return { ...g, commands, bbox: { ...g.bbox, y1: f(g.bbox.y1), y2: f(g.bbox.y2) } };
+}
+
+function regionAttr(r: FilterRegion): string {
+  const pct = (v: number) => `${fmtN(v * 100)}%`;
+  return `x="-${pct(r.padX)}" y="-${pct(r.padY)}" width="${pct(1 + 2 * r.padX)}" height="${pct(1 + 2 * r.padY)}"`;
 }
 
 function defaultDirection(shape: SealShape): "ttb-rtl" | "circular" {

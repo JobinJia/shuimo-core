@@ -14,6 +14,11 @@ export interface LayoutCell {
   h: number;
   /** radians; non-zero for circular layout where glyphs face outward */
   rotation?: number;
+  /**
+   * > 1 when the cell belongs to a short column whose rows were stretched
+   * (`shortColumn: "spread"`); the factor by which its height grew.
+   */
+  spread?: number;
 }
 
 export interface GridLayoutOptions {
@@ -44,6 +49,16 @@ export interface GridLayoutOptions {
    * Length must equal `maxRows` across all columns or the array is ignored.
    */
   rowHeights?: number[];
+  /**
+   * How a column with fewer chars than the longest column is placed
+   * (column-major layouts only):
+   *   - `"spread"` (default): its rows are stretched so the column spans the
+   *     full grid height, as 篆刻 does for e.g. a 3+2 seal — no dead corner.
+   *   - `"top"`: rows keep the shared heights and start at the top (pre-3.0
+   *     behaviour; leaves the bottom of the short column empty).
+   * @since 3.0.0
+   */
+  shortColumn?: "spread" | "top";
 }
 
 export function layoutGrid(opts: GridLayoutOptions): LayoutCell[] {
@@ -126,14 +141,30 @@ function layoutColumns(columns: string[], opts: GridLayoutOptions): LayoutCell[]
     yCur += rowHs[r] + rowGap;
   }
 
+  const spread = (opts.shortColumn ?? "spread") === "spread";
   const cells: LayoutCell[] = [];
   let index = 0;
   for (let col = 0; col < numCols; col++) {
     const chars = Array.from(columns[col]);
     const colFromLeft = numCols - 1 - col;
     const cellW = colWidths[colFromLeft];
-    for (let row = 0; row < chars.length; row++) {
-      const x = ox + colXFromLeft[colFromLeft];
+    const x = ox + colXFromLeft[colFromLeft];
+    const k = chars.length;
+    if (spread && k > 0 && k < maxRows) {
+      // Stretch this column's own rows (keeping their relative heights) so
+      // the column fills gridH exactly.
+      let own = 0;
+      for (let r = 0; r < k; r++) own += rowHs[r];
+      const f = own > 0 ? (gridH - rowGap * (k - 1)) / own : 1;
+      let y = oy;
+      for (let row = 0; row < k; row++) {
+        const h = rowHs[row] * f;
+        cells.push({ index: index++, char: chars[row], x, y, w: cellW, h, spread: f });
+        y += h + rowGap;
+      }
+      continue;
+    }
+    for (let row = 0; row < k; row++) {
       const y = oy + rowYFromTop[row];
       cells.push({ index: index++, char: chars[row], x, y, w: cellW, h: rowHs[row] });
     }

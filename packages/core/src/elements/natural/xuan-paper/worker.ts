@@ -1,6 +1,6 @@
 // Runs inside a dedicated Worker. Message protocol:
-//   in:  XuanPaperWorkerRequest (optional `tile` field for tiled rendering)
-//   out: XuanPaperWorkerResponse
+//   in:  XuanPaperWorkerRequest (prebuilt `scene` or `options`, optional `tile`)
+//   out: XuanPaperWorkerResponse (transferred ImageBitmap)
 import { renderXuanPaperTileToCanvas, renderXuanPaperToCanvas } from "./canvas-renderer";
 import { buildXuanPaperScene } from "./model";
 import { ready as wasmReady } from "./paper-tone-wasm";
@@ -11,36 +11,34 @@ export type { XuanPaperWorkerRequest, XuanPaperWorkerResponse } from "./worker-p
 
 interface WorkerScope {
   onmessage: ((event: MessageEvent<XuanPaperWorkerRequest>) => void) | null;
-  postMessage: (data: XuanPaperWorkerResponse) => void;
+  postMessage: (data: XuanPaperWorkerResponse, transfer?: Transferable[]) => void;
 }
 
 const workerScope = self as unknown as WorkerScope;
 
 workerScope.onmessage = async (event: MessageEvent<XuanPaperWorkerRequest>) => {
-  const { id, options, tile } = event.data;
+  const { id, options, scene: prebuilt, tile } = event.data;
   try {
     await wasmReady;
-    const scene = buildXuanPaperScene({
-      ...options,
-      baseColor: options.baseColor ?? DEFAULT_BASE_COLOR,
-      mode: "canvas",
-    });
+    const scene =
+      prebuilt ??
+      buildXuanPaperScene({
+        ...options,
+        baseColor: options?.baseColor ?? DEFAULT_BASE_COLOR,
+        mode: "canvas",
+      });
 
-    let canvas: OffscreenCanvas;
+    const canvas = new OffscreenCanvas(1, 1);
     if (tile) {
-      canvas = new OffscreenCanvas(tile.width, tile.height);
       renderXuanPaperTileToCanvas(canvas, scene, tile);
     } else {
-      const width = options.width ?? 512;
-      const height = options.height ?? 512;
-      canvas = new OffscreenCanvas(width, height);
       renderXuanPaperToCanvas(canvas, scene);
     }
 
-    const blob = await canvas.convertToBlob({ type: "image/png" });
-
-    const response: XuanPaperWorkerResponse = { id, blob };
-    workerScope.postMessage(response);
+    // Hand the pixels over as a transferable bitmap instead of encoding a PNG.
+    const bitmap = canvas.transferToImageBitmap();
+    const response: XuanPaperWorkerResponse = tile ? { id, bitmap, tile } : { id, bitmap };
+    workerScope.postMessage(response, [bitmap]);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const response: XuanPaperWorkerResponse = { id, error: message };

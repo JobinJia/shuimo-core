@@ -22,17 +22,17 @@ export interface ErosionOptions {
 
 /**
  * 边框磨损 + 缺角. Two-layer model:
- *   1. Outer ring is densified (so 4-vertex squares actually have material to
- *      perturb) and each vertex is pushed along the outward normal by simplex
- *      noise (amp ∝ roughness * thickness). This gives an organic, low-freq
- *      wave on the rim.
- *   2. A handful of triangular "chips" are generated at random points along
- *      the rim and subtracted from the polygon. Chip count and size scale
- *      with `roughness`. This adds the discrete worn-corner look the
- *      reference 阴章 has.
+ *   1. Every ring is densified (so 4-vertex squares actually have material to
+ *      perturb) and each vertex is pushed along the outward normal by
+ *      two-octave simplex noise (amp ∝ roughness, weighted heaviest at the
+ *      corners). This gives an organic wobble on the rim.
+ *   2. A handful of seed-placed chips (smooth bites with a ragged floor) are
+ *      pushed into the outer ring, mostly near corners. Count and depth grow
+ *      with `roughness`.
  *
- * Inner rings (holes) are preserved untouched — they bound the text area and
- * shouldn't get visibly noisy at the same time the outline does.
+ * Inner rings (the inner edge of a yang rim) get a tamer wobble and no chips,
+ * and inward displacement of the outer ring is capped so the rim band never
+ * inverts.
  */
 export function erodeBorder(
   border: BorderRings,
@@ -43,20 +43,37 @@ export function erodeBorder(
   const roughness = opts.roughness ?? 0;
   if (roughness <= 0 || base.length === 0) return base;
   const minSegLen = opts.minSegLen ?? 6;
-  // amp is already in seal user units and `border.thickness` typically
-  // scales with size, so amplitude is naturally size-adaptive. The simplex
-  // noise frequencies (0.03 / 0.18 below) are NOT — they're in absolute
-  // user units, so at a small seal you get fewer waves around the rim.
-  // Scaling frequency by frequencyScale keeps the wave-count-per-perimeter
-  // constant across sizes; lengthScale on amp keeps amplitude proportional
-  // to seal size even if the caller pinned `border.thickness` to a fixed px
-  // value (otherwise we'd over-erode small seals with a pinned thick rim).
+  // Frequencies scale with frequencyScale so the wobble count per perimeter
+  // is size-invariant; amplitudes scale with lengthScale.
   const { lengthScale, frequencyScale } = scaleForSize(opts.size ?? 0);
   const ampScale = opts.size ? lengthScale : 1;
   const freqScale = opts.size ? frequencyScale : 1;
-  const amp = roughness * border.thickness * 0.5 * ampScale;
+  // @since 3.0.0 amplitude is decoupled from `border.thickness`: it used to
+  // be `roughness × thickness × 0.5`, so a caller-pinned 4 px rim got 0.4 px
+  // of wear and every seed looked the same. The thickness now only caps the
+  // wear so a yang rim (outer edge in + inner edge out) is never cut through
+  // — crossing rings would render as evenodd artefacts.
+  const hasHoles = base.some((poly) => poly.length > 1);
+  const rawAmp = roughness * AMP_AT_REF * ampScale;
+  const amp = hasHoles ? Math.min(rawAmp, border.thickness * 0.3) : rawAmp;
+  const maxInward = hasHoles ? border.thickness * 0.55 : Infinity;
   const noiseLo = new SimplexNoise(prng.next() * 65536);
   const noiseHi = new SimplexNoise(prng.next() * 65536);
+
+  // Chips (缺口): a few seed-placed bites into the outer rim, biased toward
+  // the corners where real seals wear first. Count and depth grow with
+  // roughness; positions come from the stage PRNG so each seed differs.
+  const chipCount = Math.floor(roughness * 6 + prng.next() * 1.6);
+  const chips: Chip[] = [];
+  for (let i = 0; i < chipCount; i++) {
+    const nearCorner = prng.next() < 0.6;
+    chips.push({
+      // Parametric position around the ring bbox perimeter, in [0, 1).
+      at: nearCorner ? (Math.floor(prng.next() * 4) + (prng.next() - 0.5) * 0.12 + 1) % 4 / 4 : prng.next(),
+      halfWidth: (5 + prng.next() * 9) * ampScale,
+      depth: roughness * (18 + prng.next() * 22) * ampScale,
+    });
+  }
 
   // Perturb both the outer rim AND any inner holes (the inner border edge in
   // 阳章). 阴章 collapses holes upstream so this only adds noise on the
@@ -67,15 +84,45 @@ export function erodeBorder(
   const perturbed: MultiPolygon = base.map((poly, polyIdx) =>
     poly.map((ring, ringIdx) => {
       const dense = densify(ring, minSegLen);
-      // Inner edges get a slightly tamer amp so the border band doesn't get
-      // dangerously thin where outer-out and inner-in displacement coincide.
-      const ringAmp = ringIdx === 0 ? amp : amp * 0.7;
+      const outer = ringIdx === 0;
+      // Inner edges get a tamer amp so the border band doesn't get
+      // dangerously thin where outer-in and inner-out displacement coincide.
+      const ringAmp = outer ? amp : amp * 0.7;
       const salt = polyIdx * 31 + ringIdx * 113;
-      return perturbRing(dense, noiseLo, noiseHi, ringAmp, freqScale, salt);
+      return perturbRing(dense, {
+        noiseLo,
+        noiseHi,
+        amp: ringAmp,
+        freqScale,
+        salt,
+        chips: outer ? chips : NO_CHIPS,
+        maxInward: outer ? maxInward : Infinity,
+      });
     }),
   );
 
   return perturbed;
+}
+
+/** Wear amplitude (user units) at REF_SIZE for roughness = 1. */
+const AMP_AT_REF = 9.6;
+
+interface Chip {
+  at: number;
+  halfWidth: number;
+  depth: number;
+}
+const NO_CHIPS: Chip[] = [];
+
+interface PerturbParams {
+  noiseLo: SimplexNoise;
+  noiseHi: SimplexNoise;
+  amp: number;
+  freqScale: number;
+  salt: number;
+  chips: Chip[];
+  /** Cap on inward displacement (user units). */
+  maxInward: number;
 }
 
 function densify(ring: Ring, maxLen: number): Ring {
@@ -100,86 +147,110 @@ function densify(ring: Ring, maxLen: number): Ring {
 }
 
 /**
- * edgeProgress: controls noise amplitude along the ring. Per the v1 spec:
- *   - Top edge: fullNoise = 1.0 (全程满噪声)
- *   - Other three edges: sin(t×π), so corners = 0 and edge midpoints = 1.
- *
- * We approximate this for arbitrary convex rings by computing each vertex's
- * distance to the nearest corner of the bbox, normalized by half the shorter
- * edge. Vertices near corners get progress → 0, midpoints → 1. The "top
- * edge" special case is handled via a y-threshold.
+ * Wear weight along the ring. @since 3.0.0 corners wear the MOST (the old
+ * ramp went to 0 at corners — the opposite of real stones, whose corners
+ * chip and round first). `t` is the distance along the nearest bbox edge
+ * from its closer corner, normalised by half the edge: 0 at a corner, 1 at
+ * the edge midpoint. Weight runs from 1.6 at corners down to 0.55 mid-edge.
  */
+function cornerWeight(t: number): number {
+  const u = 1 - t;
+  return 0.55 + 1.05 * u * u * u;
+}
+
 /**
- * edgeProgress per v1 spec section 四:
- *   - Top edge: fullNoise = 1.0
- *   - Other three edges: sin(t × π/2), where t = distance ALONG the edge
- *     from the nearest corner / half-edge-length.  t=0 at corners, t=1 at
- *     midpoint → progress goes 0 → 1 → 0 symmetrically.
- *
- * Previous bug: used "distance to nearest bbox boundary" instead of "distance
- * along the edge to nearest corner". On left/right/bottom edges the boundary
- * distance was ~0 → progress ~0 → no noise on three sides.
+ * Position of (x, y) on the bbox perimeter as a fraction in [0, 1):
+ * top edge 0..0.25 (left→right), right 0.25..0.5, bottom 0.5..0.75
+ * (right→left), left 0.75..1. Used to place chips.
  */
-function perturbRing(
-  ring: Ring,
-  noiseLo: SimplexNoise,
-  noiseHi: SimplexNoise,
-  amp: number,
-  freqScale: number,
-  salt: number,
-): Ring {
+function perimeterParam(x: number, y: number, bb: { x1: number; y1: number; x2: number; y2: number }): number {
+  const w = Math.max(1e-6, bb.x2 - bb.x1);
+  const h = Math.max(1e-6, bb.y2 - bb.y1);
+  const dTop = Math.abs(y - bb.y1);
+  const dBot = Math.abs(y - bb.y2);
+  const dLeft = Math.abs(x - bb.x1);
+  const dRight = Math.abs(x - bb.x2);
+  const m = Math.min(dTop, dBot, dLeft, dRight);
+  const fx = Math.min(1, Math.max(0, (x - bb.x1) / w));
+  const fy = Math.min(1, Math.max(0, (y - bb.y1) / h));
+  if (m === dTop) return fx * 0.25;
+  if (m === dRight) return 0.25 + fy * 0.25;
+  if (m === dBot) return 0.5 + (1 - fx) * 0.25;
+  return 0.75 + (1 - fy) * 0.25;
+}
+
+function perturbRing(ring: Ring, p: PerturbParams): Ring {
   const bb = ringBBox(ring);
   const w = bb.x2 - bb.x1;
   const h = bb.y2 - bb.y1;
-  const edgeThreshold = Math.max(w, h) * 0.12;
+  const perimeter = 2 * (w + h);
+  const n = ring.length;
+  const out: Ring = new Array(n);
+  // Two-layer noise: low-freq for gentle overall shape (30%) + high-freq
+  // for small-scale stone roughness (70%).
+  const loFreq = 0.03 * p.freqScale;
+  const hiFreq = 0.18 * p.freqScale;
+  // Orient normals outward regardless of ring winding: with shoelace area
+  // A > 0 the right-hand normal (ey, -ex) points out of the ring.
+  let area2 = 0;
+  for (let i = 0; i < n; i++) {
+    const a = ring[i];
+    const b = ring[(i + 1) % n];
+    area2 += a[0] * b[1] - b[0] * a[1];
+  }
+  const outSign = area2 >= 0 ? 1 : -1;
+  const loOff = p.salt * 13.7;
+  const hiOff = p.salt * 7.3;
 
-  return ring.map(([x, y], i) => {
-    const prev = ring[(i - 1 + ring.length) % ring.length];
-    const next = ring[(i + 1) % ring.length];
+  for (let i = 0; i < n; i++) {
+    const x = ring[i][0];
+    const y = ring[i][1];
+    const prev = ring[(i - 1 + n) % n];
+    const next = ring[(i + 1) % n];
     const ex = next[0] - prev[0];
     const ey = next[1] - prev[1];
     const elen = Math.hypot(ex, ey) || 1;
-    const nx = ey / elen;
-    const ny = -ex / elen;
+    const nx = (outSign * ey) / elen;
+    const ny = (-outSign * ex) / elen;
 
     const dTop = Math.abs(y - bb.y1);
     const dBot = Math.abs(y - bb.y2);
     const dLeft = Math.abs(x - bb.x1);
     const dRight = Math.abs(x - bb.x2);
     const nearest = Math.min(dTop, dBot, dLeft, dRight);
-
-    let progress: number;
-    if (nearest === dTop && dTop < edgeThreshold) {
-      progress = 1;
+    let alongEdge: number;
+    let halfLen: number;
+    if (nearest === dTop || nearest === dBot) {
+      alongEdge = Math.min(x - bb.x1, bb.x2 - x);
+      halfLen = w / 2;
     } else {
-      let alongEdge: number;
-      let halfLen: number;
-      if (nearest === dBot) {
-        alongEdge = Math.min(x - bb.x1, bb.x2 - x);
-        halfLen = w / 2;
-      } else if (nearest === dLeft) {
-        alongEdge = Math.min(y - bb.y1, bb.y2 - y);
-        halfLen = h / 2;
-      } else {
-        alongEdge = Math.min(y - bb.y1, bb.y2 - y);
-        halfLen = h / 2;
-      }
-      const t = Math.min(1, alongEdge / Math.max(1, halfLen));
-      progress = Math.sin(t * Math.PI * 0.5);
+      alongEdge = Math.min(y - bb.y1, bb.y2 - y);
+      halfLen = h / 2;
     }
+    const t = Math.min(1, alongEdge / Math.max(1, halfLen));
+    const weight = cornerWeight(t);
 
-    // Two-layer noise: low-freq for gentle overall shape (30%) + high-freq
-    // for small-scale stone roughness (70%). Single low-freq alone produces
-    // smooth "wave" edges; the high-freq layer adds the crunchy notches that
-    // real carved stone edges have. Frequencies are scaled by freqScale so a
-    // smaller seal still sees the same number of wobbles around its rim
-    // instead of one slow wave + nothing.
-    const loFreq = 0.03 * freqScale;
-    const hiFreq = 0.18 * freqScale;
-    const lo = noiseLo.noise2D(x * loFreq + salt * 13.7, y * loFreq + salt * 13.7);
-    const hi = noiseHi.noise2D(x * hiFreq + salt * 7.3, y * hiFreq + salt * 7.3);
-    const offset = (lo * 0.3 + hi * 0.7) * amp * progress;
-    return [x + nx * offset, y + ny * offset] as Point2;
-  });
+    const lo = p.noiseLo.noise2D(x * loFreq + loOff, y * loFreq + loOff);
+    const hi = p.noiseHi.noise2D(x * hiFreq + hiOff, y * hiFreq + hiOff);
+    let offset = (lo * 0.3 + hi * 0.7) * p.amp * weight;
+
+    if (p.chips.length > 0 && perimeter > 0) {
+      const u = perimeterParam(x, y, bb);
+      for (let c = 0; c < p.chips.length; c++) {
+        const chip = p.chips[c];
+        let d = Math.abs(u - chip.at);
+        if (d > 0.5) d = 1 - d;
+        const dist = d * perimeter;
+        if (dist < chip.halfWidth) {
+          // Smooth bite with a ragged floor (hi noise), pushed inward.
+          const bump = 0.5 * (1 + Math.cos((Math.PI * dist) / chip.halfWidth));
+          offset -= chip.depth * bump * (0.75 + 0.25 * hi);
+        }
+      }
+    }
+    // Normals point outward, so inward displacement is negative.
+    if (offset < -p.maxInward) offset = -p.maxInward;
+    out[i] = [x + nx * offset, y + ny * offset] as Point2;
+  }
+  return out;
 }
-

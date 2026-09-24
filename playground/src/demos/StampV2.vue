@@ -11,6 +11,23 @@ import { generateStampAsync, type StampOptions } from "@jobinjia/shuimo-core";
 
 const SEAL_FONT_URL = "/fonts/yishanbeizhuanti.ttf";
 
+// Fetch the font bytes once per page. generateSealAsync caches the parsed
+// font per ArrayBuffer, so slider drags re-render without re-parsing the
+// 2.3 MB TTF each time.
+let fontPromise: Promise<ArrayBuffer> | null = null;
+function loadFont(): Promise<ArrayBuffer> {
+  if (!fontPromise) {
+    fontPromise = fetch(SEAL_FONT_URL).then((r) => {
+      if (!r.ok) throw new Error(`font fetch failed: ${r.status}`);
+      return r.arrayBuffer();
+    });
+    fontPromise.catch(() => {
+      fontPromise = null;
+    });
+  }
+  return fontPromise;
+}
+
 type ShapeKind = SealShape["kind"];
 
 const controls = reactive({
@@ -34,6 +51,8 @@ const controls = reactive({
   stretchAuto: false,
   stretch: false,
   cellHeightMode: "uniform" as "uniform" | "fit",
+  shortColumn: "spread" as "spread" | "top",
+  variation: 1,
   roughness: 0.2,
   carvingIntensity: 1.0,
   bleed: 1.0,
@@ -117,11 +136,12 @@ function parseText(raw: string): string[] {
 async function renderV2() {
   v2Error.value = "";
   try {
+    const font = await loadFont();
     const r = await generateSealAsync({
       text: parseText(controls.text),
       size: controls.size,
       seed: controls.seed,
-      font: SEAL_FONT_URL,
+      font,
       mode: controls.mode,
       shape: v2Shape.value,
       script: controls.script || undefined,
@@ -143,6 +163,8 @@ async function renderV2() {
         offsetX: controls.offsetX,
         offsetY: controls.offsetY,
         cellHeightMode: controls.cellHeightMode,
+        shortColumn: controls.shortColumn,
+        variation: controls.variation,
       },
     });
     v2Svg.value = r.svg ?? "";
@@ -224,6 +246,8 @@ watch(
     ox: controls.offsetX,
     oy: controls.offsetY,
     chm: controls.cellHeightMode,
+    shc: controls.shortColumn,
+    va: controls.variation,
   }),
   () => {
     regenerate();
@@ -347,6 +371,14 @@ watch(
         </div>
 
         <div class="row">
+          <label>短列排法 (shortColumn)</label>
+          <select v-model="controls.shortColumn">
+            <option value="spread">spread (默认，短列拉长撑满)</option>
+            <option value="top">top (旧行为，顶部对齐)</option>
+          </select>
+        </div>
+
+        <div class="row">
           <label>圆角模式</label>
           <select v-model="controls.cornerMode">
             <option value="round">圆角</option>
@@ -376,6 +408,11 @@ watch(
 
         <div class="row group">
           <label class="group-title">纹理</label>
+        </div>
+
+        <div class="row">
+          <label>字形变化 ({{ controls.variation.toFixed(2) }})</label>
+          <input type="range" min="0" max="2" step="0.1" v-model.number="controls.variation" />
         </div>
 
         <div class="row">

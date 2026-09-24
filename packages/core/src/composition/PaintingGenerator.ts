@@ -18,7 +18,9 @@ import { Mount, type LayeredMountSVG } from "../elements/natural/Mount";
 import { water } from "../elements/natural/Water";
 import { Arch } from "../elements/objects/Arch";
 import { randChoice } from "../utils/random";
+import { makeIdSuffix, runInSvgStyleScope, setInkDepth } from "../utils/svg";
 import { prng } from "../foundation/random";
+import { noise } from "../foundation/noise";
 import { XuanPaperColors, GoldFleckColors } from "../elements/natural/XuanPaper";
 import { buildXuanPaperScene } from "../elements/natural/xuan-paper/model";
 import { renderXuanPaperSVGParts } from "../elements/natural/xuan-paper/svg-renderer";
@@ -93,9 +95,10 @@ export interface PaintingOptions {
    *
    * Use when the caller applies its own `mix-blend-mode: multiply` at a higher
    * layer (e.g. wrapping the rasterized output), so the blend mode isn't
-   * doubled. Internal `fill:white` occlusions are preserved — they keep the
-   * layered mountain composition intact; the outer multiply makes them
-   * transparent over paper while leaving ink strokes to multiply normally.
+   * doubled. Internal occlusion masks are preserved — they keep the layered
+   * mountain composition intact. Without Xuan paper they are `fill:white`,
+   * which the outer multiply makes transparent over the page; on Xuan paper
+   * they are filled with the paper tone so they blend into the paper.
    *
    * Defaults to `false`, preserving the historical opaque behavior.
    */
@@ -129,8 +132,9 @@ export interface PaintingOptions {
    * Optional per-element render switch for landscape output.
    *
    * All known element tags render by default. Set a tag to `false` to keep it
-   * in the generated plan but omit its SVG output, preserving seed/layout
-   * stability while letting callers hide selected visual classes.
+   * in the generated plan but skip generating it entirely. Every plan item
+   * draws from its own seeded random stream, so hiding one element never
+   * changes how the others look.
    */
   renderElements?: RenderElementControls;
 
@@ -145,7 +149,7 @@ function shouldRenderElement(tag: string, controls?: RenderElementControls): boo
   return controls?.[tag as PlanTag] !== false;
 }
 
-function wrapPlanLayer(tag: string, layer: "underlay" | "base" | "overlay", svg: string): string {
+function wrapPlanLayer(tag: string, layer: "base" | "overlay", svg: string): string {
   return svg ? `<g data-shuimo-element="${tag}" data-shuimo-layer="${layer}">${svg}</g>` : "";
 }
 
@@ -211,6 +215,26 @@ function getBlankArea(position: BlankPosition): BlankArea | null {
 }
 
 /**
+ * Flat colour that stands in for the paper inside occlusion masks and mist.
+ * The paper texture layers darken the base colour by roughly 3% on average,
+ * so a mask filled with the raw base colour would read as a lighter patch.
+ */
+function paperTone(c: readonly [number, number, number]): string {
+  const k = 0.97;
+  return `rgb(${Math.round(c[0] * k)},${Math.round(c[1] * k)},${Math.round(c[2] * k)})`;
+}
+
+function mistGradient(id: string, color: string): string {
+  return (
+    `<radialGradient id="${id}">` +
+    `<stop offset="0" stop-color="${color}" stop-opacity="0.9"/>` +
+    `<stop offset="0.55" stop-color="${color}" stop-opacity="0.55"/>` +
+    `<stop offset="1" stop-color="${color}" stop-opacity="0"/>` +
+    `</radialGradient>`
+  );
+}
+
+/**
  * Filter plan items based on blank area
  */
 function filterPlanByBlankArea(
@@ -238,88 +262,120 @@ function renderPlanItem(
   const randomSeed = seed + item.x + item.y;
   const textureDetail = Math.max(0.25, Math.min(1, detail));
   const inkOnly = (svg: string): LayeredMountSVG => ({ base: svg, overlay: "" });
-  const visible = shouldRenderElement(item.tag, renderElements);
+
+  // Every item draws from its own PRNG stream (see seedItem), so a hidden
+  // element can simply be skipped without shifting anything else.
+  if (!shouldRenderElement(item.tag, renderElements)) return inkOnly("");
 
   switch (item.tag) {
-    case "mount": {
-      // ret defaults to 0, which returns string
-      const rendered = Mount.mountain(item.x, item.y, randomSeed * prng.random(), {
+    case "mount":
+      return Mount.mountain(item.x, item.y, randomSeed * prng.random(), {
         tex: Math.round(200 * textureDetail),
         layers: true,
       }) as LayeredMountSVG;
-      return visible ? rendered : inkOnly("");
-    }
 
-    case "flatmount": {
-      const rendered = Mount.flatMount(item.x, item.y, randomSeed * Math.PI, {
+    case "flatmount":
+      return Mount.flatMount(item.x, item.y, randomSeed * Math.PI, {
         wid: 600 + prng.random() * 400,
         hei: 100,
         tex: Math.round(80 * textureDetail),
         cho: 0.5 + prng.random() * 0.2,
         layers: true,
       }) as LayeredMountSVG;
-      return visible ? rendered : inkOnly("");
-    }
 
-    case "distmount": {
-      const svg = Mount.distMount(item.x, item.y, randomSeed, {
-        hei: 150,
-        len: randChoice([500, 1000, 1500]),
-      });
-      return inkOnly(visible ? svg : "");
-    }
+    case "distmount":
+      return inkOnly(
+        Mount.distMount(item.x, item.y, randomSeed, {
+          hei: 150,
+          len: randChoice([500, 1000, 1500]),
+        }),
+      );
 
-    case "water": {
-      const svg = water(item.x, item.y, randomSeed, { len: item.h || 360, clu: 8 });
-      return inkOnly(visible ? svg : "");
-    }
+    case "water":
+      return inkOnly(water(item.x, item.y, randomSeed, { len: item.h || 360, clu: 8 }));
 
     case "boat": {
-      const ripple = water(item.x, item.y + 18, randomSeed, { len: 260, clu: 5 });
+      const ripple = shouldRenderElement("water", renderElements)
+        ? water(item.x, item.y + 18, randomSeed, { len: 260, clu: 5 })
+        : "";
       const boat = Arch.boat01(item.x, item.y, prng.random(), {
         sca: item.y / 800,
         fli: randChoice([true, false]),
       });
+      return inkOnly(ripple + boat);
+    }
+
+    case "arch01":
       return inkOnly(
-        visible ? (shouldRenderElement("water", renderElements) ? ripple : "") + boat : "",
+        Arch.arch01(item.x, item.y, randomSeed, {
+          hei: 60 + prng.random() * 40,
+          wid: 80 + prng.random() * 40,
+          per: 3 + prng.random() * 2,
+        }),
       );
-    }
 
-    case "arch01": {
-      const svg = Arch.arch01(item.x, item.y, randomSeed, {
-        hei: 60 + prng.random() * 40,
-        wid: 80 + prng.random() * 40,
-        per: 3 + prng.random() * 2,
-      });
-      return inkOnly(visible ? svg : "");
-    }
+    case "arch02":
+      return inkOnly(
+        Arch.arch02(item.x, item.y, randomSeed, {
+          wid: 40 + prng.random() * 30,
+          sto: 2 + Math.floor(prng.random() * 3),
+        }),
+      );
 
-    case "arch02": {
-      const svg = Arch.arch02(item.x, item.y, randomSeed, {
-        wid: 40 + prng.random() * 30,
-        sto: 2 + Math.floor(prng.random() * 3),
-      });
-      return inkOnly(visible ? svg : "");
-    }
+    case "arch03":
+      return inkOnly(
+        Arch.arch03(item.x, item.y, randomSeed, {
+          wid: 40 + prng.random() * 30,
+          sto: 5 + Math.floor(prng.random() * 4),
+        }),
+      );
 
-    case "arch03": {
-      const svg = Arch.arch03(item.x, item.y, randomSeed, {
-        wid: 40 + prng.random() * 30,
-        sto: 5 + Math.floor(prng.random() * 4),
-      });
-      return inkOnly(visible ? svg : "");
-    }
-
-    case "arch04": {
-      const svg = Arch.arch04(item.x, item.y, randomSeed, {
-        sto: 1 + Math.floor(prng.random() * 3),
-      });
-      return inkOnly(visible ? svg : "");
-    }
+    case "arch04":
+      return inkOnly(
+        Arch.arch04(item.x, item.y, randomSeed, {
+          sto: 1 + Math.floor(prng.random() * 3),
+        }),
+      );
 
     default:
       return inkOnly("");
   }
+}
+
+/**
+ * Re-seed the global PRNG for one plan item. Each item gets an independent
+ * stream derived from the painting seed and its own position, so skipping or
+ * adding an item never changes how any other item is drawn.
+ */
+function seedItem(seed: number, item: PlanItem): void {
+  prng.seed([seed, item.tag, Math.round(item.x * 10), Math.round(item.y * 10)]);
+}
+
+/**
+ * A soft horizontal haze patch in paper colour (a radial gradient on an
+ * ellipse). Gradients are rasterised cheaply by browsers, unlike blur or
+ * turbulence filters over large regions.
+ */
+function mistBand(x: number, y: number, depth: number, ys: number, gradientId: string): string {
+  const rx = (260 + prng.random() * 200) * Math.max(ys, 0.5);
+  const ry = (30 + prng.random() * 26) * ys;
+  const cx = x + (prng.random() - 0.5) * 160;
+  const opacity = 0.95 - depth * 0.45;
+  return (
+    `<ellipse data-shuimo-element="mist" cx="${cx.toFixed(1)}" cy="${y.toFixed(1)}" ` +
+    `rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="url(#${gradientId})" ` +
+    `fill-opacity="${opacity.toFixed(2)}"/>`
+  );
+}
+
+/**
+ * Aerial-perspective depth of an item: 0 for the farthest (top of the
+ * composition, distant ranges), 1 for the nearest (bottom foreground).
+ */
+function inkDepth(item: PlanItem, height: number): number {
+  if (item.tag === "distmount") return 0;
+  const d = (item.y - height * 0.36) / (height * 0.5);
+  return d < 0 ? 0 : d > 1 ? 1 : d;
 }
 
 /**
@@ -334,9 +390,13 @@ function generateLandscapeContent(
   detail: number = 1,
   renderElements?: RenderElementControls,
   placement?: LandscapePlacementOptions,
+  mistGradientId?: string,
 ): string {
-  // Initialize PRNG
+  // Initialize PRNG, then rebuild the Perlin table from it. The table is
+  // otherwise built once per process on the first noise() call, which made
+  // the same seed produce a different painting depending on what ran before.
   prng.seed(seed);
+  noise.reset();
 
   const blankArea = getBlankArea(blankPosition);
 
@@ -346,7 +406,7 @@ function generateLandscapeContent(
   const xmax = width;
 
   // Get raw plan from MountPlanner
-  let plan = MountPlanner.plan(xmin, xmax, planmtx);
+  let plan = MountPlanner.plan(xmin, xmax, planmtx, [], { height });
 
   // Filter plan based on blank area
   plan = filterPlanByBlankArea(plan, width, height, blankArea);
@@ -362,39 +422,58 @@ function generateLandscapeContent(
       width,
       height,
       placement,
+      scaleToCanvas: true,
     });
   }
 
   // Sort by y coordinate (painter's algorithm - far to near)
   plan.sort((a, b) => a.y - b.y);
 
-  // Render water underneath terrain, then terrain bodies, then vegetation and
-  // mount decorations. Keeping tree ink out of mountain body chunks prevents
-  // a later mountain's white occlusion polygon from erasing foreground trees.
-  let underlay = "";
+  // Terrain bodies first, then vegetation and mount decorations. Keeping
+  // tree ink out of mountain body chunks prevents a later mountain's
+  // occlusion polygon from erasing foreground trees.
   let base = "";
   let overlay = "";
 
-  // Add water for mounts (filter by blank area too)
-  for (const item of plan) {
-    if (item.tag === "mount") {
-      if (!MountPlanner.isInBlankArea(item.x, item.y, width, height, blankArea)) {
-        const mountWater = water(item.x, item.y, seed + item.x);
-        if (shouldRenderElement("water", renderElements)) {
-          underlay += wrapPlanLayer("water", "underlay", mountWater);
-        }
-      }
-    }
-  }
+  const showWater = shouldRenderElement("water", renderElements);
+  const ys = height / 800;
 
-  // Add all other elements
   for (const item of plan) {
+    const depth = inkDepth(item, height);
+    setInkDepth(depth);
+
+    seedItem(seed, item);
     const rendered = renderPlanItem(item, seed, detail, renderElements);
     base += wrapPlanLayer(item.tag, "base", rendered.base);
     overlay += wrapPlanLayer(item.tag, "overlay", rendered.overlay);
-  }
 
-  return `${underlay}<g data-shuimo-layer="terrain-base">${base}</g><g data-shuimo-layer="terrain-overlay">${overlay}</g>`;
+    if (item.tag !== "mount") continue;
+
+    // Ripples just in front of the mountain's foot. Drawn after its body and
+    // before nearer terrain, so they show in the open water between
+    // mountains instead of being painted over (they used to sit underneath
+    // every mountain and were never visible).
+    if (showWater) {
+      seedItem(seed, { ...item, tag: "mount-water" });
+      base += wrapPlanLayer(
+        "water",
+        "base",
+        water(item.x, item.y + 48 * ys, seed + item.x, { len: 1000, clu: 7 }),
+      );
+    }
+
+    // Mist band over the foot of all but the nearest mountains: separates
+    // the depth layers and lets distant feet dissolve (aerial perspective).
+    if (mistGradientId && depth < 0.8) {
+      seedItem(seed, { ...item, tag: "mist" });
+      if (prng.random() < 0.75) {
+        base += mistBand(item.x, item.y + 12 * ys, depth, ys, mistGradientId);
+      }
+    }
+  }
+  setInkDepth(null);
+
+  return `<g data-shuimo-layer="terrain-base">${base}</g><g data-shuimo-layer="terrain-overlay">${overlay}</g>`;
 }
 
 /**
@@ -489,19 +568,47 @@ export class PaintingGenerator {
       paperBackground = paper.background;
     }
 
-    // Generate painting content based on type
+    // Generate painting content based on type. Styles are collected into
+    // one <style> block keyed by a class prefix unique to these options, so
+    // two different paintings in the same document never share class names.
     let paintingContent = "";
     if (type === "landscape") {
-      paintingContent = generateLandscapeContent(
-        width,
-        height,
-        seed,
-        blankPosition,
-        minCounts,
-        detail,
-        renderElements,
-        placement,
+      const prefix =
+        "sm" +
+        makeIdSuffix(
+          JSON.stringify([
+            seed,
+            blankPosition,
+            minCounts ?? null,
+            detail,
+            renderElements ?? null,
+            placement ?? null,
+            onXuanPaper ? (xuanPaperOptions.baseColor ?? null) : false,
+          ]),
+          width,
+          height,
+        ) +
+        "-";
+      const paperColor = onXuanPaper
+        ? paperTone(xuanPaperOptions.baseColor ?? XuanPaperColors.processed)
+        : undefined;
+      const mistId = `${prefix}mist`;
+      svgDefs += mistGradient(mistId, paperColor ?? "white");
+      const scoped = runInSvgStyleScope({ prefix, paper: paperColor }, () =>
+        generateLandscapeContent(
+          width,
+          height,
+          seed,
+          blankPosition,
+          minCounts,
+          detail,
+          renderElements,
+          placement,
+          mistId,
+        ),
       );
+      paintingContent = scoped.result;
+      if (scoped.css) svgDefs += `<style>${scoped.css}</style>`;
     }
 
     const rootStyleAttr = transparent ? "" : ' style="mix-blend-mode:multiply;"';

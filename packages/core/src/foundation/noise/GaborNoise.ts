@@ -38,9 +38,15 @@ export interface GaborNoiseOptions {
 interface Kernel {
   x: number;
   y: number;
-  theta: number;
   weight: number;
+  cosTheta: number;
+  sinTheta: number;
+  cos2Theta: number;
+  sin2Theta: number;
 }
+
+// Per-instance bound on memoised cells; the cache is cleared when exceeded.
+const KERNEL_CACHE_LIMIT = 4096;
 
 const TWO_PI = Math.PI * 2;
 
@@ -98,6 +104,7 @@ export class GaborNoise {
   private readonly orientationConcentration: number;
   private readonly kernelsPerCell: number;
   private readonly cellSize: number;
+  private readonly kernelCache = new Map<number, Kernel[]>();
 
   constructor(seed: number, options: GaborNoiseOptions = {}) {
     this.seed = seed | 0 || 1;
@@ -109,21 +116,44 @@ export class GaborNoise {
     this.cellSize = this.kernelRadius * 2;
   }
 
-  private *kernelsForCell(cx: number, cy: number): Generator<Kernel> {
+  /**
+   * Kernels of one cell. Pure function of (cell, seed, options), so the result
+   * is memoised along with the trig terms both queries need; values are
+   * identical to recomputing them.
+   */
+  private kernelsForCell(cx: number, cy: number): Kernel[] {
+    // Unique for |cx|, |cy| < 2^20 (far beyond any realistic canvas / cellSize).
+    const key = (cx + 1048576) * 2097152 + (cy + 1048576);
+    const cached = this.kernelCache.get(key);
+    if (cached) {
+      return cached;
+    }
+
     const seedBase = this.seed;
+    const kernels: Kernel[] = [];
     for (let i = 0; i < this.kernelsPerCell; i++) {
       const h1 = hash2(cx * 73856093 + i, cy * 19349663, seedBase);
       const h2 = hash2(cx * 83492791 + i, cy * 12582917, seedBase + 907);
       const h3 = hash2(cx + i * 31, cy + i * 17, seedBase + 181);
       const h4 = hash2(cx - i * 13, cy - i * 7, seedBase + 613);
 
-      const localX = (cx + h1) * this.cellSize;
-      const localY = (cy + h2) * this.cellSize;
       const theta = this.mainOrientation + vonMisesSample(h3, h4, this.orientationConcentration);
-      const weight = 0.6 + h4 * 0.8;
-
-      yield { x: localX, y: localY, theta, weight };
+      kernels.push({
+        x: (cx + h1) * this.cellSize,
+        y: (cy + h2) * this.cellSize,
+        weight: 0.6 + h4 * 0.8,
+        cosTheta: Math.cos(theta),
+        sinTheta: Math.sin(theta),
+        cos2Theta: Math.cos(2 * theta),
+        sin2Theta: Math.sin(2 * theta),
+      });
     }
+
+    if (this.kernelCache.size >= KERNEL_CACHE_LIMIT) {
+      this.kernelCache.clear();
+    }
+    this.kernelCache.set(key, kernels);
+    return kernels;
   }
 
   private kernelContribution(kernel: Kernel, px: number, py: number): number {
@@ -132,7 +162,7 @@ export class GaborNoise {
     const r2 = dx * dx + dy * dy;
     if (r2 > this.kernelRadius * this.kernelRadius) return 0;
     const gauss = Math.exp((-Math.PI * r2) / (this.kernelRadius * this.kernelRadius));
-    const projected = dx * Math.cos(kernel.theta) + dy * Math.sin(kernel.theta);
+    const projected = dx * kernel.cosTheta + dy * kernel.sinTheta;
     const carrier = Math.cos((TWO_PI * projected) / this.frequency);
     return kernel.weight * gauss * carrier;
   }
@@ -174,8 +204,8 @@ export class GaborNoise {
           const w =
             kernel.weight * Math.exp((-Math.PI * r2) / (this.kernelRadius * this.kernelRadius));
           // Orientation is undirected (mod π), so double-angle before averaging.
-          sumSin += w * Math.sin(2 * kernel.theta);
-          sumCos += w * Math.cos(2 * kernel.theta);
+          sumSin += w * kernel.sin2Theta;
+          sumCos += w * kernel.cos2Theta;
         }
       }
     }

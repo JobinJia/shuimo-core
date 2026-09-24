@@ -1,461 +1,536 @@
 import { SimplexNoise } from "../../../foundation/noise/SimplexNoise";
-import { Vector2 } from "../../../foundation/geometry/Vector2";
-import type { CunFaStroke, InkFill, MistRegion, MountainLayer } from "../types";
+import type { Vector2 } from "../../../foundation/geometry/Vector2";
+import type { CunFaStroke, InkFill, MistRegion, MountainLayer, QualityPreset } from "../types";
 import type { RenderBackend, RenderOutput } from "./types";
-import { deformPolyline } from "../internal/hobbsDeform";
+import { deformPolylineFlat } from "../internal/hobbsDeform";
+import {
+  SILHOUETTE_DECAY,
+  seededRng,
+  silhouetteSegment,
+  smoothProfile,
+  topProfile,
+} from "../internal/silhouette";
+import {
+  acquireScratch,
+  acquireTone,
+  context2d,
+  createScratchCanvas,
+  getMistSprite,
+  onRelease,
+  type AnyCanvas,
+  type ScratchSet,
+} from "./canvasPool";
 
 /**
- * Stack-blur approximation of gaussian blur — fast O(n) per pixel.
- * Operates in-place on a Canvas2D context.
+ * Per-quality render cost knobs. Measured at 1200×800 × 5 layers, the
+ * dominant costs are the tone field (noise samples ∝ 1/cell²), the mask
+ * edge (layers × 4^depth vertices) and cunfa count (set by density in
+ * InkMount); mist wisps are cheap sprite blits.
  */
-function stackBlur(ctx: CanvasRenderingContext2D, w: number, h: number, radius: number): void {
-  if (radius < 1) return;
-  const imageData = ctx.getImageData(0, 0, w, h);
-  const pixels = imageData.data;
-  const wm = w - 1;
-  const hm = h - 1;
-  const div = radius + radius + 1;
-  const r: number[] = Array.from({ length: w * h });
-  const g: number[] = Array.from({ length: w * h });
-  const b: number[] = Array.from({ length: w * h });
-  const a: number[] = Array.from({ length: w * h });
+interface RenderDetail {
+  /** Tone-field cell size in px (the field is upsampled bilinearly). */
+  toneCell: number;
+  /** Mottle noise octaves in the tone field. */
+  toneOctaves: 1 | 2;
+  /** Jittered copies of the silhouette that build the soft mask edge. */
+  maskLayers: number;
+  /** Extra Hobbs recursion per mask copy (each level doubles vertices). */
+  maskDepth: number;
+  /** Stretched sprite wisps per mist region. */
+  mistWisps: number;
+}
 
-  let rsum: number, gsum: number, bsum: number, asum: number;
-  let p: number, p1: number, p2: number;
-  let yi = 0;
+const DETAIL: Record<QualityPreset, RenderDetail> = {
+  // Mask copies: each is a full-area anti-aliased polygon fill, the most
+  // expensive raster op here. The copies only jitter the edge by ±~2px,
+  // and 4–5 copies are visually indistinguishable from the original 12.
+  draft: { toneCell: 12, toneOctaves: 1, maskLayers: 2, maskDepth: 1, mistWisps: 3 },
+  normal: { toneCell: 8, toneOctaves: 2, maskLayers: 4, maskDepth: 2, mistWisps: 5 },
+  high: { toneCell: 6, toneOctaves: 2, maskLayers: 5, maskDepth: 2, mistWisps: 8 },
+};
 
-  // Horizontal pass
-  for (let y = 0; y < h; y++) {
-    rsum = gsum = bsum = asum = 0;
-    // Accumulate initial window
-    for (let i = -radius; i <= radius; i++) {
-      p = (yi + Math.min(wm, Math.max(0, i))) * 4;
-      rsum += pixels[p];
-      gsum += pixels[p + 1];
-      bsum += pixels[p + 2];
-      asum += pixels[p + 3];
-    }
-    for (let x = 0; x < w; x++) {
-      r[yi + x] = rsum / div;
-      g[yi + x] = gsum / div;
-      b[yi + x] = bsum / div;
-      a[yi + x] = asum / div;
+/**
+ * Cumulative interior alpha of the mask. The far layer keeps the original
+ * 12 × 0.13 recipe (≈0.81, slightly translucent); near layers approach
+ * opaque so the ridge lines behind them don't show through their bodies.
+ */
+function maskInterior(depth: number): number {
+  return 1 - Math.pow(1 - 0.13, 12) * (1 - depth * 0.85);
+}
+/** Extra depth blur (px) on the farthest layer; falls continuously to 0 at depth 1. */
+const MAX_DEPTH_BLUR = 2.4;
 
-      p1 = (yi + Math.min(wm, x + radius + 1)) * 4;
-      p2 = (yi + Math.max(0, x - radius)) * 4;
-      rsum += pixels[p1] - pixels[p2];
-      gsum += pixels[p1 + 1] - pixels[p2 + 1];
-      bsum += pixels[p1 + 2] - pixels[p2 + 2];
-      asum += pixels[p1 + 3] - pixels[p2 + 3];
-    }
-    yi += w;
+// ---------------------------------------------------------------------------
+// Mask path cache
+// ---------------------------------------------------------------------------
+
+interface MaskEntry {
+  polys: Float64Array[];
+  paths: Path2D[] | null;
+}
+
+const MASK_CACHE_LIMIT = 64;
+const maskCache = new Map<string, MaskEntry>();
+onRelease(() => maskCache.clear());
+
+function hashSilhouette(points: Vector2[]): number {
+  let h = 2166136261;
+  for (const p of points) {
+    h = Math.imul(h ^ Math.round(p.x * 8), 16777619);
+    h = Math.imul(h ^ Math.round(p.y * 8), 16777619);
   }
-
-  // Vertical pass
-  for (let x = 0; x < w; x++) {
-    rsum = gsum = bsum = asum = 0;
-    let yp = -radius * w;
-    for (let i = -radius; i <= radius; i++) {
-      yi = Math.max(0, yp) + x;
-      rsum += r[yi];
-      gsum += g[yi];
-      bsum += b[yi];
-      asum += a[yi];
-      yp += w;
-    }
-    yi = x;
-    for (let y = 0; y < h; y++) {
-      p = yi * 4;
-      pixels[p] = rsum / div;
-      pixels[p + 1] = gsum / div;
-      pixels[p + 2] = bsum / div;
-      pixels[p + 3] = asum / div;
-
-      p1 = x + Math.min(hm, y + radius + 1) * w;
-      p2 = x + Math.max(0, y - radius) * w;
-      rsum += r[p1] - r[p2];
-      gsum += g[p1] - g[p2];
-      bsum += b[p1] - b[p2];
-      asum += a[p1] - a[p2];
-      yi += w;
-    }
-  }
-
-  ctx.putImageData(imageData, 0, 0);
+  return h >>> 0;
 }
 
 /**
- * Build the closed mountain silhouette polygon: ridge line across the top,
- * then a horizontal bottom edge along the canvas baseline.
+ * The jittered silhouette copies that make the soft watercolour edge
+ * cost ~2k vertices each to build. They depend only on the
+ * silhouette, seed and detail, so cache them (as Path2D where available)
+ * across regenerations of the same scene.
  */
-function buildMountainPolygon(ridgeLine: Vector2[], canvasHeight: number): Vector2[] {
-  const poly: Vector2[] = [];
-  for (let i = 0; i < ridgeLine.length; i++) {
-    poly.push(new Vector2(ridgeLine[i].x, ridgeLine[i].y));
+function getMaskEntry(
+  silhouette: Vector2[],
+  seed: number,
+  width: number,
+  height: number,
+  detail: RenderDetail,
+): MaskEntry {
+  const key = `${hashSilhouette(silhouette)}|${seed}|${width}x${height}|${detail.maskLayers}|${detail.maskDepth}`;
+  const hit = maskCache.get(key);
+  if (hit) {
+    maskCache.delete(key);
+    maskCache.set(key, hit);
+    return hit;
   }
-  poly.push(new Vector2(ridgeLine[ridgeLine.length - 1].x, canvasHeight));
-  poly.push(new Vector2(ridgeLine[0].x, canvasHeight));
-  return poly;
+
+  const rand = seededRng(seed ^ 0x5e1f);
+  const layerVar = silhouetteSegment(width) * 0.02;
+  const bottom = height + 4;
+  const base = new Float64Array(silhouette.length * 2);
+  for (let i = 0; i < silhouette.length; i++) {
+    base[i * 2] = silhouette[i].x;
+    base[i * 2 + 1] = silhouette[i].y;
+  }
+  const polys: Float64Array[] = [];
+  for (let li = 0; li < detail.maskLayers; li++) {
+    const edge = deformPolylineFlat(base, layerVar, detail.maskDepth, SILHOUETTE_DECAY, rand);
+    const coords = new Float64Array(edge.length + 4);
+    coords.set(edge);
+    const e = edge.length;
+    coords[e] = edge[e - 2];
+    coords[e + 1] = bottom;
+    coords[e + 2] = edge[0];
+    coords[e + 3] = bottom;
+    polys.push(coords);
+  }
+
+  let paths: Path2D[] | null = null;
+  if (typeof Path2D !== "undefined") {
+    paths = polys.map((coords) => {
+      const path = new Path2D();
+      tracePolygon(path, coords);
+      return path;
+    });
+  }
+
+  const entry: MaskEntry = { polys, paths };
+  maskCache.set(key, entry);
+  while (maskCache.size > MASK_CACHE_LIMIT) {
+    maskCache.delete(maskCache.keys().next().value as string);
+  }
+  return entry;
 }
 
-/** Tiny Park–Miller LCG, mirrors the seeded RNG used in InkWashLayer. */
-function seededRand(seed: number): () => number {
-  let s = Math.abs(Math.floor(seed)) % 2147483647;
-  if (s <= 0) s += 2147483646;
-  return () => {
-    s = (s * 16807) % 2147483647;
-    return (s - 1) / 2147483646;
-  };
+function tracePolygon(path: CanvasPath, coords: Float64Array): void {
+  path.moveTo(coords[0], coords[1]);
+  for (let i = 2; i < coords.length; i += 2) path.lineTo(coords[i], coords[i + 1]);
+  path.closePath();
 }
+
+// ---------------------------------------------------------------------------
+// Brush geometry
+// ---------------------------------------------------------------------------
 
 /**
- * Build a clip path for a mountain silhouette.
+ * Trace a closed ribbon around a centre line with per-point width —
+ * a tapered brush stroke. Tangents are averaged over ±`smooth` points so
+ * a jittery centre line doesn't flip the outline inside out.
  */
-function clipToMountain(
-  ctx: CanvasRenderingContext2D,
-  ridgeLine: Vector2[],
-  canvasHeight: number,
+function traceRibbon(
+  path: CanvasPath,
+  xs: ArrayLike<number>,
+  ys: ArrayLike<number>,
+  ws: ArrayLike<number>,
+  from: number,
+  to: number,
+  smooth: number,
 ): void {
-  ctx.beginPath();
-  ctx.moveTo(ridgeLine[0].x, ridgeLine[0].y);
-  for (let i = 1; i < ridgeLine.length; i++) {
-    ctx.lineTo(ridgeLine[i].x, ridgeLine[i].y);
+  const count = to - from;
+  if (count < 2) return;
+  const lx = new Float32Array(count);
+  const ly = new Float32Array(count);
+  const rx = new Float32Array(count);
+  const ry = new Float32Array(count);
+  for (let k = 0; k < count; k++) {
+    const i = from + k;
+    const a = Math.max(from, i - smooth);
+    const b = Math.min(to - 1, i + smooth);
+    let tx = xs[b] - xs[a];
+    let ty = ys[b] - ys[a];
+    const tl = Math.hypot(tx, ty) || 1;
+    tx /= tl;
+    ty /= tl;
+    const half = ws[i] * 0.5;
+    lx[k] = xs[i] - ty * half;
+    ly[k] = ys[i] + tx * half;
+    rx[k] = xs[i] + ty * half;
+    ry[k] = ys[i] - tx * half;
   }
-  ctx.lineTo(ridgeLine[ridgeLine.length - 1].x, canvasHeight);
-  ctx.lineTo(ridgeLine[0].x, canvasHeight);
-  ctx.closePath();
-  ctx.clip();
+  path.moveTo(lx[0], ly[0]);
+  for (let k = 1; k < count; k++) path.lineTo(lx[k], ly[k]);
+  for (let k = count - 1; k >= 0; k--) path.lineTo(rx[k], ry[k]);
+  path.closePath();
 }
 
-/**
- * Paint a soft brush stamp (radial gradient circle) at a position.
- */
-function brushStamp(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  radius: number,
-  r: number,
-  g: number,
-  b: number,
-  alpha: number,
-): void {
-  const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
-  grad.addColorStop(0, `rgba(${r},${g},${b},${alpha})`);
-  grad.addColorStop(0.5, `rgba(${r},${g},${b},${alpha * 0.6})`);
-  grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
-  ctx.fillStyle = grad;
-  ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+function sampleGradient(gradient: { stop: number; opacity: number }[], t: number): number {
+  if (gradient.length === 0) return 1 - t * 0.7;
+  if (t <= gradient[0].stop) return gradient[0].opacity;
+  for (let i = 1; i < gradient.length; i++) {
+    const b = gradient[i];
+    if (t <= b.stop) {
+      const a = gradient[i - 1];
+      const f = (t - a.stop) / (b.stop - a.stop || 1);
+      return a.opacity + (b.opacity - a.opacity) * f;
+    }
+  }
+  return gradient[gradient.length - 1].opacity;
+}
+
+// ---------------------------------------------------------------------------
+// Backend
+// ---------------------------------------------------------------------------
+
+export interface Canvas2DBackendOptions {
+  width: number;
+  height: number;
+  /**
+   * Draw into this context. The backend then treats the canvas as the
+   * caller's: `clear()` leaves it (and any background) untouched.
+   */
+  ctx?: CanvasRenderingContext2D;
+  quality?: QualityPreset;
 }
 
 export class Canvas2DBackend implements RenderBackend {
   private ctx: CanvasRenderingContext2D;
-  private canvas: HTMLCanvasElement | OffscreenCanvas;
-  // Offscreen layer for compositing with blur
-  private layerCanvas: HTMLCanvasElement | OffscreenCanvas;
-  private layerCtx: CanvasRenderingContext2D;
-  // Offscreen mask for the Hobbs-deformed mountain silhouette
-  private maskCanvas: HTMLCanvasElement | OffscreenCanvas;
-  private maskCtx: CanvasRenderingContext2D;
+  private canvas: AnyCanvas;
+  private ownsCanvas: boolean;
+  private width: number;
+  private height: number;
+  private detail: RenderDetail;
+  private scratch: ScratchSet;
 
-  constructor(options: { width: number; height: number; ctx?: CanvasRenderingContext2D }) {
+  constructor(options: Canvas2DBackendOptions) {
+    this.width = Math.max(1, Math.round(options.width));
+    this.height = Math.max(1, Math.round(options.height));
+    this.detail = DETAIL[options.quality ?? "normal"];
     if (options.ctx) {
       this.ctx = options.ctx;
-      this.canvas = options.ctx.canvas as HTMLCanvasElement | OffscreenCanvas;
+      this.canvas = options.ctx.canvas as AnyCanvas;
+      this.ownsCanvas = false;
     } else {
-      if (typeof OffscreenCanvas !== "undefined") {
-        this.canvas = new OffscreenCanvas(options.width, options.height);
-      } else {
-        const el = document.createElement("canvas");
-        el.width = options.width;
-        el.height = options.height;
-        this.canvas = el;
-      }
-      this.ctx = this.canvas.getContext("2d") as unknown as CanvasRenderingContext2D;
+      this.canvas = createScratchCanvas(this.width, this.height);
+      this.ctx = context2d(this.canvas);
+      this.ownsCanvas = true;
     }
-
-    // Create offscreen layer for per-mountain compositing
-    if (typeof OffscreenCanvas !== "undefined") {
-      this.layerCanvas = new OffscreenCanvas(options.width, options.height);
-    } else {
-      const el = document.createElement("canvas");
-      el.width = options.width;
-      el.height = options.height;
-      this.layerCanvas = el;
-    }
-    this.layerCtx = this.layerCanvas.getContext("2d") as unknown as CanvasRenderingContext2D;
-
-    if (typeof OffscreenCanvas !== "undefined") {
-      this.maskCanvas = new OffscreenCanvas(options.width, options.height);
-    } else {
-      const el = document.createElement("canvas");
-      el.width = options.width;
-      el.height = options.height;
-      this.maskCanvas = el;
-    }
-    this.maskCtx = this.maskCanvas.getContext("2d") as unknown as CanvasRenderingContext2D;
+    this.scratch = acquireScratch(this.width, this.height);
   }
 
   clear(): void {
-    const { width, height } = this.canvas;
-    this.ctx.clearRect(0, 0, width, height);
+    if (!this.ownsCanvas) return;
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  drawMountainFill(layer: MountainLayer, ink: InkFill): void {
-    const { ridgeLine, depth, bounds } = layer;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
-    if (ridgeLine.length === 0) return;
+  drawMountainLayer(layer: MountainLayer, ink: InkFill, strokes: CunFaStroke[]): void {
+    const silhouette = layer.silhouette;
+    if (!silhouette || silhouette.length < 2) return;
+    const w = this.width;
+    const h = this.height;
+    const { layerCtx, maskCtx } = this.scratch;
+    const top = topProfile(silhouette, w);
 
-    const lctx = this.layerCtx;
-    lctx.clearRect(0, 0, w, h);
+    let minTop = Infinity;
+    for (let x = 0; x < top.length; x++) if (top[x] < minTop) minTop = top[x];
+    // Rows above y0 are empty for this layer; skip them everywhere.
+    const y0 = Math.max(0, Math.min(h - 1, Math.floor(minTop - 16)));
+    const bandH = h - y0;
 
+    layerCtx.save();
+    layerCtx.setTransform(1, 0, 0, 1, 0, 0);
+    layerCtx.globalCompositeOperation = "source-over";
+    layerCtx.globalAlpha = 1;
+    layerCtx.clearRect(0, 0, w, h);
+
+    // 1. Form-following wash.
+    this.paintTone(layer, ink, top, y0);
+
+    // 2. Cunfa texture, under the mask so it shares the soft edge.
+    this.paintCunFa(strokes, layer.depth);
+
+    // 3. Soft Hobbs silhouette mask.
+    const mask = getMaskEntry(silhouette, ink.noiseSeed, w, h, this.detail);
+    maskCtx.save();
+    maskCtx.setTransform(1, 0, 0, 1, 0, 0);
+    maskCtx.clearRect(0, 0, w, h);
+    const layerAlpha = 1 - Math.pow(1 - maskInterior(layer.depth), 1 / mask.polys.length);
+    maskCtx.fillStyle = `rgba(255,255,255,${layerAlpha.toFixed(4)})`;
+    for (let i = 0; i < mask.polys.length; i++) {
+      if (mask.paths) {
+        maskCtx.fill(mask.paths[i]);
+      } else {
+        maskCtx.beginPath();
+        tracePolygon(maskCtx, mask.polys[i]);
+        maskCtx.fill();
+      }
+    }
+    maskCtx.restore();
+
+    layerCtx.globalCompositeOperation = "destination-in";
+    layerCtx.drawImage(this.scratch.mask, 0, y0, w, bandH, 0, y0, w, bandH);
+    layerCtx.globalCompositeOperation = "source-over";
+
+    // 4. Contour stroke on the deformed edge.
+    this.paintContour(silhouette, layer.depth, ink.noiseSeed);
+    layerCtx.restore();
+
+    // 5. Composite with atmospheric blur that falls off continuously with depth.
+    const blur = MAX_DEPTH_BLUR * Math.pow(1 - layer.depth, 1.4);
+    this.ctx.save();
+    if (blur >= 0.3) this.ctx.filter = `blur(${blur.toFixed(1)}px)`;
+    this.ctx.drawImage(this.scratch.layer, 0, y0, w, bandH, 0, y0, w, bandH);
+    this.ctx.restore();
+  }
+
+  /**
+   * Ink tone measured from the local silhouette edge down to the canvas
+   * bottom (not in horizontal bands), with a darker rim just under the
+   * ridge and low-frequency mottling. Computed on a coarse grid and
+   * upsampled — the mask supplies the sharp edge, so the field itself
+   * only needs to be smooth.
+   */
+  private paintTone(layer: MountainLayer, ink: InkFill, rawTop: Float32Array, y0: number): void {
+    const { toneCell: cell, toneOctaves } = this.detail;
+    const top = smoothProfile(rawTop, 18);
+    const w = this.width;
+    const h = this.height;
+    const tw = Math.ceil(w / cell) + 1;
+    const th = Math.ceil(h / cell) + 1;
+    const tone = acquireTone(tw, th);
+    const data = tone.image.data;
+    data.fill(0);
+
+    const depth = layer.depth;
     const noise = new SimplexNoise(ink.noiseSeed);
+    const nOff = (ink.noiseSeed % 997) * 0.37;
+    // Far layers are lighter (atmospheric perspective); near ones carry
+    // the darkest ink at the ridge.
+    const gTop = 34 + (1 - depth) * 104;
+    const gFoot = 112 + (1 - depth) * 88;
+    const rimDark = 12 + depth * 14;
+    const rimLen = 14 + depth * 26;
+    const lastCol = top.length - 1;
+    const startRow = Math.max(0, Math.floor(y0 / cell) - 1);
 
-    // --- Pass 1: Base ink wash — top-dark / bottom-light direction.
-    // Mountain peaks hold the heaviest ink; the body fades toward paper
-    // at its base. Both COLOR and ALPHA follow this direction so the
-    // top saturates dark via overlapping stamps and the base barely
-    // paints anything, letting paper show through. Sole source of body
-    // gradient now — Pass 2.5 / Pass 2.7 are disabled to avoid the
-    // opposite-direction conflicts that previously caused color bands.
-    const passes = 8 + Math.floor(depth * 8);
-    // Wider color spread (top very dark, base near-paper) + higher peak
-    // alpha so the contrast actually reads. Previous values produced
-    // ~rgb(149) at the peak and ~rgb(234) at the base after blending —
-    // technically a gradient but visually too subtle. With the new
-    // parameters the peak saturates closer to rgb(100) and the base
-    // sits near paper, making the top-dark/bottom-light direction
-    // clearly visible.
-    const baseGrayTop = Math.floor(10 + (1 - depth) * 15); // 10 (near peak) .. 25 (far peak)
-    const baseGrayBottom = Math.floor(130 + (1 - depth) * 60); // 130 (near base) .. 190 (far base)
-    const baseGray = baseGrayTop; // stable reference (peak shade) for downstream
-    for (let p = 0; p < passes; p++) {
-      const t = p / (passes - 1); // 0 = top (peak), 1 = bottom (base)
-      const bg = Math.round(baseGrayTop + (baseGrayBottom - baseGrayTop) * t);
-      const y = bounds.y + t * (h - bounds.y);
-      // Peak alpha lifted from 0.15 → 0.28 so overlapping stamps reach
-      // higher cumulative alpha at the ridge band; base alpha kept low.
-      const alpha = (0.28 - t * 0.25) * (0.4 + depth * 0.6);
-      const stampRadius = w * (0.15 + Math.random() * 0.2);
+    for (let j = startRow; j < th; j++) {
+      const y = (j + 0.5) * cell;
+      let o = j * tw * 4;
+      for (let i = 0; i < tw; i++, o += 4) {
+        const x = (i + 0.5) * cell;
+        const edgeY = top[Math.min(lastCol, Math.round(x))];
+        const d = y - edgeY;
+        const body = Math.max(1, h - edgeY);
+        const t = d <= 0 ? 0 : Math.min(1, d / body);
 
-      for (let x = -stampRadius; x < w + stampRadius; x += stampRadius * 0.6) {
-        const nx = noise.noise2D(x * 0.003, y * 0.003 + ink.noiseSeed * 0.01);
-        const offsetY = nx * h * 0.05;
-        brushStamp(lctx, x, y + offsetY, stampRadius, bg, bg, bg + 3, alpha);
+        let n = noise.noise2D(x * 0.0055 + nOff, y * 0.0055);
+        if (toneOctaves === 2) n = n * 0.65 + noise.noise2D(x * 0.017, y * 0.017 + nOff) * 0.35;
+
+        const alpha = sampleGradient(ink.gradient, t) * (1 + n * 0.16);
+        let g = gTop + (gFoot - gTop) * t + n * 14;
+        if (d > 0) g -= rimDark * Math.exp(-d / rimLen);
+        else g -= rimDark;
+
+        const gi = g < 0 ? 0 : g > 255 ? 255 : g;
+        data[o] = gi;
+        data[o + 1] = gi;
+        data[o + 2] = gi + 3;
+        data[o + 3] = alpha <= 0 ? 0 : alpha >= 1 ? 255 : alpha * 255;
       }
     }
 
-    // --- Pass 2: Noise-grain ink texture — DISABLED.
-    // The 3x3 pixel-block noise fills read as visible grain/dither over
-    // the Hobbs-edged wash.
+    tone.ctx.putImageData(tone.image, 0, 0);
+    const lctx = this.scratch.layerCtx;
+    lctx.imageSmoothingEnabled = true;
+    lctx.drawImage(tone.canvas, 0, 0, tw, th, 0, 0, tw * cell, th * cell);
+  }
 
-    // --- Pass 2.5: REMOVED.
-    // Previously a source-atop atmospheric gradient that darkened the
-    // body bottom. Conflicts with the new top-dark/bottom-light direction
-    // (would push the now-faded base back toward dark).
-    void baseGray; // keep symbol referenced (reserved for future use)
+  /**
+   * Cunfa strokes as tapered brush ribbons. Strokes are bucketed by ink
+   * strength so each layer needs only a handful of fills; overlaps inside
+   * one fill merge like wet ink instead of stacking into dots.
+   */
+  private paintCunFa(strokes: CunFaStroke[], depth: number): void {
+    if (strokes.length === 0) return;
+    const lctx = this.scratch.layerCtx;
+    const BUCKETS = 3;
+    const gray = Math.round(20 + (1 - depth) * 70);
+    const strength = 0.22 + depth * 0.33;
 
-    // --- Pass 2.7: REMOVED.
-    // Previously a multiply pass that darkened the body bottom; same
-    // direction conflict, and previously produced a visible color band
-    // at the abrupt 0→0.25 stop transition.
-
-    // --- Pass 3: Hobbs watercolor edge mask (mirrors /ink-bleed demo).
-    // The original ridge is densely sampled (~150–200 points, segments
-    // ~3–4px). Applying Hobbs midpoint-displacement directly produces
-    // sawtooth spikes whenever variance > segment length — looks like a
-    // forest. We decimate the ridge to a small number of anchors first so
-    // initial segments are long (~50px, similar to /ink-bleed's 8-gon
-    // sides), then let Hobbs recursion regenerate fine detail from large
-    // scale down to small scale, exactly like the InkBleed demo does.
-    const mctx = this.maskCtx;
-    mctx.save();
-    mctx.setTransform(1, 0, 0, 1, 0, 0);
-    mctx.clearRect(0, 0, w, h);
-
-    const edgeRand = seededRand(ink.noiseSeed ^ 0x5e1f);
-
-    const RIDGE_ANCHORS = 14;
-    const anchorCount = Math.min(RIDGE_ANCHORS, ridgeLine.length);
-    const anchors: Vector2[] = [];
-    for (let i = 0; i < anchorCount; i++) {
-      const t = i / (anchorCount - 1);
-      const idx = Math.floor(t * (ridgeLine.length - 1));
-      anchors.push(new Vector2(ridgeLine[idx].x, ridgeLine[idx].y));
-    }
-
-    // Open polyline: short vertical down to baseline at each end + decimated ridge.
-    const visibleEdge: Vector2[] = [
-      new Vector2(anchors[0].x, h),
-      ...anchors,
-      new Vector2(anchors[anchors.length - 1].x, h),
-    ];
-
-    // Variance scaled to anchor-segment length. Tighter than /ink-bleed's
-    // 13% blob default — for a mountain silhouette the demo's blob ratio
-    // reads as "chunky stamp impression"; refining the master amplitude
-    // and keeping more layers close to it gives a finer wet-ink edge.
-    const avgSegment = bounds.width / (anchorCount - 1);
-    const masterVar = avgSegment * 0.06;
-    const masterDepth = 5;
-    const layerVar = avgSegment * 0.02;
-    const layerDepth = 2;
-    const decay = 0.78;
-    const edgeLayers = 12;
-    const edgeAlpha = 0.13;
-
-    // Master deform establishes the jagged silhouette character.
-    const masterEdge = deformPolyline(visibleEdge, masterVar, masterDepth, decay, edgeRand);
-
-    mctx.fillStyle = `rgba(255,255,255,${edgeAlpha})`;
-    for (let li = 0; li < edgeLayers; li++) {
-      const layerEdge = deformPolyline(masterEdge, layerVar, layerDepth, decay, edgeRand);
-      mctx.beginPath();
-      mctx.moveTo(layerEdge[0].x, layerEdge[0].y);
-      for (let i = 1; i < layerEdge.length; i++) {
-        mctx.lineTo(layerEdge[i].x, layerEdge[i].y);
+    // Flatten once; each bucket traces a wet halo pass and a core pass.
+    const flat = strokes.map((stroke) => {
+      const n = stroke.path.length;
+      const xs = new Float32Array(n);
+      const ys = new Float32Array(n);
+      const wide = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        xs[i] = stroke.path[i].x;
+        ys[i] = stroke.path[i].y;
+        wide[i] = (stroke.widths[i] ?? stroke.widths[stroke.widths.length - 1]) * 2.2;
       }
-      mctx.lineTo(layerEdge[layerEdge.length - 1].x, h);
-      mctx.lineTo(layerEdge[0].x, h);
-      mctx.closePath();
-      mctx.fill();
-    }
-    mctx.restore();
+      return { xs, ys, core: stroke.widths, wide, n, o: stroke.opacity };
+    });
 
-    // Apply the soft mask to the painted layer.
-    lctx.save();
-    lctx.globalCompositeOperation = "destination-in";
-    lctx.drawImage(this.maskCanvas, 0, 0);
-    lctx.restore();
+    for (let b = 0; b < BUCKETS; b++) {
+      const lo = b / BUCKETS;
+      const hi = b === BUCKETS - 1 ? Infinity : (b + 1) / BUCKETS;
+      const members = flat.filter((f) => f.n >= 2 && f.o >= lo && f.o < hi);
+      if (members.length === 0) continue;
+      const alpha = Math.min(1, (lo + 0.5 / BUCKETS) * strength);
 
-    // --- Pass 4: Light atmospheric blur via CSS filter.
-    // Uses ctx.filter instead of the straight-alpha stackBlur: the latter
-    // averages RGB across pixels including fully-transparent ones (whose
-    // RGB is stored as 0,0,0), which drags the wash's edge tone toward
-    // black and produced a visible dark halo at far-mountain silhouettes.
-    // ctx.filter blurs in premultiplied alpha space, so transparent
-    // pixels don't bleed black into the edges.
-    const blurRadius = Math.max(0, Math.round(1.5 - depth * 1.5));
-    if (blurRadius >= 1) {
-      this.ctx.save();
-      this.ctx.filter = `blur(${blurRadius}px)`;
-      this.ctx.drawImage(this.layerCanvas, 0, 0);
-      this.ctx.restore();
-    } else {
-      this.ctx.drawImage(this.layerCanvas, 0, 0);
+      lctx.beginPath();
+      for (const f of members) traceRibbon(lctx, f.xs, f.ys, f.wide, 0, f.n, 1);
+      lctx.fillStyle = `rgba(${gray},${gray},${gray + 4},${(alpha * 0.35).toFixed(3)})`;
+      lctx.fill();
+
+      lctx.beginPath();
+      for (const f of members) traceRibbon(lctx, f.xs, f.ys, f.core, 0, f.n, 1);
+      lctx.fillStyle = `rgba(${gray},${gray},${gray + 4},${alpha.toFixed(3)})`;
+      lctx.fill();
     }
   }
 
-  drawCunFaStrokes(strokes: CunFaStroke[], clipLayer?: MountainLayer): void {
-    const ctx = this.ctx;
-    const h = this.canvas.height;
+  /**
+   * The ridge contour (勾): a brush line riding the same deformed edge as
+   * the mask, with pressure-varying width, dry-brush breaks and ink that
+   * weakens with distance.
+   */
+  private paintContour(silhouette: Vector2[], depth: number, seed: number): void {
+    const n = silhouette.length;
+    const w = this.width;
+    const xs = new Float32Array(n);
+    const ys = new Float32Array(n);
+    const ws = new Float32Array(n);
+    const open = new Uint8Array(n);
+    const noise = new SimplexNoise(seed + 71);
+    const baseWidth = 0.6 + depth * 1.7;
 
-    if (clipLayer && clipLayer.ridgeLine.length > 0) {
-      ctx.save();
-      clipToMountain(ctx, clipLayer.ridgeLine, h);
-    }
-
-    for (const stroke of strokes) {
-      const { path, widths, opacity } = stroke;
-      if (path.length < 2) continue;
-
-      // Render each stroke as a series of soft brush stamps along the path
-      const gray = Math.floor(10 + (1 - opacity) * 25);
-      for (let i = 0; i < path.length; i++) {
-        const w = widths[Math.min(i, widths.length - 1)];
-        const stampR = Math.max(0.5, w * 1.5);
-        brushStamp(ctx, path[i].x, path[i].y, stampR, gray, gray, gray + 3, opacity * 0.4);
+    // The stroke follows a lightly smoothed copy of the edge: the brush
+    // line reads as one confident gesture while the mask's finer jags
+    // bleed just past it like wet ink.
+    const R = 3;
+    let s = 0;
+    for (let i = 0; i < n; i++) {
+      let sx = 0;
+      let sy = 0;
+      let c = 0;
+      for (let k = Math.max(0, i - R); k <= Math.min(n - 1, i + R); k++) {
+        sx += silhouette[k].x;
+        sy += silhouette[k].y;
+        c++;
       }
+      const p = { x: sx / c, y: sy / c };
+      if (i > 0)
+        s += Math.hypot(
+          silhouette[i].x - silhouette[i - 1].x,
+          silhouette[i].y - silhouette[i - 1].y,
+        );
+      const pressure = noise.noise2D(s * 0.012, 3.7) * 0.5 + 0.5;
+      const dry = noise.noise2D(s * 0.006, 9.1) * 0.5 + 0.5;
+      const width = baseWidth * (0.3 + pressure * 1.1);
+      xs[i] = p.x;
+      // Sit the stroke just inside the edge so the mask doesn't halve it.
+      ys[i] = p.y + width * 0.3;
+      ws[i] = dry < 0.2 ? 0 : width * Math.min(1, (dry - 0.2) / 0.08);
+      open[i] = ws[i] > 0.05 && p.x > -8 && p.x < w + 8 ? 1 : 0;
+    }
 
-      // Also draw a thin line for crispness at ridges
-      ctx.strokeStyle = `rgba(${gray},${gray},${gray + 3},${opacity * 0.3})`;
-      ctx.lineWidth = widths[0] * 0.5;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(path[0].x, path[0].y);
-      for (let i = 1; i < path.length; i++) {
-        ctx.lineTo(path[i].x, path[i].y);
+    const lctx = this.scratch.layerCtx;
+    const gray = Math.round(12 + (1 - depth) * 60);
+    const alpha = 0.2 + depth * 0.5;
+    lctx.beginPath();
+    let i = 0;
+    while (i < n) {
+      if (!open[i]) {
+        i++;
+        continue;
       }
-      ctx.stroke();
+      let j = i;
+      while (j < n && open[j]) j++;
+      if (j - i >= 3) traceRibbon(lctx, xs, ys, ws, i, j, 2);
+      i = j;
     }
-
-    if (clipLayer) {
-      ctx.restore();
-    }
+    lctx.fillStyle = `rgba(${gray},${gray},${gray + 4},${alpha.toFixed(3)})`;
+    lctx.fill();
   }
 
+  /**
+   * Mist as horizontally stretched soft sprites: a broad veil per region
+   * plus a few thin wisps seeded from its organic contour. No blur pass
+   * and no pixel read-back.
+   */
   drawMist(regions: MistRegion[]): void {
-    const w = this.canvas.width;
-    const h = this.canvas.height;
-    const lctx = this.layerCtx;
-
-    lctx.clearRect(0, 0, w, h);
-
-    for (const region of regions) {
-      const { contour, opacity, fadeRadius } = region;
-      if (contour.length < 3) continue;
-
-      // Compute centroid and bounding box
-      let cx = 0,
-        cy = 0;
+    const sprite = getMistSprite();
+    const ctx = this.ctx;
+    const wisps = this.detail.mistWisps;
+    ctx.save();
+    for (let r = 0; r < regions.length; r++) {
+      const { contour, opacity } = regions[r];
+      if (contour.length < 3 || opacity <= 0) continue;
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+      let cx = 0;
+      let cy = 0;
       for (const p of contour) {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
         cx += p.x;
         cy += p.y;
       }
       cx /= contour.length;
       cy /= contour.length;
+      const bw = maxX - minX;
+      const bh = maxY - minY;
+      const rand = seededRng(Math.round(contour[0].x * 131 + contour[0].y * 17) + r * 7919);
 
-      // Paint multiple overlapping soft white stamps for natural fog
-      const baseRadius = fadeRadius * 1.5;
-      brushStamp(lctx, cx, cy, baseRadius, 255, 255, 255, opacity * 0.7);
+      // Broad veil.
+      ctx.globalAlpha = Math.min(1, opacity * 0.62);
+      ctx.drawImage(sprite, cx - bw * 0.6, cy - bh * 0.5, bw * 1.2, bh);
 
-      // Scatter secondary fog patches
-      for (let i = 0; i < contour.length; i += 2) {
-        const p = contour[i];
-        const r = baseRadius * (0.4 + Math.random() * 0.4);
-        brushStamp(lctx, p.x, p.y, r, 255, 255, 255, opacity * 0.4);
+      // Wisps anchored on the contour and pulled toward the centre line:
+      // soft lenses of varied size, not thin streaks.
+      for (let k = 0; k < wisps; k++) {
+        const p = contour[Math.floor(rand() * contour.length)];
+        const ww = bw * (0.3 + rand() * 0.5);
+        const wh = bh * (0.25 + rand() * 0.3);
+        const wx = p.x * 0.55 + cx * 0.45 + (rand() - 0.5) * bw * 0.15;
+        const wy = p.y * 0.5 + cy * 0.5;
+        ctx.globalAlpha = Math.min(1, opacity * (0.15 + rand() * 0.3));
+        ctx.drawImage(sprite, wx - ww / 2, wy - wh / 2, ww, wh);
       }
     }
-
-    // Heavy blur for soft fog edges
-    stackBlur(lctx, w, h, 25);
-
-    this.ctx.drawImage(this.layerCanvas, 0, 0);
-  }
-
-  drawRidgeLine(points: Vector2[], opacity: number, lineWidth: number): void {
-    if (points.length < 2) return;
-
-    const ctx = this.ctx;
-    ctx.save();
-
-    // Draw ridge as soft brush stamps + thin line for definition
-    const gray = 20;
-    for (let i = 0; i < points.length; i += 3) {
-      brushStamp(
-        ctx,
-        points[i].x,
-        points[i].y,
-        lineWidth * 2,
-        gray,
-        gray,
-        gray + 3,
-        opacity * 0.15,
-      );
-    }
-
-    ctx.strokeStyle = `rgba(${gray},${gray},${gray + 3},${opacity * 0.6})`;
-    ctx.lineWidth = lineWidth * 0.6;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i].x, points[i].y);
-    }
-    ctx.stroke();
     ctx.restore();
   }
 

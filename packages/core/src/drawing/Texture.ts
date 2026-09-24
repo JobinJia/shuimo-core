@@ -80,20 +80,23 @@ export class Texture {
 
       const layerDepth = layer / (reso[0] - 1);
 
-      const strokePoints: Polygon = [];
+      // Per-stroke invariants: the two bracketing rows, blend weight and
+      // noise amplitude do not change along the stroke.
+      const rowA = ptlist[Math.floor(layer)];
+      const rowB = ptlist[Math.ceil(layer)];
+      const p = layer - Math.floor(layer);
+      const q = 1 - p;
+      const amp = noi(layer + 1);
+
+      const strokePoints: Polygon = new Array(end > start ? end - start : 0);
       for (let j = start; j < end; j++) {
-        const p = layer - Math.floor(layer);
-
-        const x = ptlist[Math.floor(layer)][j][0] * p + ptlist[Math.ceil(layer)][j][0] * (1 - p);
-
-        const y = ptlist[Math.floor(layer)][j][1] * p + ptlist[Math.ceil(layer)][j][1] * (1 - p);
-
-        const ns = [
-          noi(layer + 1) * (noise.noise(x, j * 0.5) - 0.5),
-          noi(layer + 1) * (noise.noise(y, j * 0.5) - 0.5),
-        ];
-
-        strokePoints.push([x + ns[0], y + ns[1]]);
+        const a = rowA[j];
+        const b = rowB[j];
+        const x = a[0] * p + b[0] * q;
+        const y = a[1] * p + b[1] * q;
+        const nx = amp * (noise.noise(x, j * 0.5) - 0.5);
+        const ny = amp * (noise.noise(y, j * 0.5) - 0.5);
+        strokePoints[j - start] = [x + nx, y + ny];
       }
 
       layerDepths.push(layerDepth);

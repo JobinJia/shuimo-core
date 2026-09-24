@@ -1,4 +1,4 @@
-import { Point, Polygon } from "../foundation/geometry";
+import { Polygon } from "../foundation/geometry";
 import { noise } from "../foundation/noise";
 import { prng } from "../foundation/random";
 import { poly } from "../utils/svg";
@@ -46,40 +46,37 @@ export class Stroke {
       return "";
     }
 
-    const vtxlist0: Point[] = [];
-    const vtxlist1: Point[] = [];
+    const n = ptlist.length;
+    const inner = n > 2 ? n - 2 : 0;
+    // Closed outline: start, one side forward, end, other side backward, start.
+    const vtxlist: Polygon = new Array(inner * 2 + 3);
     const n0 = prng.random() * 10;
 
+    vtxlist[0] = ptlist[0];
     // Generate vertices along both sides of the stroke
-    for (let i = 1; i < ptlist.length - 1; i++) {
-      let w = wid * fun(i / ptlist.length);
+    for (let i = 1; i < n - 1; i++) {
+      let w = wid * fun(i / n);
       w = w * (1 - noi) + w * noi * noise.noise(i * 0.5, n0);
 
-      const a1 = Math.atan2(ptlist[i][1] - ptlist[i - 1][1], ptlist[i][0] - ptlist[i - 1][0]);
-      const a2 = Math.atan2(ptlist[i][1] - ptlist[i + 1][1], ptlist[i][0] - ptlist[i + 1][0]);
+      const p = ptlist[i];
+      const a1 = Math.atan2(p[1] - ptlist[i - 1][1], p[0] - ptlist[i - 1][0]);
+      const a2 = Math.atan2(p[1] - ptlist[i + 1][1], p[0] - ptlist[i + 1][0]);
       let a = (a1 + a2) / 2;
 
       if (a < a2) {
         a += Math.PI;
       }
 
-      vtxlist0.push([ptlist[i][0] + w * Math.cos(a), ptlist[i][1] + w * Math.sin(a)]);
-      vtxlist1.push([ptlist[i][0] - w * Math.cos(a), ptlist[i][1] - w * Math.sin(a)]);
+      const dx = w * Math.cos(a);
+      const dy = w * Math.sin(a);
+      vtxlist[i] = [p[0] + dx, p[1] + dy];
+      vtxlist[inner * 2 + 2 - i] = [p[0] - dx, p[1] - dy];
     }
+    vtxlist[inner + 1] = ptlist[n - 1];
+    vtxlist[inner * 2 + 2] = ptlist[0];
 
-    // Combine vertices into a closed polygon
-    const vtxlist: Polygon = [ptlist[0]]
-      .concat(vtxlist0)
-      .concat(vtxlist1.concat([ptlist[ptlist.length - 1]]).reverse())
-      .concat([ptlist[0]]);
-
-    // Generate SVG
-    const canv = poly(
-      vtxlist.map((x) => [x[0] + xof, x[1] + yof]),
-      { fil: col, str: col, wid: out, filter: options.filter },
-    );
-
-    return canv;
+    // Offsets are applied while formatting instead of copying every point.
+    return poly(vtxlist, { xof, yof, fil: col, str: col, wid: out, filter: options.filter });
   }
 }
 

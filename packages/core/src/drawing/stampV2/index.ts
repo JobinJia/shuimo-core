@@ -1,5 +1,6 @@
 export { generateSeal, generateSealAsync, Seal } from "./seal";
-export type { FitOptions } from "./text/glyphs";
+export { clearSealFontCache } from "./text/glyphs";
+export type { FitOptions, GlyphProbe } from "./text/glyphs";
 export type {
   SealOptions,
   SealResult,

@@ -5,6 +5,7 @@ import { onMounted, ref } from "vue";
 const canvasContainer = ref<HTMLDivElement>();
 const currentSeed = ref("");
 const isGenerating = ref(false);
+const renderMs = ref<number | null>(null);
 
 const PRESET_SEEDS = ["1", "42", "100", "256", "1024"];
 
@@ -17,6 +18,7 @@ function generate(seed?: string) {
   currentSeed.value = finalSeed;
 
   try {
+    const t0 = performance.now();
     const canvas = generateFlowerCanvas({
       seed: finalSeed,
       species: "lotus",
@@ -24,6 +26,7 @@ function generate(seed?: string) {
       height: 600,
     });
     canvasContainer.value.appendChild(canvas);
+    renderMs.value = performance.now() - t0;
   } catch (err) {
     canvasContainer.value.innerHTML = `<pre style="color:#c00">${String(err)}</pre>`;
   } finally {
@@ -65,7 +68,10 @@ onMounted(() => {
       <div ref="canvasContainer" class="canvas-container" />
     </div>
 
-    <p class="hint">当前 seed：<code>{{ currentSeed }}</code></p>
+    <p class="hint">
+      当前 seed：<code>{{ currentSeed }}</code>
+      <template v-if="renderMs !== null"> · 生成耗时 {{ renderMs.toFixed(1) }} ms</template>
+    </p>
   </div>
 </template>
 

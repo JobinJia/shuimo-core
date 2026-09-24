@@ -3,10 +3,12 @@ import { generateCunFaStrokes } from "./CunFaEngine";
 import { generateInkFill } from "./InkWashLayer";
 import { generateMist, generateForegroundMist } from "./MistLayer";
 import { Canvas2DBackend } from "./renderer/Canvas2DBackend";
+import { releaseInkMountResources } from "./renderer/canvasPool";
 import type {
   InkMountOptions,
   InkMountLayerOptions,
   InkMountScene,
+  MountainLayer,
   QualityPreset,
   RidgeOptions,
   CunFaOptions,
@@ -18,7 +20,9 @@ const QUALITY_PRESETS: Record<
   QualityPreset,
   { density: number; octaves: number; splashCount: number }
 > = {
-  draft: { density: 0.2, octaves: 4, splashCount: 0 },
+  // Render-side knobs (tone grid, mask edge detail, mist wisps) live in
+  // the backend's own table, keyed by the same preset.
+  draft: { density: 0.25, octaves: 4, splashCount: 0 },
   normal: { density: 0.5, octaves: 6, splashCount: 3 },
   high: { density: 0.85, octaves: 8, splashCount: 5 },
 };
@@ -89,6 +93,8 @@ export class InkMount {
         density: cunfa.density,
         lengthRange: cunfa.lengthRange,
         pressureCurve: cunfa.pressureCurve,
+        width,
+        reach: cunfaReach(layer, height),
       });
 
       const fill = generateInkFill({
@@ -121,13 +127,13 @@ export class InkMount {
 
     // Foreground mist band — sits in the painting's lower portion and is
     // rendered last so it visibly veils only the lower half of the near
-    // mountain. Opacity multiplier kept low (×0.6) so the effect is a
-    // drifting veil, not a blocking wall.
+    // mountain. Opacity multiplier kept below 1 (×0.85) so the effect is
+    // a drifting veil, not a blocking wall.
     scene.foregroundMists = generateForegroundMist({
       width,
       height,
       seed: seed + 17777,
-      opacity: mistOpts.opacity * 0.6,
+      opacity: mistOpts.opacity * 0.85,
     });
 
     return scene;
@@ -169,6 +175,8 @@ export class InkMount {
       density: cunfa.density,
       lengthRange: cunfa.lengthRange,
       pressureCurve: cunfa.pressureCurve,
+      width,
+      reach: cunfaReach(layer, height),
     });
 
     const fill = generateInkFill({
@@ -209,6 +217,9 @@ export class InkMount {
 
   /**
    * Render a pre-generated scene to a backend.
+   *
+   * When the backend draws into a caller-supplied context, nothing is
+   * cleared: the caller's background (e.g. paper) stays underneath.
    */
   static renderScene(scene: InkMountScene, backend: RenderBackend): void {
     backend.clear();
@@ -218,30 +229,7 @@ export class InkMount {
 
     // Render layers back-to-front (far to near, depth ascending)
     for (let i = 0; i < scene.layers.length; i++) {
-      const layer = scene.layers[i];
-      const strokes = scene.strokes[i];
-      const fill = scene.fills[i];
-      const { depth } = layer;
-
-      // Draw mountain fill
-      backend.drawMountainFill(layer, fill);
-
-      // CunFa strokes disabled — the dotted/dashed texture marks read as
-      // visual noise over the Hobbs watercolor silhouette. Mountain body
-      // now relies on the wash + mask alone for tone.
-      // backend.drawCunFaStrokes(strokes, layer);
-      void strokes;
-
-      // Ridge stroke calls disabled — the drawn outline traced the original
-      // undeformed ridge and clashed with the Hobbs watercolor silhouette.
-      // Temporarily commented out so the wash silhouette stands alone; if
-      // we want them back later they need to follow the deformed mask edge.
-      // const ridgeOpacity = 0.15 + depth * 0.4;
-      // const ridgeWidth = 0.3 + depth * 0.7;
-      // backend.drawRidgeLine(layer.ridgeLine, ridgeOpacity, ridgeWidth);
-      // for (const subRidge of layer.subRidges) {
-      //   backend.drawRidgeLine(subRidge, ridgeOpacity * 0.4, ridgeWidth * 0.5);
-      // }
+      backend.drawMountainLayer(scene.layers[i], scene.fills[i], scene.strokes[i] ?? []);
 
       // Draw mist between this layer and the next
       if (i < scene.layers.length - 1 && scene.mists.length > 0) {
@@ -260,17 +248,33 @@ export class InkMount {
   }
 
   /**
+   * Release pooled scratch canvases, sprites and cached mask paths.
+   * They are reused across `generate()` calls; call this when no more
+   * renders are expected (e.g. when the hosting view unmounts).
+   */
+  static dispose(): void {
+    releaseInkMountResources();
+  }
+
+  /**
    * Create a render backend based on options.
    */
   private static createBackend(options: {
     width: number;
     height: number;
+    quality?: QualityPreset;
     ctx?: CanvasRenderingContext2D;
   }): RenderBackend {
     return new Canvas2DBackend({
       width: options.width,
       height: options.height,
+      quality: options.quality ?? "normal",
       ctx: options.ctx,
     });
   }
+}
+
+/** Cunfa strokes start within the upper part of the body below the edge. */
+function cunfaReach(layer: MountainLayer, height: number): number {
+  return Math.max(40, (height - layer.bounds.y) * 0.45);
 }

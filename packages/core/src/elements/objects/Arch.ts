@@ -345,15 +345,14 @@ export class Arch {
     }
 
     for (let i = 0; i < ptlist.length; i++) {
-      canv += stroke(
-        ptlist[i].map((x) => [x[0] + xoff, x[1] + yoff]),
-        {
-          col: "rgba(100,100,100,0.4)",
-          noi: 1,
-          wid: wei,
-          fun: (_x: number) => 1,
-        },
-      );
+      canv += stroke(ptlist[i], {
+        xof: xoff,
+        yof: yoff,
+        col: "rgba(100,100,100,0.4)",
+        noi: 1,
+        wid: wei,
+        fun: (_x: number) => 1,
+      });
     }
     return canv;
   }
@@ -566,15 +565,14 @@ export class Arch {
     }
 
     for (let i = 0; i < ptlist.length; i++) {
-      canv += stroke(
-        ptlist[i].map((x) => [x[0] + xoff, x[1] + yoff]),
-        {
-          col: "rgba(100,100,100,0.5)",
-          noi: 0.5,
-          wid: wei,
-          fun: (_x: number) => 1,
-        },
-      );
+      canv += stroke(ptlist[i], {
+        xof: xoff,
+        yof: yoff,
+        col: "rgba(100,100,100,0.5)",
+        noi: 0.5,
+        wid: wei,
+        fun: (_x: number) => 1,
+      });
     }
     return canv;
   }
@@ -674,15 +672,14 @@ export class Arch {
     canv += poly(polist, { xof: xoff, yof: yoff, str: "none", fil: "white" });
 
     for (let i = 0; i < ptlist.length; i++) {
-      canv += stroke(
-        ptlist[i].map((x) => [x[0] + xoff, x[1] + yoff]),
-        {
-          col: "rgba(100,100,100,0.4)",
-          noi: 1,
-          wid: wei,
-          fun: (_x: number) => 1,
-        },
-      );
+      canv += stroke(ptlist[i], {
+        xof: xoff,
+        yof: yoff,
+        col: "rgba(100,100,100,0.4)",
+        noi: 1,
+        wid: wei,
+        fun: (_x: number) => 1,
+      });
     }
 
     if (pla[0] === 1) {
@@ -747,15 +744,14 @@ export class Arch {
 
     canv += poly(polist, { xof: xoff, yof: yoff, str: "none", fil: "white" });
     for (let i = 0; i < ptlist.length; i++) {
-      canv += stroke(
-        div(ptlist[i], 5).map((x) => [x[0] + xoff, x[1] + yoff]),
-        {
-          col: "rgba(100,100,100,0.4)",
-          noi: 1,
-          wid: wei,
-          fun: (_x: number) => 1,
-        },
-      );
+      canv += stroke(div(ptlist[i], 5), {
+        xof: xoff,
+        yof: yoff,
+        col: "rgba(100,100,100,0.4)",
+        noi: 1,
+        wid: wei,
+        fun: (_x: number) => 1,
+      });
     }
 
     return canv;
@@ -1010,14 +1006,13 @@ export class Arch {
 
     const plist = plist1.concat(plist2.reverse());
     canv += poly(plist, { xof: xoff, yof: yoff, fil: "white" });
-    canv += stroke(
-      plist.map((v) => [xoff + v[0], yoff + v[1]]),
-      {
-        wid: 1,
-        fun: (x: number) => Math.sin(x * Math.PI * 2),
-        col: "rgba(100,100,100,0.4)",
-      },
-    );
+    canv += stroke(plist, {
+      xof: xoff,
+      yof: yoff,
+      wid: 1,
+      fun: (x: number) => Math.sin(x * Math.PI * 2),
+      col: "rgba(100,100,100,0.4)",
+    });
 
     return canv;
   }

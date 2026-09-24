@@ -51,22 +51,30 @@ export class SimplexNoise {
     // Build permutation table
     const p: number[] = [];
     for (let i = 0; i < 256; i++) {
-      p[i] = i;
+      p.push(i);
     }
 
-    // Shuffle using seed
+    // Shuffle using seed. Plain temp swap instead of destructuring — same
+    // semantics (including the NaN-seed case), no per-step array literal.
     for (let i = 255; i > 0; i--) {
       const j = Math.floor(random(seed + i) * (i + 1));
-      [p[i], p[j]] = [p[j], p[i]];
+      const tmp = p[i];
+      p[i] = p[j];
+      p[j] = tmp;
     }
 
-    // Extend permutation table
-    this.perm = Array.from({ length: 512 });
-    this.permMod12 = Array.from({ length: 512 });
+    // Extend permutation table. Kept as plain number[] (not typed arrays) so
+    // output stays bit-identical for every seed, including degenerate ones
+    // whose shuffle leaves `undefined` holes.
+    const perm: number[] = [];
+    const permMod12: number[] = [];
     for (let i = 0; i < 512; i++) {
-      this.perm[i] = p[i & 255];
-      this.permMod12[i] = this.perm[i] % 12;
+      const v = p[i & 255];
+      perm.push(v);
+      permMod12.push(v % 12);
     }
+    this.perm = perm;
+    this.permMod12 = permMod12;
   }
 
   /**

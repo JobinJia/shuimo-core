@@ -83,6 +83,22 @@ export interface SealLayoutOptions {
    * off regardless of the `stretch` field or shape default.
    */
   cellHeightMode?: "uniform" | "fit";
+  /**
+   * Placement of a column shorter than the longest one. `"spread"` (default)
+   * stretches its rows to span the full height (traditional 篆刻 3+2
+   * layout); `"top"` keeps the pre-3.0 top-aligned rows, which leave an
+   * empty corner under the short column.
+   * @since 3.0.0
+   */
+  shortColumn?: "spread" | "top";
+  /**
+   * 0..2, default 1. Per-seed hand-carved variation of each glyph: a small
+   * offset, a slight tilt and a smooth warp of the strokes, all derived from
+   * `seed`, so different seeds give visibly different seals while staying
+   * legible. 0 disables it (glyphs sit exactly as the font draws them).
+   * @since 3.0.0
+   */
+  variation?: number;
 }
 
 export type SealCorner = "none" | "round" | "stone";
@@ -100,6 +116,12 @@ export interface SealBorderOptions {
    * and at 600 px under the same `roughness` value. Old behaviour (absolute
    * pixel amplitude / wavelength) is recoverable by multiplying the input
    * by 480 / size at the call site.
+   *
+   * @since 3.0.0 Default is 0.25 (was 0 = pristine rim). The wobble amplitude
+   * no longer derives from `thickness` (a pinned thin rim used to make the
+   * wear invisible); it is `roughness × 9.6 px` at REF_SIZE, capped only so
+   * a yang rim is never cut through. Wear is heaviest at the corners, and a
+   * few seed-placed chips (缺口) bite into the rim.
    */
   roughness?: number;
 }

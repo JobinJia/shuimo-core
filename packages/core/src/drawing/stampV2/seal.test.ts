@@ -127,7 +127,9 @@ describe("generateSeal yin with full texture", () => {
       seed: 9,
       font: fontBuf,
       mode: "yin",
-      border: { thickness: 7 },
+      // Default roughness is 0.25 since 3.0.0 (worn rim by default), so the
+      // "clean" seal has to turn it off explicitly.
+      border: { thickness: 7, roughness: 0 },
     });
     const cleanAgain = generateSeal({
       text: "水墨",

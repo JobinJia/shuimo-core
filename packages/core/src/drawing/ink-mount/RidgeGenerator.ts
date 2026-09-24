@@ -1,6 +1,7 @@
 import { SimplexNoise } from "../../foundation/noise/SimplexNoise";
 import { Vector2 } from "../../foundation/geometry/Vector2";
 import type { MountainLayer } from "./types";
+import { buildSilhouette } from "./internal/silhouette";
 
 export interface RidgeGeneratorInput {
   width: number;
@@ -157,11 +158,16 @@ export function generateRidge(input: RidgeGeneratorInput): MountainLayer {
     if (pt.y > maxY) maxY = pt.y;
   }
 
+  // Step 6: Hobbs-deformed visible edge — what the renderer masks to and
+  // what the contour / cunfa strokes follow.
+  const silhouette = buildSilhouette(ridgeLine, width, height, seed ^ 0x5e1f);
+
   return {
     depth,
     ridgeLine,
     subRidges,
     normals,
+    silhouette,
     bounds: {
       x: minX,
       y: minY,

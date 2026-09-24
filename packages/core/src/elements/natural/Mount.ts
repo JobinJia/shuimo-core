@@ -1,9 +1,9 @@
-import { Polygon, PolyTools } from "../../foundation/geometry";
+import { Polygon } from "../../foundation/geometry";
 import { noise, SimplexNoise, WorleyNoise } from "../../foundation/noise";
 import { prng } from "../../foundation/random";
 import { stroke } from "../../drawing/Stroke";
 import { texture } from "../../drawing/Texture";
-import { poly } from "../../utils/svg";
+import { fmt1, poly } from "../../utils/svg";
 import { randChoice, normRand } from "../../utils/random";
 import { loopNoise } from "../../utils/math";
 import { div } from "../../drawing/div";
@@ -142,6 +142,31 @@ function foot(ptlist: Polygon[], options: FootOptions = {}): string | Polygon[] 
   }
 
   return ret ? ftlist : canv;
+}
+
+/**
+ * Shared vertical fade for distant ranges: cool pale ink at the crest,
+ * transparent at the base so the range dissolves into haze instead of
+ * ending on a hard horizontal edge. The id is fixed and the definition
+ * identical on every call, so repeated copies in one document are harmless.
+ */
+const DIST_MOUNT_GRADIENT_ID = "shuimo-distmount-fade";
+const DIST_MOUNT_DEFS =
+  `<defs><linearGradient id="${DIST_MOUNT_GRADIENT_ID}" x1="0" y1="0" x2="0" y2="1">` +
+  `<stop offset="0" stop-color="rgb(128,134,140)"/>` +
+  `<stop offset="0.55" stop-color="rgb(128,134,140)" stop-opacity="0.55"/>` +
+  `<stop offset="1" stop-color="rgb(128,134,140)" stop-opacity="0"/>` +
+  `</linearGradient></defs>`;
+
+function distMountPath(plist: Polygon, opacity: number): string {
+  let d = "";
+  for (let i = 0; i < plist.length; i++) {
+    d += (i === 0 ? "M" : "L") + fmt1(plist[i][0]) + " " + fmt1(plist[i][1]);
+  }
+  return (
+    `<path d="${d}Z" fill="url(#${DIST_MOUNT_GRADIENT_ID})" ` +
+    `fill-opacity="${Math.max(0, Math.min(1, opacity)).toFixed(2)}"/>`
+  );
 }
 
 /**
@@ -704,61 +729,35 @@ export class Mount {
     const seg = options.seg ?? 5;
 
     seed = seed ?? 0;
-    let canv = "";
     const span = 10;
+    const steps = Math.max(2, Math.ceil(len / span / seg) * seg);
+    const envelope = (k: number): number => Math.sin((Math.PI * k) / (len / span));
 
-    const ptlist: Polygon[] = [];
-
-    for (let i = 0; i < len / span / seg; i++) {
-      ptlist.push([]);
-      for (let j = 0; j < seg + 1; j++) {
-        const tran = (k: number) => [
-          xoff + k * span,
-          yoff -
-            hei *
-              noise.noise(k * 0.05, seed) *
-              Math.pow(Math.sin((Math.PI * k) / (len / span)), 0.5),
-        ];
-        ptlist[ptlist.length - 1].push(tran(i * seg + j) as [number, number]);
-      }
-      for (let j = 0; j < seg / 2 + 1; j++) {
-        const tran = (k: number) => [
-          xoff + k * span,
-          yoff +
-            24 *
-              noise.noise(k * 0.05, 2, seed) *
-              Math.pow(Math.sin((Math.PI * k) / (len / span)), 1),
-        ];
-        ptlist[ptlist.length - 1].unshift(tran(i * seg + j * 2) as [number, number]);
-      }
+    // One continuous silhouette: ridge left→right, then the (noisy) base
+    // right→left. The old version cut it into segments and overlaid a
+    // triangle mesh of flat greys, which read as faceted cardboard.
+    const ridge: Polygon = [];
+    const baseLine: Polygon = [];
+    for (let k = 0; k <= steps; k++) {
+      const e = Math.max(0, envelope(k));
+      ridge.push([xoff + k * span, yoff - hei * noise.noise(k * 0.05, seed) * Math.pow(e, 0.5)]);
+      baseLine.push([xoff + k * span, yoff + 24 * noise.noise(k * 0.05, 2, seed) * e]);
     }
+    // Upper band: the same ridge closed a short way below it, so the crest
+    // reads slightly denser than the body before it dissolves.
+    let top = Infinity;
+    for (const p of ridge) if (p[1] < top) top = p[1];
+    const bandDepth = (yoff - top) * 0.45;
+    const band: Polygon = ridge.concat(
+      ridge
+        .slice()
+        .reverse()
+        .map((p) => [p[0], Math.min(yoff, p[1] + bandDepth)] as [number, number]),
+    );
+    const body: Polygon = ridge.concat(baseLine.reverse());
 
-    for (let i = 0; i < ptlist.length; i++) {
-      const getCol = (x: number, y: number) => {
-        const c = (noise.noise(x * 0.02, y * 0.02, yoff) * 55 + 200) | 0;
-        return "rgb(" + c + "," + c + "," + c + ")";
-      };
-
-      canv += poly(ptlist[i], {
-        fil: getCol(ptlist[i][ptlist[i].length - 1][0], ptlist[i][ptlist[i].length - 1][1]),
-        str: "none",
-        wid: 1,
-      });
-
-      const T = PolyTools.triangulate(ptlist[i], {
-        area: 100,
-        convex: true,
-        optimize: false,
-      });
-
-      for (let k = 0; k < T.length; k++) {
-        const m = PolyTools.midPt(T[k]);
-        const co = getCol(m[0], m[1]);
-        canv += poly(T[k], { fil: co, str: co, wid: 1 });
-      }
-    }
-
-    return canv;
+    const tone = 0.34 + noise.noise(xoff * 0.01, yoff * 0.01, seed) * 0.18;
+    return DIST_MOUNT_DEFS + distMountPath(body, tone) + distMountPath(band, tone * 0.5);
   }
 
   /**
@@ -784,63 +783,25 @@ export class Mount {
     // Create Worley Noise instance for ink particle distribution
     const worley = new WorleyNoise(seed + 999);
 
-    // Add SVG filter definitions for ink wash effect (模拟 Kuwahara Filter + 水墨扩散)
-    const filterId = `ink-wash-${prng.random().toString(36).substr(2, 9)}`;
-    const particleFilterId = `ink-particle-${prng.random().toString(36).substr(2, 9)}`;
+    // Filter / gradient ids derive from the seed, so repeated calls with the
+    // same seed emit identical definitions instead of fresh random ids.
+    const idKey = Math.abs(Math.floor(seed * 1000) % 2147483647).toString(36);
+    const particleFilterId = `ink-particle-${idKey}`;
 
-    const blobFilterId = `ink-blob-${prng.random().toString(36).substr(2, 9)}`;
-
+    // Particle filter for ink dots (墨粒滤镜), applied per dot / stroke. Per
+    // element is cheaper than one filter over the whole layer: the dots cover
+    // far fewer pixels than the layer's bounding box. The two large
+    // decorative filters that used to be defined here (a 300% × 300% ink-wash
+    // filter and a blob filter) were never referenced and are gone.
     canv += `<defs>
-      <!-- Main ink wash filter for mountain body (大墨块离散效果) -->
-      <filter id="${filterId}" x="-100%" y="-100%" width="300%" height="300%">
-        <!-- Step 1: Low frequency noise for large ink blobs -->
-        <feTurbulence type="fractalNoise" baseFrequency="0.005 0.003" numOctaves="3" seed="${seed}" result="blobNoise" />
-
-        <!-- Step 2: Large displacement for scattered ink effect -->
-        <feDisplacementMap in="SourceGraphic" in2="blobNoise" scale="40" xChannelSelector="R" yChannelSelector="G" result="displaced" />
-
-        <!-- Step 3: Heavy blur for soft, diffuse edges -->
-        <feGaussianBlur in="displaced" stdDeviation="15" result="blurred" />
-
-        <!-- Step 4: Create mask to break into discrete blobs -->
-        <feTurbulence type="turbulence" baseFrequency="0.008 0.006" numOctaves="2" seed="${seed + 50}" result="maskNoise" />
-        <feComponentTransfer in="maskNoise" result="blobMask">
-          <feFuncA type="discrete" tableValues="0 0 0.3 0.6 0.8 1" />
-        </feComponentTransfer>
-        <feComposite operator="in" in="blurred" in2="blobMask" result="masked" />
-
-        <!-- Step 5: Extra blur for transparent fade at edges -->
-        <feGaussianBlur in="masked" stdDeviation="8" result="final" />
-      </filter>
-
-      <!-- Particle filter for ink dots (墨粒滤镜) -->
       <filter id="${particleFilterId}" x="-50%" y="-50%" width="200%" height="200%">
-        <!-- Generate organic noise for particle edges -->
         <feTurbulence type="turbulence" baseFrequency="0.08" numOctaves="3" seed="${seed + 100}" result="particleNoise" />
-
-        <!-- Create irregular particle edges (墨粒边缘不规则) - INCREASED -->
         <feDisplacementMap in="SourceGraphic" in2="particleNoise" scale="3.5" result="displaced" />
-
-        <!-- Blur for soft ink bleeding - INCREASED -->
         <feGaussianBlur in="displaced" stdDeviation="1.8" result="blurred" />
-
-        <!-- Add texture - ENHANCED -->
         <feComponentTransfer in="particleNoise" result="textureMask">
           <feFuncA type="linear" slope="1.4" intercept="-0.15" />
         </feComponentTransfer>
         <feComposite operator="in" in="blurred" in2="textureMask" />
-      </filter>
-
-      <!-- Blob filter for ink wash blobs (墨块滤镜 - 毛边效果) -->
-      <filter id="${blobFilterId}" x="-50%" y="-50%" width="200%" height="200%">
-        <!-- 高频噪声用于边缘毛糙 -->
-        <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" seed="${seed + 200}" result="roughNoise" />
-
-        <!-- 边缘扰动，产生毛边 -->
-        <feDisplacementMap in="SourceGraphic" in2="roughNoise" scale="5" xChannelSelector="R" yChannelSelector="G" result="roughEdge" />
-
-        <!-- 轻微模糊，柔化但不糊掉 -->
-        <feGaussianBlur in="roughEdge" stdDeviation="1.5" result="final" />
       </filter>
     </defs>`;
 
@@ -943,8 +904,8 @@ export class Mount {
 
       // Second: 山体深色底 + 噪声淡化效果
       if (!filterOnly) {
-        const textureFilterId = `texture-${layer}-${layerSeed}`;
-        const gradientId = `mount-gradient-${layer}-${prng.random().toString(36).substr(2, 9)}`;
+        const textureFilterId = `texture-${layer}-${idKey}`;
+        const gradientId = `mount-gradient-${layer}-${idKey}`;
 
         // 噪声滤镜：让部分区域变淡
         canv += `<defs>
@@ -1181,10 +1142,13 @@ export class Mount {
     });
 
     // OUTLINE
-    canv += stroke(
-      ptlist[0].map((x) => [x[0] + xoff, x[1] + yoff]),
-      { col: "rgba(100,100,100,0.3)", noi: 1, wid: 3 },
-    );
+    canv += stroke(ptlist[0], {
+      xof: xoff,
+      yof: yoff,
+      col: "rgba(100,100,100,0.3)",
+      noi: 1,
+      wid: 3,
+    });
 
     canv += texture(ptlist, {
       xof: xoff,

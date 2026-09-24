@@ -2,12 +2,17 @@ import type { MultiPolygon } from "../geometry/boolean";
 import type { Ring } from "../geometry/flatten";
 import type { SealMode } from "../types";
 
-import { commandsToSvgPathData, type NormalizedCommand } from "../../internal/glyphPath";
+import {
+  commandsToSvgPathData,
+  formatPathNumber,
+  type NormalizedCommand,
+} from "../../internal/glyphPath";
 
 export interface RenderCell {
   index: number;
   char: string;
-  rings: Ring[];
+  /** Flattened outline; only used when `commands` is absent. */
+  rings?: Ring[];
   /** Original Bezier commands for smooth SVG rendering (filter-friendly). */
   commands?: NormalizedCommand[];
   cx: number;
@@ -80,15 +85,18 @@ export function renderSvg(input: RenderSvgInput): RenderSvgOutput {
   // Prefer original Bezier commands for rendering (smooth edges → SVG filters
   // produce visible carving). Fall back to flattened rings if commands absent.
   const hasCommands = cells.some((c) => c.commands && c.commands.length > 0);
-  const perCellPath = (c: RenderCell): string => {
-    if (hasCommands && c.commands && c.commands.length > 0) {
-      return commandsToSvgPathData(c.commands, 2);
-    }
-    return ringsToPath(c.rings);
+  // Serialize each glyph once; both the per-cell and the combined path
+  // reuse the same strings.
+  const serialized = cells.map((c) =>
+    c.commands && c.commands.length > 0 ? commandsToSvgPathData(c.commands, 2) : "",
+  );
+  const perCellPath = (c: RenderCell, i: number): string => {
+    if (hasCommands && serialized[i]) return serialized[i];
+    return ringsToPath(c.rings ?? []);
   };
   const glyphPathCombined = hasCommands
-    ? cells.map((c) => c.commands ? commandsToSvgPathData(c.commands, 2) : "").filter(Boolean).join(" ")
-    : ringsToPath(cells.flatMap((c) => c.rings));
+    ? serialized.filter(Boolean).join(" ")
+    : ringsToPath(cells.flatMap((c) => c.rings ?? []));
 
   const canClip =
     clipPerCell &&
@@ -139,7 +147,7 @@ export function renderSvg(input: RenderSvgInput): RenderSvgOutput {
     if (canClip) {
       const paths: string[] = [];
       cells.forEach((c, i) => {
-        const d = perCellPath(c);
+        const d = perCellPath(c, i);
         if (!d) return;
         const clipId = `${clipBase}-${i}`;
         clipDefs.push(
@@ -221,17 +229,17 @@ function ringsToPath(rings: Ring[]): string {
 
 function ringToPath(ring: Ring): string {
   if (ring.length === 0) return "";
-  let s = `M${fmt(ring[0][0])} ${fmt(ring[0][1])}`;
+  let s = "M" + fmt(ring[0][0]) + " " + fmt(ring[0][1]);
   for (let i = 1; i < ring.length; i++) {
-    s += `L${fmt(ring[i][0])} ${fmt(ring[i][1])}`;
+    const p = ring[i];
+    s += "L" + fmt(p[0]) + " " + fmt(p[1]);
   }
   s += "Z";
   return s;
 }
 
 function fmt(v: number): string {
-  if (Math.round(v) === v) return String(Math.round(v));
-  return v.toFixed(2);
+  return formatPathNumber(v, 2);
 }
 
 function escapeXml(s: string): string {

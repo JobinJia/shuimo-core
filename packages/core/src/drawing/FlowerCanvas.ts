@@ -230,10 +230,6 @@ const cos = Math.cos;
 const abs = Math.abs;
 const rad = (x: number) => (x * Math.PI) / 180;
 
-function distance(p0: number[], p1: number[]): number {
-  return Math.sqrt((p0[0] - p1[0]) ** 2 + (p0[1] - p1[1]) ** 2);
-}
-
 /** @internal */
 export function mapval(
   value: number,
@@ -1060,27 +1056,36 @@ export const Layer = {
     ctx.putImageData(imgd, 0, 0);
   },
 
+  /**
+   * Clear everything outside the closed curve r = f(θ), where r is measured
+   * in normalised canvas units (±1 at the edges). Done as ONE
+   * `destination-out` fill of (canvas rect − curve) with the even-odd rule:
+   * no per-pixel JS loop and no getImageData/putImageData readback (which
+   * forces the browser to pull the canvas off the GPU).
+   */
   border(ctx: CanvasRenderingContext2D, f: (th: number) => number) {
-    const imgd = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
-    const pix = imgd.data;
-    for (let i = 0, n = pix.length; i < n; i += 4) {
-      const x = (i / 4) % ctx.canvas.width;
-      const y = Math.floor(i / 4 / ctx.canvas.width);
-
-      const nx = (x / ctx.canvas.width - 0.5) * 2;
-      const ny = (y / ctx.canvas.height - 0.5) * 2;
-      const theta = Math.atan2(ny, nx);
-      const r_ = distance([nx, ny], [0, 0]);
-      const rr_ = f(theta);
-
-      if (r_ > rr_) {
-        pix[i] = 0;
-        pix[i + 1] = 0;
-        pix[i + 2] = 0;
-        pix[i + 3] = 0;
-      }
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+    const samples = 720;
+    const path = new Path2D();
+    path.rect(0, 0, w, h);
+    for (let i = 0; i < samples; i++) {
+      const th = -PI + (i / samples) * 2 * PI;
+      const r = f(th);
+      const x = (0.5 + 0.5 * r * cos(th)) * w;
+      const y = (0.5 + 0.5 * r * sin(th)) * h;
+      if (i === 0) path.moveTo(x, y);
+      else path.lineTo(x, y);
     }
-    ctx.putImageData(imgd, 0, 0);
+    path.closePath();
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.filter = "none";
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.fillStyle = "#000";
+    ctx.fill(path, "evenodd");
+    ctx.restore();
   },
 
   bound(ctx: CanvasRenderingContext2D) {

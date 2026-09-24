@@ -18,20 +18,73 @@ export interface CellGlyph {
   bbox: BoundingBox;
 }
 
-export async function resolveFont(input: ArrayBuffer | Uint8Array | string): Promise<GlyphFont> {
-  if (typeof input === "string") {
-    const buf = await fetch(input).then((r) => r.arrayBuffer());
-    const f = loadFont(buf);
-    if (!f) throw new Error(`Failed to load font from "${input}"`);
-    return f;
+// --- Parsed-font cache (main-thread paths) --------------------------------
+//
+// fontkit parsing is the single most expensive step of a seal: a woff2 CJK
+// font costs ~90 ms to decode, a 2.3 MB TTF a few ms plus ~3 MB of garbage.
+// Before 3.0.0 `generateSeal` / `generateSealAsync` re-parsed the font on
+// every call (and re-fetched it for URL inputs), so a 182-tile gallery paid
+// that 182 times. Parsed fonts are now cached:
+//   - buffers: WeakMap keyed by the underlying ArrayBuffer identity (plus
+//     view offset/length for Uint8Array views), so the entry dies with the
+//     caller's buffer and two different buffers never share a slot;
+//   - URLs: Map<url, Promise<GlyphFont>> so concurrent callers share one
+//     in-flight fetch + parse. Rejections are evicted so a retry can succeed.
+// `clearSealFontCache()` drops everything (URL entries are strong refs).
+
+const PARSED_BY_BUFFER = new WeakMap<ArrayBuffer | SharedArrayBuffer, Map<string, GlyphFont>>();
+const PARSED_BY_URL = new Map<string, Promise<GlyphFont>>();
+
+function parseCached(data: ArrayBuffer | Uint8Array): GlyphFont | null {
+  const backing = data instanceof Uint8Array ? data.buffer : data;
+  const viewKey = data instanceof Uint8Array ? `${data.byteOffset}:${data.byteLength}` : "*";
+  let views = PARSED_BY_BUFFER.get(backing);
+  const hit = views?.get(viewKey);
+  if (hit) return hit;
+  const f = loadFont(data);
+  if (!f) return null;
+  if (!views) {
+    views = new Map();
+    PARSED_BY_BUFFER.set(backing, views);
   }
-  const f = loadFont(input);
-  if (!f) throw new Error("Failed to load font buffer");
+  views.set(viewKey, f);
   return f;
 }
 
+/**
+ * Drop every parsed font held by stamp-v2's main-thread caches (buffer- and
+ * URL-keyed) plus the raw fallback-font buffers. Buffer-keyed entries are
+ * weak and go away with their buffer anyway; call this to release URL-keyed
+ * fonts, e.g. after a font switch in a long-lived page.
+ * @since 3.0.0
+ */
+export function clearSealFontCache(): void {
+  PARSED_BY_URL.clear();
+  RAW_FONT_BUFFER_CACHE.clear();
+  FALLBACK_FONT_CACHE.clear();
+  FONT_CACHE.clear();
+}
+
+export async function resolveFont(input: ArrayBuffer | Uint8Array | string): Promise<GlyphFont> {
+  if (typeof input === "string") {
+    let cached = PARSED_BY_URL.get(input);
+    if (!cached) {
+      cached = (async () => {
+        const buf = await fetchFontBuffer(input);
+        const f = loadFont(buf);
+        if (!f) throw new Error(`Failed to load font from "${input}"`);
+        return f;
+      })();
+      cached.catch(() => PARSED_BY_URL.delete(input));
+      PARSED_BY_URL.set(input, cached);
+    }
+    return cached;
+  }
+  return resolveFontSync(input);
+}
+
 export function resolveFontSync(input: ArrayBuffer | Uint8Array): GlyphFont {
-  const f = loadFont(input);
+  const f = parseCached(input);
   if (!f) throw new Error("Failed to load font buffer");
   return f;
 }
@@ -159,7 +212,7 @@ export async function resolveFontForSeal(opts: SealOptions): Promise<GlyphFont> 
 
   // Pre-fetched buffer — fastest main-thread path.
   if (opts.fontData) {
-    const f = loadFont(opts.fontData);
+    const f = parseCached(opts.fontData);
     if (!f) throw new Error("stamp-v2: failed to load fontData buffer");
     return f;
   }
@@ -281,6 +334,20 @@ export interface FitOptions {
    * the whole seal so every glyph carries the same em → user-space ratio.
    */
   fontSize?: number;
+  /**
+   * The glyph's outline already decoded at some reference size (the seal
+   * pipeline probes every glyph once for metrics). When given, placement
+   * rescales these commands instead of decoding the glyph a second time.
+   * @since 3.0.0
+   */
+  probe?: GlyphProbe;
+}
+
+/** A glyph outline decoded once at `fontSize`, with its ink bbox. */
+export interface GlyphProbe {
+  fontSize: number;
+  commands: NormalizedCommand[];
+  bbox: BoundingBox;
 }
 
 /**
@@ -293,7 +360,7 @@ export function fitGlyphInCell(
   opts: FitOptions = {},
 ): CellGlyph {
   if (opts.fontSize !== undefined) {
-    return placeAtFontSize(font, cell, opts.fontSize);
+    return placeAtFontSize(font, cell, opts.fontSize, opts.probe);
   }
 
   const padding = opts.padding ?? 0.02;
@@ -302,11 +369,12 @@ export function fitGlyphInCell(
   const targetH = cell.h * (1 - padding * 2);
 
   const baseline = 100;
-  const probe = font.getPath(cell.char, 0, 0, baseline);
+  const reuse = opts.probe && opts.probe.fontSize === baseline ? opts.probe : null;
+  const probe = reuse ? reuse.commands : font.getPath(cell.char, 0, 0, baseline);
   if (probe.length === 0) {
     return emptyCell(cell);
   }
-  const pbb = getBoundingBox(probe);
+  const pbb = reuse ? reuse.bbox : getBoundingBox(probe);
   const pw = pbb.x2 - pbb.x1;
   const ph = pbb.y2 - pbb.y1;
   if (pw <= 0 || ph <= 0) return emptyCell(cell);
@@ -339,10 +407,20 @@ export function fitGlyphInCell(
   };
 }
 
-function placeAtFontSize(font: GlyphFont, cell: LayoutCell, fontSize: number): CellGlyph {
-  const probe = font.getPath(cell.char, 0, 0, fontSize);
+function placeAtFontSize(
+  font: GlyphFont,
+  cell: LayoutCell,
+  fontSize: number,
+  reuse?: GlyphProbe,
+): CellGlyph {
+  // Rescaling a probe is not bit-identical to decoding at `fontSize` (one
+  // extra multiply per coordinate), which is fine: nothing downstream relies
+  // on exact equality with a fresh decode.
+  const k = reuse ? fontSize / reuse.fontSize : 1;
+  const probe = reuse ? reuse.commands : font.getPath(cell.char, 0, 0, fontSize);
   if (probe.length === 0) return emptyCell(cell);
-  const pbb = getBoundingBox(probe);
+  const src = reuse ? reuse.bbox : getBoundingBox(probe);
+  const pbb = { x1: src.x1 * k, y1: src.y1 * k, x2: src.x2 * k, y2: src.y2 * k };
   const pw = pbb.x2 - pbb.x1;
   const ph = pbb.y2 - pbb.y1;
   if (pw <= 0 || ph <= 0) return emptyCell(cell);
@@ -354,7 +432,7 @@ function placeAtFontSize(font: GlyphFont, cell: LayoutCell, fontSize: number): C
   const dx = targetCx - srcCx;
   const dy = targetCy - srcCy;
 
-  const transformed = probe.map((c) => affineCmd(c, 1, 1, dx, dy));
+  const transformed = probe.map((c) => affineCmd(c, k, k, dx, dy));
   return {
     index: cell.index,
     char: cell.char,

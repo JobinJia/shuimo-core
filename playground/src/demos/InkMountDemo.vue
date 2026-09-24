@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { InkMount } from "@jobinjia/shuimo-core";
 
 const canvasRef = ref<HTMLCanvasElement>();
 const seed = ref(42);
 const layers = ref(5);
 const quality = ref<"draft" | "normal" | "high">("high");
+const renderMs = ref(0);
 
 function render() {
   const canvas = canvasRef.value;
@@ -17,9 +18,12 @@ function render() {
   canvas.width = 1200;
   canvas.height = 800;
 
+  // Paper background — InkMount draws on top of it and no longer clears
+  // a caller-supplied context.
   ctx.fillStyle = "#faf8f5";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  const t0 = performance.now();
   InkMount.generate({
     width: canvas.width,
     height: canvas.height,
@@ -28,9 +32,12 @@ function render() {
     quality: quality.value,
     ctx,
   });
+  renderMs.value = performance.now() - t0;
 }
 
 onMounted(render);
+// Scratch canvases and cached mask paths are pooled across renders.
+onBeforeUnmount(() => InkMount.dispose());
 
 function regenerate() {
   seed.value = Math.floor(Math.random() * 100000);
@@ -60,6 +67,7 @@ function regenerate() {
         <input v-model.number="seed" type="number" style="width: 80px" @change="render" />
       </label>
       <button @click="regenerate">Regenerate</button>
+      <span style="color: #888; font-size: 12px">{{ renderMs.toFixed(1) }} ms</span>
     </div>
     <canvas ref="canvasRef" style="border: 1px solid #ddd; max-width: 100%; background: #faf8f5" />
   </div>

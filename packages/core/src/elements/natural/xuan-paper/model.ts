@@ -40,6 +40,10 @@ function round(value: number): number {
   return Math.round(value);
 }
 
+function quantize(value: number, step: number): number {
+  return Math.round(value / step) * step;
+}
+
 function mix(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
@@ -63,24 +67,6 @@ function gaussianSample(rng: PRNG): number {
   const u1 = Math.max(1e-9, rng.next());
   const u2 = rng.next();
   return Math.sqrt(-2 * Math.log(u1)) * Math.cos(TWO_PI * u2);
-}
-
-function angleDiff(a: number, b: number): number {
-  let d = a - b;
-  while (d > Math.PI) d -= TWO_PI;
-  while (d < -Math.PI) d += TWO_PI;
-  return d;
-}
-
-// Gabor returns an undirected orientation in [-π/2, π/2]. Pick whichever of the
-// two physically-equivalent headings (θ or θ+π) is closer to the fiber's
-// current travel direction so growth flows without U-turns.
-function nearestHeading(undirected: number, currentHeading: number): number {
-  const opt1 = undirected;
-  const opt2 = undirected + Math.PI;
-  return Math.abs(angleDiff(opt1, currentHeading)) < Math.abs(angleDiff(opt2, currentHeading))
-    ? opt1
-    : opt2;
 }
 
 // ---------------------------------------------------------------------------
@@ -225,46 +211,33 @@ function pickAnchor(
   return { x: rng.next() * width, y: rng.next() * height };
 }
 
-function growFiber(
-  anchorX: number,
-  anchorY: number,
-  directionField: GaborNoise,
+// Real bast (青檀) fibres read as short, nearly straight dashes that only
+// loosely follow the sheet's formation direction. Each fibre samples the Gabor
+// field once at its anchor (instead of integrating a streamline, which made
+// neighbouring fibres collapse onto the same curve and read like contour
+// lines), then bends with a small constant curvature plus jitter.
+function buildFiberPoints(
+  centerX: number,
+  centerY: number,
+  heading: number,
+  length: number,
+  curvature: number,
+  segments: number,
   rng: PRNG,
-  segmentLength: number,
-  forwardSteps: number,
-  backwardSteps: number,
-  turnJitter: number,
 ): PaperPoint[] {
-  const anchorAngle = directionField.directionAt(anchorX, anchorY);
-
-  // Backward growth (opposite heading).
-  const backPoints: PaperPoint[] = [];
-  let bx = anchorX;
-  let by = anchorY;
-  let bHeading = anchorAngle + Math.PI;
-  for (let i = 0; i < backwardSteps; i++) {
-    const fieldAngle = directionField.directionAt(bx, by);
-    bHeading = nearestHeading(fieldAngle, bHeading) + (rng.next() - 0.5) * turnJitter;
-    bx += Math.cos(bHeading) * segmentLength;
-    by += Math.sin(bHeading) * segmentLength;
-    backPoints.push({ x: bx, y: by });
+  const segmentLength = length / segments;
+  // Start half a fibre behind the anchor so the anchor sits mid-fibre.
+  const startHeading = heading - (curvature * length) / 2;
+  let x = centerX - Math.cos(heading) * (length / 2);
+  let y = centerY - Math.sin(heading) * (length / 2);
+  let h = startHeading;
+  const points: PaperPoint[] = [{ x, y }];
+  for (let i = 0; i < segments; i++) {
+    h += curvature * segmentLength + (rng.next() - 0.5) * 0.08;
+    x += Math.cos(h) * segmentLength;
+    y += Math.sin(h) * segmentLength;
+    points.push({ x, y });
   }
-  backPoints.reverse();
-
-  const points: PaperPoint[] = [...backPoints, { x: anchorX, y: anchorY }];
-
-  // Forward growth.
-  let fx = anchorX;
-  let fy = anchorY;
-  let fHeading = anchorAngle;
-  for (let i = 0; i < forwardSteps; i++) {
-    const fieldAngle = directionField.directionAt(fx, fy);
-    fHeading = nearestHeading(fieldAngle, fHeading) + (rng.next() - 0.5) * turnJitter;
-    fx += Math.cos(fHeading) * segmentLength;
-    fy += Math.sin(fHeading) * segmentLength;
-    points.push({ x: fx, y: fy });
-  }
-
   return points;
 }
 
@@ -276,10 +249,9 @@ function generateFibers(
   rng.seed(options.seed + SEED_OFFSETS.fibers);
 
   const area = options.width * options.height;
-  const mainCount = Math.floor(area * options.fiberDensity * 0.00012 * profile.fiberContrast);
-  const fragmentCount = Math.floor(mainCount * (0.22 + profile.absorbency * 0.08));
+  const count = Math.floor(area * options.fiberDensity * 0.0007 * profile.fiberContrast);
 
-  // Paper-scale Gabor field. Raw xuan (high absorbency) shows looser fiber
+  // Paper-scale Gabor field. Raw xuan (high absorbency) shows looser fibre
   // alignment; sized paper is tighter. Main orientation is a mild tilt off
   // horizontal so the grain does not read as machine-perfect.
   const orientationTilt = (rng.next() - 0.5) * 0.3;
@@ -290,32 +262,31 @@ function generateFibers(
     orientationConcentration: mix(1.6, 0.35, clamp(profile.absorbency - 0.5, 0, 1)),
     kernelsPerCell: 3,
   });
+  // Share of fibres that follow the field at all; the rest lie at random.
+  const alignedShare = mix(0.62, 0.38, clamp(profile.absorbency - 0.5, 0, 1));
 
   const clusters = sampleThomasClusters(options.width, options.height, rng);
   const fibers: FiberStroke[] = [];
+  const warmthLift = profile.warmth * 18;
+  const lengthScale = options.fiberScale * profile.fiberLengthMultiplier;
 
-  for (let index = 0; index < mainCount; index++) {
-    const anchor = pickAnchor(options.width, options.height, rng, clusters, 0.58);
-    const strokeLength =
-      (85 + rng.next() * 160) * options.fiberScale * profile.fiberLengthMultiplier;
-    const segments = 15 + Math.floor(rng.next() * 15);
-    const segmentLength = strokeLength / segments;
-    const forwardSteps = Math.floor(segments * (0.42 + rng.next() * 0.16));
-    const backwardSteps = segments - forwardSteps;
+  for (let index = 0; index < count; index++) {
+    const anchor = pickAnchor(options.width, options.height, rng, clusters, 0.45);
+    // ~7% long bast fibres; the rest are short dashes with a log-normal length.
+    const long = rng.next() < 0.07;
+    const length = long
+      ? (36 + rng.next() * 46) * lengthScale
+      : 15 * Math.exp(gaussianSample(rng) * 0.42) * lengthScale;
 
-    const points = growFiber(
-      anchor.x,
-      anchor.y,
-      directionField,
-      rng,
-      segmentLength,
-      forwardSteps,
-      backwardSteps,
-      0.12,
-    );
+    const aligned = rng.next() < alignedShare;
+    const heading = aligned
+      ? directionField.directionAt(anchor.x, anchor.y) + gaussianSample(rng) * 0.3
+      : rng.next() * Math.PI;
+    const curvature = gaussianSample(rng) * (long ? 0.006 : 0.014);
+    const segments = long ? 6 : 3;
 
-    const darkness = 46;
-    const warmthLift = profile.warmth * 18;
+    // Three ink levels (not a continuum) so renderers can batch by paint.
+    const darkness = long ? 44 : 50 + Math.floor(rng.next() * 3) * 7;
     const color = adjustColor(options.baseColor, [
       -(darkness - warmthLift),
       -(darkness + 5 - warmthLift * 0.6),
@@ -323,44 +294,12 @@ function generateFibers(
     ]);
 
     fibers.push({
-      points,
-      width: 0.28 + rng.next() * 0.42,
+      points: buildFiberPoints(anchor.x, anchor.y, heading, length, curvature, segments, rng),
+      width: long ? 0.3 + rng.next() * 0.3 : 0.35 + rng.next() * 0.45,
       color,
-      alpha: 0.05 + rng.next() * 0.08 * profile.fiberContrast,
-    });
-  }
-
-  for (let index = 0; index < fragmentCount; index++) {
-    const anchor = pickAnchor(options.width, options.height, rng, clusters, 0.12);
-    const strokeLength =
-      (28 + rng.next() * 54) * options.fiberScale * profile.fiberLengthMultiplier;
-    const segments = 7 + Math.floor(rng.next() * 7);
-    const segmentLength = strokeLength / segments;
-
-    const points = growFiber(
-      anchor.x,
-      anchor.y,
-      directionField,
-      rng,
-      segmentLength,
-      segments,
-      0,
-      0.3,
-    );
-
-    const darkness = 60;
-    const warmthLift = profile.warmth * 18;
-    const color = adjustColor(options.baseColor, [
-      -(darkness - warmthLift),
-      -(darkness + 5 - warmthLift * 0.6),
-      -(darkness + 14),
-    ]);
-
-    fibers.push({
-      points,
-      width: 0.35 + rng.next() * 0.55,
-      color,
-      alpha: 0.08 + rng.next() * 0.08 * profile.fiberContrast,
+      alpha: long
+        ? 0.08 + rng.next() * 0.08 * profile.fiberContrast
+        : 0.12 + rng.next() * 0.16 * profile.fiberContrast,
     });
   }
 
@@ -384,13 +323,15 @@ function generateParticles(
   const particles: GrainParticle[] = [];
 
   const cellSize = 14 + (1 - options.grainDensity) * 10;
-  // Worley edgeNoise is small (≈0) at Voronoi cell boundaries and grows toward
-  // cell interiors. Fiber intersections in Xuan paper correspond to those
-  // boundaries, so we accept candidates where the edge value is below a
-  // threshold that relaxes with grainDensity.
-  const edgeThreshold = 0.12 + options.grainDensity * 0.18;
+  // Worley F2-F1 is ≈0 on Voronoi cell boundaries and grows toward cell
+  // interiors. Fibre crossings in Xuan paper correspond to those boundaries,
+  // so candidates are accepted where the edge value is below a threshold that
+  // relaxes with grainDensity (~25-40% acceptance). Sampling continues until
+  // `count` particles are placed, so density does not drop with the threshold.
+  const edgeThreshold = 0.08 + options.grainDensity * 0.12;
+  const maxCandidates = count * 8;
 
-  for (let index = 0; index < count; index++) {
+  for (let candidate = 0; candidate < maxCandidates && particles.length < count; candidate++) {
     const x = rng.next() * options.width;
     const y = rng.next() * options.height;
     const edge = worley.edgeNoise2D(x, y, { cellSize });
@@ -666,11 +607,12 @@ function generateGoldFlecks(
   const resolutionScale = Math.sqrt(area / (800 * 600));
   const lowResBoost = clamp(1.18 - resolutionScale * 0.18, 1, 1.18);
 
-  // Real sprinkled-gold Xuan paper carries thousands of particles per sheet,
-  // dominated by tiny dust. Total count scales linearly with area.
+  // Sprinkled-gold Xuan paper is dominated by tiny dust with paper showing
+  // between specks; a denser scatter reads as confetti. Total count scales
+  // linearly with area.
   const totalCount = Math.max(
     Math.round(80 * options.goldDensity),
-    Math.floor(area * options.goldDensity * 0.003 * lowResBoost),
+    Math.floor(area * options.goldDensity * 0.0013 * lowResBoost),
   );
 
   const minSize = options.goldSize[0];
@@ -748,8 +690,11 @@ function generateGoldFlecks(
       bigAccepted.push({ x, y, size });
     }
 
-    const brightness =
-      (0.78 + rng.next() * 0.32) * clusterToneBias * (0.94 + profile.formationContrast * 0.08);
+    // Brightness is quantised so renderers can batch flecks by paint.
+    const brightness = quantize(
+      (0.78 + rng.next() * 0.32) * clusterToneBias * (0.94 + profile.formationContrast * 0.08),
+      0.06,
+    );
     const boost = rng.next() < 0.16 ? 1.18 : 1;
     const color: [number, number, number] = [
       clamp(round(options.goldColor[0] * brightness * boost), 0, 255),
@@ -767,7 +712,8 @@ function generateGoldFlecks(
       commands,
       copies: buildWrapCopies(x, y, options.width, options.height, wrapMargin),
       color,
-      alpha: isFlake ? 0.82 + rng.next() * 0.16 : 0.68 + rng.next() * 0.22,
+      // Wide alpha spread: thin leaf lets the paper tone show through.
+      alpha: quantize(isFlake ? 0.5 + rng.next() * 0.4 : 0.26 + rng.next() * 0.5, 0.1),
     });
   }
 
@@ -788,7 +734,7 @@ function generateGoldFlecks(
       const sy = big.y + Math.sin(theta) * dist;
       const ssize = 0.45 + satelliteRng.next() * 0.95;
 
-      const brightness = 0.78 + satelliteRng.next() * 0.22;
+      const brightness = quantize(0.78 + satelliteRng.next() * 0.22, 0.06);
       const satColor: [number, number, number] = [
         clamp(round(options.goldColor[0] * brightness), 0, 255),
         clamp(round(options.goldColor[1] * brightness), 0, 255),
@@ -801,7 +747,7 @@ function generateGoldFlecks(
         commands: buildDustCommands(sx, sy, ssize, satRng),
         copies: buildWrapCopies(sx, sy, options.width, options.height, wrapMargin),
         color: satColor,
-        alpha: 0.6 + satelliteRng.next() * 0.25,
+        alpha: quantize(0.3 + satelliteRng.next() * 0.35, 0.1),
       });
     }
   }

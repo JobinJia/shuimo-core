@@ -11,7 +11,7 @@ export class PRNG {
   /**
    * Hash function to convert any input to a numeric seed
    */
-  private hash(x: any): number {
+  private hash(x: unknown): number {
     const str = JSON.stringify(x);
     let h = 0;
     for (let i = 0; i < str.length; i++) {
@@ -24,7 +24,7 @@ export class PRNG {
    * Seed the random number generator
    * @param x - Seed value (uses current timestamp if undefined)
    */
-  seed(x?: any): void {
+  seed(x?: unknown): void {
     if (x === undefined) {
       x = new Date().getTime();
     }

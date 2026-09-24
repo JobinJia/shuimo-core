@@ -21,6 +21,39 @@
  */
 import { scaleForSize } from "../internal/visualScale";
 
+/**
+ * Filter region margin around the filtered element's bbox, as fractions of
+ * that bbox (objectBoundingBox units). @since 3.0.0 — every chain in this
+ * module ends with a composite `in SourceGraphic`, so its output can never
+ * leave the source shape; the region only needs to cover the source plus an
+ * antialiasing margin. The old fixed regions (up to 136% × 136%) made the
+ * browser allocate ~1.85× the needed surface for every primitive.
+ * `seal.ts` derives these from the actual element size (≈3 user units).
+ */
+export interface FilterRegion {
+  padX: number;
+  padY: number;
+}
+
+function regionAttrs(region: FilterRegion | undefined, fallbackPad: number): string {
+  const px = region ? region.padX : fallbackPad;
+  const py = region ? region.padY : fallbackPad;
+  const pct = (v: number) => fmt(v * 100) + "%";
+  return `x="-${pct(px)}" y="-${pct(py)}" width="${pct(1 + 2 * px)}" height="${pct(1 + 2 * py)}"`;
+}
+
+/**
+ * feTurbulence octave count capped so the finest octave stays at or above 2
+ * user units of wavelength. Octaves beyond that are sub-pixel at 1× and only
+ * add aliasing noise, while each costs a full-region Perlin pass.
+ * @since 3.0.0
+ */
+export function octavesFor(baseFrequency: number, maxOctaves: number): number {
+  let n = 1;
+  while (n < maxOctaves && baseFrequency * 2 ** n <= 0.5) n++;
+  return n;
+}
+
 export interface InkFilterOptions {
   /** Unique id to avoid collisions when multiple seals share a host SVG. */
   id: string;
@@ -35,6 +68,8 @@ export interface InkFilterOptions {
   size: number;
   /** When set, use V1-style font-relative frequency scaling. */
   fontSize?: number;
+  /** @since 3.0.0 tight filter region; defaults to the legacy 5% pad. */
+  region?: FilterRegion;
 }
 
 export interface BorderFilterOptions {
@@ -49,6 +84,8 @@ export interface BorderFilterOptions {
    * compat with pre-2.0.4-beta.1 callers.
    */
   size?: number;
+  /** @since 3.0.0 tight filter region; defaults to the legacy 15% pad. */
+  region?: FilterRegion;
 }
 
 export interface TextFilterOptions {
@@ -62,6 +99,8 @@ export interface TextFilterOptions {
    * browser text hinting absorbs the finer stamp-size-scaled values.
    */
   fontSize?: number;
+  /** @since 3.0.0 tight filter region; defaults to the legacy 18% pad. */
+  region?: FilterRegion;
 }
 
 /**
@@ -118,8 +157,16 @@ export function inkFilterDefs(opts: InkFilterOptions): string {
   // turns zeros into semi-transparent gray, losing the sharp ink/paper
   // contrast that makes the texture read as "stamp on paper."
   const tableStr = "0 0 0 0 0.2 0.4 0.6 0.75 0.88 0.95 1 1";
-  return `<filter id="${id}" x="-5%" y="-5%" width="110%" height="110%">
-  <feTurbulence type="fractalNoise" baseFrequency="${fmt(grainFreq)}" numOctaves="3" seed="${seedB}" result="grainNoise"/>
+  // @since 3.0.0 pressing unevenness (印泥浓淡): one very low-frequency
+  // octave turned into an alpha multiplier in ~[0.88, 1] (at intensity 1),
+  // so the red is no longer one flat value — some areas pressed lighter,
+  // none blotchy. Wavelength ≈ a third of a 480 px seal.
+  const pressFreq = grainFreq * 0.024;
+  const pressGain = 0.45 * intensity;
+  const pressBias = 1 - 0.23 * intensity;
+  const seedD = (opts.seed | 0) + 2027;
+  return `<filter id="${id}" ${regionAttrs(opts.region, 0.05)}>
+  <feTurbulence type="fractalNoise" baseFrequency="${fmt(grainFreq)}" numOctaves="${octavesFor(grainFreq, 3)}" seed="${seedB}" result="grainNoise"/>
   <feTurbulence type="turbulence" baseFrequency="${fmt(blotchFreq)}" numOctaves="2" seed="${seedC}" result="blotchNoise"/>
   <feBlend in="grainNoise" in2="blotchNoise" mode="multiply" result="combinedNoise"/>
   <feColorMatrix in="combinedNoise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 1 1 0 0" result="noiseMask"/>
@@ -127,7 +174,10 @@ export function inkFilterDefs(opts: InkFilterOptions): string {
     <feFuncA type="discrete" tableValues="${tableStr}"/>
   </feComponentTransfer>
   <feComposite in="SourceGraphic" in2="contrastMask" operator="in" result="texturedShape"/>
-  <feColorMatrix in="texturedShape" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.98 0"/>
+  <feTurbulence type="fractalNoise" baseFrequency="${fmt(pressFreq)}" numOctaves="1" seed="${seedD}" result="pressNoise"/>
+  <feColorMatrix in="pressNoise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  ${fmt(pressGain)} 0 0 0 ${fmt(pressBias)}" result="pressMask"/>
+  <feComposite in="texturedShape" in2="pressMask" operator="in" result="pressedShape"/>
+  <feColorMatrix in="pressedShape" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.98 0"/>
 </filter>`;
 }
 
@@ -149,8 +199,8 @@ export function borderFilterDefs(opts: BorderFilterOptions): string {
   const { frequencyScale: rawFS } = scaleForSize(opts.size ?? 0);
   const cappedFS = Math.min(rawFS, 2.5);
   const baseFreq = 0.04 * (opts.size ? cappedFS : 1);
-  return `<filter id="${opts.id}" x="-15%" y="-15%" width="130%" height="130%">
-  <feTurbulence type="fractalNoise" baseFrequency="${fmt(baseFreq)}" numOctaves="3" seed="${seedA}" result="borderNoise"/>
+  return `<filter id="${opts.id}" ${regionAttrs(opts.region, 0.15)}>
+  <feTurbulence type="fractalNoise" baseFrequency="${fmt(baseFreq)}" numOctaves="2" seed="${seedA}" result="borderNoise"/>
   <feDisplacementMap in="SourceGraphic" in2="borderNoise" scale="${fmt(displacement)}" xChannelSelector="R" yChannelSelector="G" result="rawDisplaced"/>
   <feComposite in="rawDisplaced" in2="SourceGraphic" operator="in"/>
 </filter>`;
@@ -176,8 +226,8 @@ export function borderFilterDefs(opts: BorderFilterOptions): string {
  *
  * intensity ∈ [0, 1] scales: edge displacement amplitude, plus chip/grain
  * thresholds (more negative threshold → fewer pixels above cutoff → fewer
- * chips). coreErode is held constant — widening it stretches the edge band
- * into long visible fringes that read as thinning, not carving.
+ * chips). coreErode does not follow intensity (only size); a much wider
+ * band than the 3.0.0 value reads as thinning rather than carving.
  */
 export function textFilterDefs(opts: TextFilterOptions): string {
   const intensity = clamp01(opts.intensity ?? 0);
@@ -201,7 +251,12 @@ export function textFilterDefs(opts: TextFilterOptions): string {
     const fineFreq = 1 / subCapped;
     const amplitude = subCapped;
     // V1 "normal" profile values — coarser, more readable at small sizes.
-    coreErode = 0.18 * s;
+    // @since 3.0.0 the carving band is 0.26 × s (was 0.18 × s): 0.515 px
+    // at 480 px instead of 0.356 px. Rasterizers snap the erode radius to
+    // whole device pixels, so 0.356 px rounded to 0 at 1× and the chip /
+    // grain masks had no edge band to bite — the 刀刻 edge was invisible.
+    // Just over 0.5 px gives a 1-device-pixel band at 1× and 2×.
+    coreErode = 0.26 * s;
     edgeDisp = 1.1 * intensity * amplitude;
     edgeFreq = 0.18 * fineFreq;
     chipFreq = 0.09 * fineFreq;
@@ -210,7 +265,7 @@ export function textFilterDefs(opts: TextFilterOptions): string {
     // Stamp-size scaling for geometric <path> rendering.
     const { lengthScale, frequencyScale: rawTFS } = scaleForSize(opts.size);
     const frequencyScale = Math.min(rawTFS, 2.5);
-    coreErode = 0.12 * lengthScale;
+    coreErode = 0.52 * lengthScale;
     edgeDisp = 1.9 * intensity * lengthScale;
     edgeFreq = 0.28 * frequencyScale;
     chipFreq = 0.14 * frequencyScale;
@@ -230,11 +285,11 @@ export function textFilterDefs(opts: TextFilterOptions): string {
   const edgeNoiseType = useV1Noise ? "fractalNoise" : "turbulence";
   const edgeNoiseRef = useV1Noise ? "textEdgeNoise" : "textEdgeNoiseStepped";
 
-  return `<filter id="${opts.id}" x="-18%" y="-18%" width="136%" height="136%">
+  return `<filter id="${opts.id}" ${regionAttrs(opts.region, 0.18)}>
   <feMorphology in="SourceGraphic" operator="erode" radius="${fmt(coreErode)}" result="textCore"/>
   <feComposite in="SourceGraphic" in2="textCore" operator="out" result="textEdgeBand"/>
 
-  <feTurbulence type="${edgeNoiseType}" baseFrequency="${fmt(edgeFreq)}" numOctaves="3" seed="${seedA}" result="textEdgeNoise"/>${useV1Noise ? "" : `
+  <feTurbulence type="${edgeNoiseType}" baseFrequency="${fmt(edgeFreq)}" numOctaves="${octavesFor(edgeFreq, 3)}" seed="${seedA}" result="textEdgeNoise"/>${useV1Noise ? "" : `
   <feComponentTransfer in="textEdgeNoise" result="textEdgeNoiseStepped">
     <feFuncR type="discrete" tableValues="0 0.18 0.18 0.5 0.5 0.82 0.82 1"/>
     <feFuncG type="discrete" tableValues="0 0.18 0.18 0.5 0.5 0.82 0.82 1"/>

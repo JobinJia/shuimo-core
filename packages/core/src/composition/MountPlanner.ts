@@ -51,6 +51,20 @@ export interface ExplicitWaterBandOptions {
   yRange?: readonly [number, number];
 }
 
+/**
+ * Finite-canvas composition for `MountPlanner.plan()`.
+ *
+ * Without it the planner behaves as an infinite horizontal strip in the
+ * native 800-high coordinate system (what SceneManager needs). With it the
+ * plan is composed for one canvas `[xmin, xmax] × [0, height]`: every item
+ * stays on the canvas, y bands scale with `height`, distant ranges and
+ * foreground banks are spread across the full width.
+ */
+export interface PlanCanvasOptions {
+  /** Canvas height in pixels. */
+  height: number;
+}
+
 export interface LandscapePlacementOptions {
   /**
    * Controls the explicit water band used by fillShortfall water/boat anchors.
@@ -355,9 +369,28 @@ export class MountPlanner {
     xmax: number,
     planmtx: number[],
     landRegistry: PlanItem[] = [],
+    canvas?: PlanCanvasOptions,
   ): PlanItem[] {
     const reg: PlanItem[] = [];
     const samp = 0.03;
+    const bounded = canvas !== undefined;
+    // Vertical scale relative to the native 800-high layout.
+    const ys = bounded ? canvas.height / 800 : 1;
+    // Mountains are jittered away from their noise peak. On a finite canvas
+    // the jitter is halved and reflected at the edges so no mountain is
+    // generated entirely off-canvas (previously 3-6 per painting).
+    const edge = 60;
+    const jitterX = (i: number): number => {
+      if (!bounded) return i + 2 * (prng.random() - 0.5) * 500;
+      let x = i + 2 * (prng.random() - 0.5) * 250;
+      const lo = xmin + edge;
+      const hi = xmax - edge;
+      if (hi <= lo) return (xmin + xmax) / 2;
+      if (x < lo) x = lo + Math.min(lo - x, hi - lo);
+      if (x > hi) x = hi - Math.min(x - hi, hi - lo);
+      return x;
+    };
+    const mountY = (j: number): number => (bounded ? 300 * ys + j * ys : j + 300);
 
     // Use fewer octaves during planning — locmax only needs low-frequency terrain.
     // Save/restore to avoid affecting downstream render passes.
@@ -426,8 +459,8 @@ export class MountPlanner {
       const yRange = Math.min(1.0, yr(i) * clampedYrScale) * 480;
       for (let j = 0; j < yRange; j += 30) {
         if (this.locmax(i, j, ns, 2)) {
-          const xof = i + 2 * (prng.random() - 0.5) * 500;
-          const yof = j + 300;
+          const xof = jitterX(i);
+          const yof = mountY(j);
           if (wouldCoverBoat(xof, 350)) continue;
           const r: PlanItem = { tag: "mount", x: xof, y: yof, h: ns(i, j) };
           const res = this.chadd(reg, r, 10, planmtx);
@@ -444,7 +477,10 @@ export class MountPlanner {
     // generate unusually many peaks), trim from the densest x-regions
     // first, removing weaker peaks within each cluster.  This preserves
     // spatial spread while keeping density within bounds.
-    const mountTargetMax = Math.max(10, Math.min(32, Math.round((xmax - xmin) / 42)));
+    const mountTargetMax = Math.max(
+      10,
+      Math.min(32, Math.round((xmax - xmin) / (bounded ? 80 : 42))),
+    );
     {
       const mountIndices: number[] = [];
       for (let i = 0; i < reg.length; i++) {
@@ -488,36 +524,111 @@ export class MountPlanner {
     // have very few strong peaks), fill gaps with a second pass at a
     // lowered threshold.  Weaken the threshold progressively until the
     // target is met or we run out of relaxation.
-    const mountTargetMin = Math.max(6, Math.round((xmax - xmin) / 100));
+    //
+    // Candidates of each relaxation step are collected first and then taken
+    // farthest-first from the mountains already placed. A plain left-to-right
+    // scan stopped as soon as the target was met, which left the right side
+    // of every painting empty.
+    const mountTargetMin = Math.max(6, Math.round((xmax - xmin) / (bounded ? 110 : 100)));
     {
       let mountCount = reg.reduce((n, r) => (r.tag === "mount" ? n + 1 : n), 0);
       const fillThresholds = [0.2, 0.15, 0.1, 0.05];
       for (const fillThresh of fillThresholds) {
         if (mountCount >= mountTargetMin) break;
+        const candidates: [number, number][] = [];
         for (let i = xmin; i < xmax; i += xstep) {
-          if (mountCount >= mountTargetMin) break;
           const yRange = Math.min(1.0, yr(i) * clampedYrScale) * 480;
           for (let j = 0; j < yRange; j += 30) {
-            if (mountCount >= mountTargetMin) break;
-            if (!this.locmax(i, j, ns, 2, fillThresh)) continue;
-            const xof = i + 2 * (prng.random() - 0.5) * 500;
-            const yof = j + 300;
-            if (wouldCoverBoat(xof, 350)) continue;
-            const r: PlanItem = { tag: "mount", x: xof, y: yof, h: ns(i, j) };
-            if (this.chadd(reg, r, 10, planmtx)) {
-              for (let k = Math.floor((xof - mwid) / xstep); k < (xof + mwid) / xstep; k++) {
-                planmtx[k] += 1;
-              }
-              mountCount++;
+            if (this.locmax(i, j, ns, 2, fillThresh)) candidates.push([i, j]);
+          }
+        }
+        const used = new Uint8Array(candidates.length);
+        while (mountCount < mountTargetMin) {
+          let best = -1;
+          let bestDist = -1;
+          for (let c = 0; c < candidates.length; c++) {
+            if (used[c]) continue;
+            const ci = candidates[c][0];
+            let d = Infinity;
+            for (const r of reg) {
+              if (r.tag !== "mount") continue;
+              const dx = Math.abs(r.x - ci);
+              if (dx < d) d = dx;
             }
+            if (d > bestDist) {
+              bestDist = d;
+              best = c;
+            }
+          }
+          if (best < 0) break;
+          used[best] = 1;
+          const [i, j] = candidates[best];
+          const xof = jitterX(i);
+          const yof = mountY(j);
+          if (wouldCoverBoat(xof, 350)) continue;
+          const r: PlanItem = { tag: "mount", x: xof, y: yof, h: ns(i, j) };
+          if (this.chadd(reg, r, 10, planmtx)) {
+            for (let k = Math.floor((xof - mwid) / xstep); k < (xof + mwid) / xstep; k++) {
+              planmtx[k] += 1;
+            }
+            mountCount++;
           }
         }
       }
     }
 
+    // Noise peaks cluster, so even a full quota can leave a third of a
+    // finite canvas bare. Close the widest gaps (canvas edges included) with
+    // a mountain at the gap centre until none is wider than `maxGap`.
+    if (bounded) {
+      const maxGap = 420;
+      for (let pass = 0; pass < 6; pass++) {
+        const xs = reg
+          .filter((r) => r.tag === "mount")
+          .map((r) => r.x)
+          .sort((a, b) => a - b);
+        const bounds = [xmin - maxGap / 2, ...xs, xmax + maxGap / 2];
+        let gapStart = 0;
+        let gap = 0;
+        for (let k = 0; k < bounds.length - 1; k++) {
+          const g = bounds[k + 1] - bounds[k];
+          if (g > gap) {
+            gap = g;
+            gapStart = bounds[k];
+          }
+        }
+        if (gap <= maxGap * 1.5) break;
+        const centre = gapStart + gap / 2;
+        const x = Math.min(
+          xmax - edge,
+          Math.max(xmin + edge, centre + (prng.random() - 0.5) * gap * 0.3),
+        );
+        if (wouldCoverBoat(x, 350)) break;
+        const r: PlanItem = { tag: "mount", x, y: mountY(prng.random() * 240), h: 0.2 };
+        if (!this.chadd(reg, r, 10, planmtx)) break;
+        for (let k = Math.floor((x - mwid) / xstep); k < (x + mwid) / xstep; k++) {
+          planmtx[k] += 1;
+        }
+      }
+    }
+
     // Place distant mountains periodically (separate pass — no longer inside
-    // the mountain-placement loop).
-    for (let i = xmin; i < xmax; i += xstep) {
+    // the mountain-placement loop). On a finite canvas they are spread over
+    // the full width instead of sitting at every multiple of 1000.
+    if (bounded) {
+      const count = Math.max(1, Math.round((xmax - xmin) / 700));
+      const slot = (xmax - xmin) / count;
+      for (let k = 0; k < count; k++) {
+        const r: PlanItem = {
+          tag: "distmount",
+          x: xmin + slot * (k + 0.15 + prng.random() * 0.4),
+          y: (280 - prng.random() * 60) * ys,
+          h: 0,
+        };
+        this.chaddSameTag(reg, r, 10);
+      }
+    }
+    for (let i = xmin; i < xmax && !bounded; i += xstep) {
       if (Math.abs(i) % 1000 < Math.max(1, xstep - 1)) {
         const r: PlanItem = {
           tag: "distmount",
@@ -529,8 +640,26 @@ export class MountPlanner {
       }
     }
 
+    // Foreground banks: on a finite canvas, spread a few flat mountains
+    // along the bottom band so the lower part of the painting is not empty.
+    if (bounded) {
+      const count = Math.max(1, Math.round((xmax - xmin) / 900));
+      const slot = (xmax - xmin) / count;
+      for (let k = 0; k < count; k++) {
+        const fx = xmin + slot * (k + 0.2 + prng.random() * 0.6);
+        if (wouldCoverBoat(fx, 550)) continue;
+        const r: PlanItem = {
+          tag: "flatmount",
+          x: fx,
+          y: (690 + prng.random() * 60) * ys,
+          h: 0,
+        };
+        this.chaddSameTag(reg, r, 10);
+      }
+    }
+
     // Fill empty areas with flat mountains
-    for (let i = xmin; i < xmax; i += xstep) {
+    for (let i = xmin; i < xmax && !bounded; i += xstep) {
       if (planmtx[Math.floor(i / xstep)] === 0) {
         if (prng.random() < 0.01) {
           for (let j = 0; j < 4 * prng.random(); j++) {
@@ -578,7 +707,7 @@ export class MountPlanner {
     // Those are too short to host a +20..+80 arch offset without the arch
     // dropping below the drawn mountain body into water. See constant doc.
     const mounts = reg.filter((r) => r.tag === "mount");
-    const anchorMounts = mounts.filter((m) => m.y <= ARCH_ANCHOR_MAX_Y);
+    const anchorMounts = mounts.filter((m) => m.y <= ARCH_ANCHOR_MAX_Y * ys);
     {
       const shuffled = this.shuffle(anchorMounts);
       let count = 0;
@@ -711,9 +840,15 @@ export class MountPlanner {
       width: number;
       height: number;
       placement?: LandscapePlacementOptions;
+      /**
+       * Scale the native tag y bands to `height`, matching a `plan()` call
+       * made with `PlanCanvasOptions`. Defaults to false (native 800 layout).
+       */
+      scaleToCanvas?: boolean;
     },
   ): PlanItem[] {
     const { xmin, xmax, planmtx, minCounts, blankArea, width, height, placement } = ctx;
+    const ys = ctx.scaleToCanvas ? height / 800 : 1;
 
     for (const [key, rawTarget] of Object.entries(minCounts)) {
       const tag = key as PlanTag;
@@ -789,7 +924,7 @@ export class MountPlanner {
       // the tag entirely — better to miss `minCounts` than to place a
       // pavilion on open water.
       const mountItems = anchored
-        ? plan.filter((p) => p.tag === "mount" && p.y <= ARCH_ANCHOR_MAX_Y)
+        ? plan.filter((p) => p.tag === "mount" && p.y <= ARCH_ANCHOR_MAX_Y * ys)
         : [];
       if (anchored && mountItems.length === 0) continue;
 
@@ -803,9 +938,9 @@ export class MountPlanner {
         } else {
           x = xmin + prng.random() * (xmax - xmin);
           y =
-            tagPlacement.yJitter === 0
+            (tagPlacement.yJitter === 0
               ? tagPlacement.yBase
-              : tagPlacement.yBase + prng.random() * tagPlacement.yJitter;
+              : tagPlacement.yBase + prng.random() * tagPlacement.yJitter) * ys;
 
           if (tag === "boat") {
             let anchor = this.boatWaterAnchor(plan);
@@ -819,6 +954,7 @@ export class MountPlanner {
                 width,
                 height,
                 placement,
+                scaleToCanvas: ctx.scaleToCanvas,
               });
               anchor = this.boatWaterAnchor(plan);
             }

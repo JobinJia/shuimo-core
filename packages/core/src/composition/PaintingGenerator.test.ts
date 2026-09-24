@@ -43,7 +43,12 @@ describe("PaintingGenerator default (opaque) mode", () => {
     const overlayLayer = result.svg.indexOf('data-shuimo-layer="terrain-overlay"');
     expect(baseLayer).toBeGreaterThan(-1);
     expect(overlayLayer).toBeGreaterThan(baseLayer);
-    expect(result.svg.slice(baseLayer, overlayLayer)).toContain("fill:white");
+    // Styles are emitted once as CSS classes; find the occlusion-mask classes
+    // and check the terrain-base layer uses them.
+    const maskClasses = [...result.svg.matchAll(/\.([\w-]+)\{fill:white;/g)].map((m) => m[1]);
+    expect(maskClasses.length).toBeGreaterThan(0);
+    const baseSvg = result.svg.slice(baseLayer, overlayLayer);
+    expect(maskClasses.some((cls) => baseSvg.includes(`class='${cls}'`))).toBe(true);
   });
 
   it("can omit selected landscape elements at render time", () => {
@@ -106,7 +111,10 @@ describe("PaintingGenerator default (opaque) mode", () => {
     const yValues = [...boatPoints.matchAll(/,(-?\d+(?:\.\d+)?)/g)].map((m) => Number(m[1]));
     expect(yValues.length).toBeGreaterThan(0);
     expect(Math.min(...yValues)).toBeGreaterThanOrEqual(695);
-    expect(Math.max(...yValues)).toBeLessThanOrEqual(770);
+    // The first polyline of a boat group is its ripple, drawn up to ~25px
+    // below the boat anchor (anchor ≤ 760 + 12px jitter); it must stay on
+    // the canvas.
+    expect(Math.max(...yValues)).toBeLessThanOrEqual(800);
   });
 
   it("defaults every landscape element to visible", () => {

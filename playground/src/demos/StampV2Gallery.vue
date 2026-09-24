@@ -10,6 +10,27 @@ import {
 const SEAL_FONT_URL = "/fonts/yishanbeizhuanti.ttf";
 const TILE_SIZE = 180;
 const SEED = 42;
+/** Tiles rendered between yields to the browser (keeps the page responsive). */
+const TILES_PER_FRAME = 6;
+
+// Fetch the font bytes once for the whole page. generateSealAsync caches the
+// parsed font per ArrayBuffer, so all 182 tiles share one parse (previously
+// every tile re-fetched and re-parsed the 2.3 MB TTF on the main thread).
+let fontPromise: Promise<ArrayBuffer> | null = null;
+function loadFont(): Promise<ArrayBuffer> {
+  if (!fontPromise) {
+    fontPromise = fetch(SEAL_FONT_URL).then((r) => {
+      if (!r.ok) throw new Error(`font fetch failed: ${r.status}`);
+      return r.arrayBuffer();
+    });
+    fontPromise.catch(() => {
+      fontPromise = null;
+    });
+  }
+  return fontPromise;
+}
+
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
 interface TextSpec {
   label: string;
@@ -90,8 +111,20 @@ const rows = computed(() => {
   return out;
 });
 
+// Bumped on every refresh so a superseded render loop stops early.
+let renderGeneration = 0;
+
 async function renderAll() {
+  const generation = ++renderGeneration;
   const next: Cell[] = [];
+  let font: ArrayBuffer | null = null;
+  let fontError = "";
+  try {
+    font = await loadFont();
+  } catch (err) {
+    fontError = err instanceof Error ? err.message : String(err);
+  }
+  let sinceYield = 0;
   for (const t of TEXT_CASES) {
     for (const s of SHAPE_CASES) {
       for (const m of MODE_CASES) {
@@ -106,11 +139,12 @@ async function renderAll() {
           svg: "",
         };
         try {
+          if (!font) throw new Error(fontError || "font unavailable");
           const r = await generateSealAsync({
             text: t.text,
             size: TILE_SIZE,
             seed: SEED,
-            font: SEAL_FONT_URL,
+            font,
             mode: m.mode,
             shape: s.build(),
             script: scriptAll.value || undefined,
@@ -131,9 +165,17 @@ async function renderAll() {
           cell.error = err instanceof Error ? err.message : String(err);
         }
         next.push(cell);
+        if (++sinceYield >= TILES_PER_FRAME) {
+          sinceYield = 0;
+          // Publish progress and let the browser paint / handle input.
+          cells.value = next.slice();
+          await nextFrame();
+          if (generation !== renderGeneration) return;
+        }
       }
     }
   }
+  if (generation !== renderGeneration) return;
   cells.value = next;
   ready.value = true;
 }

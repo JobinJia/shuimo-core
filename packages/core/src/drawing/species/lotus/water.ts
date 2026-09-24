@@ -1,44 +1,37 @@
 import { BBS, hsv } from "../../FlowerCanvas";
-import { REFLECT_SQUASH, REFLECT_ALPHA, REFLECT_BLUR } from "./constants";
+import { ribbon, taperBoth, type Painter, type Pt } from "./strokes";
 
 /**
- * Draw a water reflection of the plants: the plant image flipped about the
- * waterline, vertically squashed, faded and blurred — a soft mirror on the pond.
+ * A few faint horizontal ripple lines at the waterline to seat the
+ * reflection. Each ripple is a tapered brush ribbon (thin at both ends), and
+ * all of them share one path → a single fill.
  */
-export function drawReflection(
-  dstCtx: CanvasRenderingContext2D,
-  srcCanvas: HTMLCanvasElement,
-  waterY: number,
-): void {
-  dstCtx.save();
-  dstCtx.globalAlpha = REFLECT_ALPHA;
-  dstCtx.filter = `blur(${REFLECT_BLUR}px)`;
-  // Mirror about waterY, then squash vertically.
-  dstCtx.translate(0, waterY);
-  dstCtx.scale(1, -REFLECT_SQUASH);
-  dstCtx.translate(0, -waterY);
-  dstCtx.drawImage(srcCanvas, 0, 0);
-  dstCtx.restore();
-}
-
-/**
- * A few faint horizontal ripple lines at the waterline to seat the reflection.
- */
-export function drawWaterline(ctx: CanvasRenderingContext2D, waterY: number, cwid: number): void {
-  ctx.save();
-  ctx.lineCap = "round";
+export function buildWaterline(waterY: number, cwid: number): Path2D {
+  const path = new Path2D();
   const lines = 5;
+  const M = 24;
   for (let i = 0; i < lines; i++) {
     const y = waterY + (BBS.next() - 0.3) * 28;
     const x0 = cwid * (0.04 + 0.25 * BBS.next());
     const x1 = cwid * (0.6 + 0.36 * BBS.next());
     const midY = y + (BBS.next() - 0.5) * 6;
-    ctx.beginPath();
-    ctx.moveTo(x0, y);
-    ctx.quadraticCurveTo((x0 + x1) / 2, midY, x1, y);
-    ctx.lineWidth = 0.8 + BBS.next() * 0.8;
-    ctx.strokeStyle = hsv(0, 0, 0.45, 0.1 + BBS.next() * 0.1);
-    ctx.stroke();
+    const w = 0.4 + BBS.next() * 0.4;
+    const pts: Pt[] = [];
+    for (let k = 0; k <= M; k++) {
+      // Quadratic curve x0,y → mid → x1,y.
+      const t = k / M;
+      const u = 1 - t;
+      pts.push([
+        u * u * x0 + 2 * u * t * ((x0 + x1) / 2) + t * t * x1,
+        u * u * y + 2 * u * t * midY + t * t * y,
+      ]);
+    }
+    ribbon(path, pts, taperBoth(w * 1.6));
   }
-  ctx.restore();
+  return path;
+}
+
+export function paintWaterline(p: Painter, path: Path2D): void {
+  p.ctx.fillStyle = hsv(0, 0, 0.45, 0.15);
+  p.ctx.fill(path);
 }

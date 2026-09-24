@@ -53,6 +53,12 @@ export interface MountainLayer {
   ridgeLine: Vector2[];
   subRidges: Vector2[][];
   normals: Vector2[];
+  /**
+   * Hobbs-deformed visible edge of the mountain (open polyline, left to
+   * right, overscanning both canvas edges). The wash mask, contour stroke
+   * and cunfa placement all follow this edge rather than `ridgeLine`.
+   */
+  silhouette: Vector2[];
   bounds: { x: number; y: number; width: number; height: number };
 }
 
@@ -63,6 +69,11 @@ export interface CunFaStroke {
 }
 
 export interface InkFill {
+  /**
+   * Wash opacity profile measured down the mountain body: `stop` 0 is the
+   * silhouette edge, 1 the canvas bottom. Ink is heaviest at the ridge and
+   * thins toward the foot (留白), so opacity decreases with `stop`.
+   */
   gradient: { stop: number; opacity: number }[];
   splashes: Vector2[][];
   noiseSeed: number;

@@ -292,34 +292,36 @@ function addCubicBoundsTo(
  * implicit separator between numbers (no extra space before negatives).
  */
 export function commandsToSvgPathData(commands: NormalizedCommand[], precision = 2): string {
-  const fmt = (v: number): string => {
-    if (Math.round(v) === v) return String(Math.round(v));
-    return v.toFixed(precision);
-  };
-  const pack = (...vals: number[]): string => {
-    let s = "";
-    for (let i = 0; i < vals.length; i++) {
-      const v = vals[i];
-      if (v >= 0 && i > 0) s += " ";
-      s += fmt(v);
-    }
-    return s;
-  };
-
+  // Hot path (≈20% of a seal's CPU before this was inlined): no per-call
+  // closures, no rest-arg arrays. Output is byte-identical to the previous
+  // `pack(...vals)` implementation — stamp v1 depends on that.
   let out = "";
-  for (const cmd of commands) {
+  for (let i = 0; i < commands.length; i++) {
+    const cmd = commands[i];
     switch (cmd.type) {
       case "M":
-        out += "M" + pack(cmd.x!, cmd.y!);
+        out += "M" + formatPathNumber(cmd.x!, precision) + tail(cmd.y!, precision);
         break;
       case "L":
-        out += "L" + pack(cmd.x!, cmd.y!);
+        out += "L" + formatPathNumber(cmd.x!, precision) + tail(cmd.y!, precision);
         break;
       case "Q":
-        out += "Q" + pack(cmd.x1!, cmd.y1!, cmd.x!, cmd.y!);
+        out +=
+          "Q" +
+          formatPathNumber(cmd.x1!, precision) +
+          tail(cmd.y1!, precision) +
+          tail(cmd.x!, precision) +
+          tail(cmd.y!, precision);
         break;
       case "C":
-        out += "C" + pack(cmd.x1!, cmd.y1!, cmd.x2!, cmd.y2!, cmd.x!, cmd.y!);
+        out +=
+          "C" +
+          formatPathNumber(cmd.x1!, precision) +
+          tail(cmd.y1!, precision) +
+          tail(cmd.x2!, precision) +
+          tail(cmd.y2!, precision) +
+          tail(cmd.x!, precision) +
+          tail(cmd.y!, precision);
         break;
       case "Z":
         out += "Z";
@@ -327,4 +329,49 @@ export function commandsToSvgPathData(commands: NormalizedCommand[], precision =
     }
   }
   return out;
+}
+
+/** A non-leading number: a leading minus sign doubles as the separator. */
+function tail(v: number, precision: number): string {
+  return v >= 0 ? " " + formatPathNumber(v, precision) : formatPathNumber(v, precision);
+}
+
+const POW10 = [1, 10, 100, 1000, 10000, 100000, 1000000];
+const ZEROS = ["", "0", "00", "000", "0000", "00000", "000000"];
+
+/**
+ * Format a path coordinate: integers print as integers, everything else as
+ * `v.toFixed(precision)`. Byte-identical to
+ * `Math.round(v) === v ? String(Math.round(v)) : v.toFixed(precision)`.
+ *
+ * `toFixed` rounds the *exact* binary value half-up, which a plain
+ * `Math.round(v * 10^p)` does not reproduce when `v * 10^p` lands within
+ * float error of a .5 tie. The fast path therefore only handles values whose
+ * scaled fraction is clearly away from the tie (and small enough that the
+ * multiplication error is far below the guard band); everything else falls
+ * back to `toFixed`.
+ */
+export function formatPathNumber(v: number, precision: number): string {
+  const r = Math.round(v);
+  if (r === v) return String(r);
+  if (precision >= 0 && precision <= 6) {
+    const neg = v < 0;
+    const a = neg ? -v : v;
+    const m = POW10[precision];
+    const t = a * m;
+    // NaN fails this comparison and takes the toFixed path.
+    if (t < 1e9) {
+      const fl = Math.floor(t);
+      const frac = t - fl;
+      if (frac < 0.499999 || frac > 0.500001) {
+        const n = frac < 0.5 ? fl : fl + 1;
+        const sign = neg ? "-" : "";
+        if (precision === 0) return sign + n;
+        const ip = Math.floor(n / m);
+        const fs = String(n - ip * m);
+        return sign + ip + "." + ZEROS[precision - fs.length] + fs;
+      }
+    }
+  }
+  return v.toFixed(precision);
 }

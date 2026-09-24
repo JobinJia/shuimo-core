@@ -50,16 +50,22 @@ export function generateMist(input: MistInput): MistRegion[] {
     const bandHeight = bandBottom - bandTop;
     const bandCenterY = (bandTop + bandBottom) * 0.5;
 
-    const patchCount = Math.max(1, Math.floor(3 * coverage));
+    // Several patches per gap, spread across the full width. (The old
+    // floor(3 × coverage) gave a single patch for the default coverage,
+    // so every gap's mist sat at the same x.)
+    const patchCount = Math.max(2, Math.round(2 + coverage * 4));
 
     for (let p = 0; p < patchCount; p++) {
-      // Center X spread across width
-      const centerX = (0.1 + (p / patchCount) * 0.8) * width;
-      const centerY = bandCenterY;
+      // Jittered slot across the width, offset per gap so gaps don't stack.
+      const slot = (p + 0.5) / patchCount;
+      const jitter = noise.noise2D(p * 1.7 + i * 3.1, 5.3) * (0.45 / patchCount);
+      const centerX = (slot + jitter) * width;
+      const centerY = bandCenterY + noise.noise2D(p * 0.9 + i * 2.3, 9.1) * bandHeight * 0.2;
 
-      // Ellipse radii — horizontally stretched
-      const rx = width * (0.15 + coverage * 0.2);
-      const ry = bandHeight * (0.2 + coverage * 0.3);
+      // Ellipse radii — strongly horizontal, varied per patch.
+      const sizeMul = 0.7 + (noise.noise2D(p * 1.1 + i, 13.7) * 0.5 + 0.5) * 0.6;
+      const rx = (width / patchCount) * (0.55 + coverage * 0.5) * sizeMul;
+      const ry = bandHeight * (0.14 + coverage * 0.18) * sizeMul;
 
       // Mist opacity: farther mist is more opaque
       const patchOpacity = opacity * (0.5 + (1 - farLayer.depth) * 0.5);

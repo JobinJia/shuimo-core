@@ -6,7 +6,7 @@
 
 import { renderXuanPaperCanvas } from "./xuan-paper/canvas-renderer";
 import { buildXuanPaperScene } from "./xuan-paper/model";
-import { DEFAULT_BASE_COLOR, GoldFleckColors, XuanPaperColors } from "./xuan-paper/presets";
+import { DEFAULT_BASE_COLOR } from "./xuan-paper/presets";
 import { renderXuanPaperSVG } from "./xuan-paper/svg-renderer";
 import type { XuanPaperOptions } from "./xuan-paper/types";
 

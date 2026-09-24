@@ -344,10 +344,13 @@ function barkify(x: number, y: number, trlist: [Polygon, Polygon]): string {
       rglist[i][j][0] += (noise.noise(i, j * 0.1, 1) - 0.5) * (15 + 5 * randGaussian());
       rglist[i][j][1] += (noise.noise(i, j * 0.1, 2) - 0.5) * (15 + 5 * randGaussian());
     }
-    canv += stroke(
-      rglist[i].map((v) => [v[0] + x, v[1] + y]),
-      { wid: 1.5, col: "rgba(100,100,100,0.7)", out: 0 },
-    );
+    canv += stroke(rglist[i], {
+      xof: x,
+      yof: y,
+      wid: 1.5,
+      col: "rgba(100,100,100,0.7)",
+      out: 0,
+    });
   }
 
   return canv;
@@ -559,16 +562,15 @@ export class Tree {
 
     trmlist.splice(0, 1);
     trmlist.splice(trmlist.length - 1, 1);
-    canv += stroke(
-      trmlist.map((v) => [v[0] + x, v[1] + y]),
-      {
-        col: "rgba(100,100,100," + (0.4 + prng.random() * 0.1).toFixed(3) + ")",
-        wid: 2.5,
-        fun: (_x: number) => Math.sin(1),
-        noi: 0.9,
-        out: 0,
-      },
-    );
+    canv += stroke(trmlist, {
+      xof: x,
+      yof: y,
+      col: "rgba(100,100,100," + (0.4 + prng.random() * 0.1).toFixed(3) + ")",
+      wid: 2.5,
+      fun: (_x: number) => Math.sin(1),
+      noi: 0.9,
+      out: 0,
+    });
 
     canv += txcanv;
     canv += twcanv;
@@ -646,16 +648,15 @@ export class Tree {
 
     trmlist.splice(0, 1);
     trmlist.splice(trmlist.length - 1, 1);
-    canv += stroke(
-      trmlist.map((v) => [v[0] + x, v[1] + y]),
-      {
-        col: "rgba(100,100,100," + (0.4 + prng.random() * 0.1).toFixed(3) + ")",
-        wid: 2.5,
-        fun: (_x: number) => Math.sin(1),
-        noi: 0.9,
-        out: 0,
-      },
-    );
+    canv += stroke(trmlist, {
+      xof: x,
+      yof: y,
+      col: "rgba(100,100,100," + (0.4 + prng.random() * 0.1).toFixed(3) + ")",
+      wid: 2.5,
+      fun: (_x: number) => Math.sin(1),
+      noi: 0.9,
+      out: 0,
+    });
 
     canv += txcanv;
     canv += twcanv;
@@ -753,16 +754,15 @@ export class Tree {
 
     trmlist.splice(0, 1);
     trmlist.splice(trmlist.length - 1, 1);
-    canv += stroke(
-      trmlist.map((v) => [v[0] + x, v[1] + y]),
-      {
-        col: "rgba(100,100,100," + (0.4 + prng.random() * 0.1).toFixed(3) + ")",
-        wid: 2.5,
-        fun: (_x: number) => Math.sin(1),
-        noi: 0.9,
-        out: 0,
-      },
-    );
+    canv += stroke(trmlist, {
+      xof: x,
+      yof: y,
+      col: "rgba(100,100,100," + (0.4 + prng.random() * 0.1).toFixed(3) + ")",
+      wid: 2.5,
+      fun: (_x: number) => Math.sin(1),
+      noi: 0.9,
+      out: 0,
+    });
 
     canv += txcanv;
     canv += twcanv;
@@ -961,16 +961,15 @@ export class Tree {
 
     canv += poly(trlistMerged, { xof: x, yof: y, fil: "white", str: col, wid: 0 });
 
-    canv += stroke(
-      trlistMerged.map((v) => [v[0] + x, v[1] + y]),
-      {
-        col: "rgba(100,100,100," + (0.6 + prng.random() * 0.1).toFixed(3) + ")",
-        wid: 2.5,
-        fun: (_x: number) => Math.sin(1),
-        noi: 0.9,
-        out: 0,
-      },
-    );
+    canv += stroke(trlistMerged, {
+      xof: x,
+      yof: y,
+      col: "rgba(100,100,100," + (0.6 + prng.random() * 0.1).toFixed(3) + ")",
+      wid: 2.5,
+      fun: (_x: number) => Math.sin(1),
+      noi: 0.9,
+      out: 0,
+    });
 
     canv += txcanv;
     canv += twcanv;

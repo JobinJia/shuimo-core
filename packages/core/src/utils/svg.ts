@@ -16,6 +16,170 @@ export interface PolyOptions {
 }
 
 /**
+ * Format a coordinate with one decimal, dropping a trailing ".0".
+ *
+ * Numerically equivalent to `Number(v.toFixed(1))` (ties round away from
+ * zero, like `toFixed`) but several times faster, because it stays on the
+ * integer path instead of going through the generic decimal formatter. The
+ * sign is taken from `v`, not from the rounded integer part, so values in
+ * (-1, -0.05] keep their minus sign ("-0.3", not "0.3").
+ */
+export function fmt1(v: number): string {
+  const r = (v < 0 ? -v : v) * 10;
+  if (r !== r || r === Infinity) return String(v); // NaN / Infinity passthrough
+  let a = Math.round(r);
+  // `r` lands exactly on .5 only for (near-)ties such as 0.15, where the
+  // multiplication rounded away the digit that `toFixed` decides on. Defer to
+  // `toFixed` for that rare case so both formatters agree exactly.
+  if (a - r === 0.5) a = Math.round(Number((v < 0 ? -v : v).toFixed(1)) * 10);
+  const i = Math.floor(a / 10);
+  const f = a - i * 10;
+  const s = f === 0 ? String(i) : i + "." + f;
+  return v < 0 && a !== 0 ? "-" + s : s;
+}
+
+// ── Style scope ─────────────────────────────────────────────────────
+//
+// A full landscape emits ~10k polylines whose inline `style` attributes only
+// take ~1k distinct values. While a scope is active, `poly()` emits a short
+// class name instead and the scope collects one CSS rule per distinct style,
+// which the caller writes into a `<style>` element. Outside a scope `poly()`
+// keeps emitting self-contained inline styles, so standalone element calls
+// (Mount.mountain, Tree.tree01, ...) are unaffected.
+//
+// A scope also carries two painting-level colour adjustments:
+// - `paper`: the literal fill "white" (used by elements as an occlusion
+//   mask) is replaced with the paper colour, so masks blend into the paper
+//   instead of leaving white cut-outs.
+// - ink depth (`setInkDepth`): neutral grey ink is paled for distant
+//   elements and deepened for near ones (far = light, near = dark).
+
+/** Number of quantised ink-depth tiers (0 = farthest, TIERS - 1 = nearest). */
+const INK_TIERS = 5;
+
+interface StyleScope {
+  prefix: string;
+  paper: string | null;
+  tier: number;
+  /** tier + 1 → fill → stroke → width → class (nested to avoid key strings). */
+  byTier: Map<string, Map<string, Map<number, string>>>[];
+  byCss: Map<string, string>;
+  rules: string[];
+}
+
+let activeScope: StyleScope | null = null;
+
+export interface SvgStyleScopeOptions {
+  /**
+   * Class-name prefix. CSS in an inline SVG is document-global, so it must be
+   * unique per painting (two paintings in one page must not share names
+   * unless their styles are identical).
+   */
+  prefix: string;
+  /** Colour substituted for the "white" occlusion fill. Omit to keep white. */
+  paper?: string;
+}
+
+/**
+ * Run `fn` with a style scope active and return its result together with
+ * the CSS rules for every class `poly()` emitted inside it.
+ */
+export function runInSvgStyleScope<T>(
+  options: SvgStyleScopeOptions,
+  fn: () => T,
+): { result: T; css: string } {
+  const previous = activeScope;
+  const scope: StyleScope = {
+    prefix: options.prefix,
+    paper: options.paper ?? null,
+    tier: -1,
+    byTier: Array.from({ length: INK_TIERS + 1 }, () => new Map()),
+    byCss: new Map(),
+    rules: [],
+  };
+  activeScope = scope;
+  try {
+    const result = fn();
+    return { result, css: scope.rules.join("") };
+  } finally {
+    activeScope = previous;
+  }
+}
+
+/**
+ * Set the ink depth used for subsequent `poly()` calls in the active scope.
+ * `depth` is 0 for the farthest element and 1 for the nearest; `null`
+ * disables tonal adjustment. No-op outside a scope.
+ */
+export function setInkDepth(depth: number | null): void {
+  if (!activeScope) return;
+  if (depth === null || !Number.isFinite(depth)) {
+    activeScope.tier = -1;
+    return;
+  }
+  const d = depth < 0 ? 0 : depth > 1 ? 1 : depth;
+  activeScope.tier = Math.round(d * (INK_TIERS - 1));
+}
+
+const RGBA_RE = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/;
+
+function roundAlpha(a: number): string {
+  const v = Math.round(Math.min(1, Math.max(0, a)) * 100) / 100;
+  return String(v);
+}
+
+/** Apply the scope's paper substitution and ink-depth tone to one colour. */
+function resolveColor(scope: StyleScope, col: string): string {
+  if (col === "white" && scope.paper) return scope.paper;
+  const m = RGBA_RE.exec(col);
+  if (!m) return col;
+  const r = Number(m[1]);
+  const g = Number(m[2]);
+  const b = Number(m[3]);
+  const a = m[4] === undefined ? 1 : Number(m[4]);
+  if (scope.tier < 0 || r !== g || g !== b) {
+    return m[4] === undefined ? col : `rgba(${r},${g},${b},${roundAlpha(a)})`;
+  }
+  // Neutral grey ink: interpolate from pale/thin (far) to dark/dense (near).
+  const t = scope.tier / (INK_TIERS - 1);
+  const greyMul = 1.3 + (0.62 - 1.3) * t;
+  const alphaMul = 0.62 + (1.15 - 0.62) * t;
+  const grey = Math.round(Math.min(235, r * greyMul));
+  return `rgba(${grey},${grey},${grey},${roundAlpha(a * alphaMul)})`;
+}
+
+function scopeClass(scope: StyleScope, fil: string, str: string, wid: number): string {
+  const byFill = scope.byTier[scope.tier + 1];
+  let byStroke = byFill.get(fil);
+  if (byStroke === undefined) {
+    byStroke = new Map();
+    byFill.set(fil, byStroke);
+  }
+  let byWidth = byStroke.get(str);
+  if (byWidth === undefined) {
+    byWidth = new Map();
+    byStroke.set(str, byWidth);
+  }
+  let cls = byWidth.get(wid);
+  if (cls !== undefined) return cls;
+  const css =
+    "fill:" +
+    resolveColor(scope, fil) +
+    ";stroke:" +
+    resolveColor(scope, str) +
+    ";stroke-width:" +
+    wid;
+  cls = scope.byCss.get(css);
+  if (cls === undefined) {
+    cls = scope.prefix + scope.byCss.size.toString(36);
+    scope.byCss.set(css, cls);
+    scope.rules.push("." + cls + "{" + css + "}");
+  }
+  byWidth.set(wid, cls);
+  return cls;
+}
+
+/**
  * Generate an SVG polyline element from a list of points
  * @param plist - Array of points
  * @param options - Styling options
@@ -29,16 +193,20 @@ export function poly(plist: Polygon, options: PolyOptions = {}): string {
   const wid = options.wid ?? 0;
   const filter = options.filter;
 
-  const parts: string[] = ["<polyline points='"];
+  let s = "<polyline points='";
   for (let i = 0; i < plist.length; i++) {
-    parts.push(" ", (plist[i][0] + xof).toFixed(1), ",", (plist[i][1] + yof).toFixed(1));
+    const p = plist[i];
+    s += " " + fmt1(p[0] + xof) + "," + fmt1(p[1] + yof);
   }
-  parts.push("' style='fill:", fil, ";stroke:", str, ";stroke-width:", String(wid), "'");
+  if (activeScope) {
+    s += "' class='" + scopeClass(activeScope, fil, str, wid) + "'";
+  } else {
+    s += "' style='fill:" + fil + ";stroke:" + str + ";stroke-width:" + wid + "'";
+  }
   if (filter) {
-    parts.push(" filter='", filter, "'");
+    s += " filter='" + filter + "'";
   }
-  parts.push("/>");
-  return parts.join("");
+  return s + "/>";
 }
 
 // ── Shared loading helpers ──────────────────────────────────────────

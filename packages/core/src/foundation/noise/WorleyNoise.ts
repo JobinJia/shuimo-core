@@ -126,8 +126,9 @@ export class WorleyNoise {
   }
 
   /**
-   * Generate F2 - F1 (useful for creating cell edges)
-   * This creates high values at cell boundaries
+   * Generate F2 - F1 (useful for creating cell edges).
+   * Near 0 on Voronoi cell boundaries, growing toward cell interiors; in cell
+   * units, clamped to [0, 1].
    */
   edgeNoise2D(x: number, y: number, options: WorleyNoiseOptions = {}): number {
     const { cellSize = 1.0, jitter = 1.0, distanceFunc = "euclidean" } = options;
@@ -137,7 +138,9 @@ export class WorleyNoise {
     const cellX = Math.floor(scaledX);
     const cellY = Math.floor(scaledY);
 
-    const distances: number[] = [];
+    // Track the two smallest distances directly instead of sorting all nine.
+    let f1 = Infinity;
+    let f2 = Infinity;
 
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
@@ -151,20 +154,18 @@ export class WorleyNoise {
         const featureY = neighborY + randomY * jitter + (1 - jitter) * 0.5;
 
         const dist = this.distance(scaledX, scaledY, featureX, featureY, distanceFunc);
-
-        distances.push(dist);
+        if (dist < f1) {
+          f2 = f1;
+          f1 = dist;
+        } else if (dist < f2) {
+          f2 = dist;
+        }
       }
     }
 
-    distances.sort((a, b) => a - b);
-
-    // F2 - F1 creates high values at cell boundaries
-    const f1 = distances[0];
-    const f2 = distances[1];
-    const edge = f2 - f1;
-
-    // Normalize
-    return Math.min(edge / cellSize, 1.0);
+    // F2 - F1 is already in cell units (distances are measured on the scaled
+    // grid), so it must not be divided by cellSize again.
+    return Math.min(f2 - f1, 1.0);
   }
 
   /**

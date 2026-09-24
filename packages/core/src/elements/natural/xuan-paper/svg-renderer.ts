@@ -1,450 +1,273 @@
-import type { DeckleOutline, FiberStroke, GoldPathCommand, XuanPaperScene } from "./types";
+import { buildSceneBatches } from "./batches";
+import { bytesToBase64, encodePngRgb } from "./png-encode";
+import { paperToneParams, renderLowFrequencyTone } from "./tone-field";
+import type { DeckleOutline, GoldPathCommand, XuanPaperScene } from "./types";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-function adjustColor(
-  color: [number, number, number],
-  deltas: [number, number, number],
-): [number, number, number] {
-  return [
-    clamp(Math.round(color[0] + deltas[0]), 0, 255),
-    clamp(Math.round(color[1] + deltas[1]), 0, 255),
-    clamp(Math.round(color[2] + deltas[2]), 0, 255),
-  ];
-}
-
-function rgb(color: [number, number, number]): string {
-  return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-}
-
-function rgba(color: [number, number, number], alpha: number): string {
-  return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha})`;
-}
-
-function commandToString(command: GoldPathCommand, offsetX: number, offsetY: number): string {
-  switch (command.type) {
-    case "M":
-      return `M ${command.x + offsetX} ${command.y + offsetY}`;
-    case "L":
-      return `L ${command.x + offsetX} ${command.y + offsetY}`;
-    case "Q":
-      return `Q ${command.cpx + offsetX} ${command.cpy + offsetY} ${command.x + offsetX} ${command.y + offsetY}`;
-    case "Z":
-      return "Z";
-  }
-}
-
-function buildFiberPath(stroke: FiberStroke): string {
-  const firstPoint = stroke.points[0];
-  if (!firstPoint) {
-    return "";
-  }
-
-  const parts: string[] = [`M ${firstPoint.x} ${firstPoint.y}`];
-  for (let index = 1; index < stroke.points.length; index++) {
-    const point = stroke.points[index]!;
-    parts.push(`L ${point.x} ${point.y}`);
-  }
-  return parts.join(" ");
-}
-
-function sampleList(values: number[], index: number): number {
-  return values[Math.max(0, Math.min(values.length - 1, index))] ?? 0;
-}
-
-function buildOutlinePathData(
-  outline: DeckleOutline | null,
-  width: number,
-  height: number,
-): string {
-  if (!outline) {
-    return `M 0 0 L ${width} 0 L ${width} ${height} L 0 ${height} Z`;
-  }
-
-  const step = Math.max(1, Math.floor(Math.max(width, height) / 800));
-  const segments: string[] = [];
-
-  segments.push(`M 0 ${sampleList(outline.top, 0)}`);
-
-  for (let x = step; x <= width; x += step) {
-    segments.push(`L ${x} ${sampleList(outline.top, x)}`);
-  }
-  if (width % step !== 0) {
-    segments.push(`L ${width} ${sampleList(outline.top, width)}`);
-  }
-
-  for (let y = step; y <= height; y += step) {
-    segments.push(`L ${width - sampleList(outline.right, y)} ${y}`);
-  }
-  if (height % step !== 0) {
-    segments.push(`L ${width - sampleList(outline.right, height)} ${height}`);
-  }
-
-  for (let x = width - step; x >= 0; x -= step) {
-    segments.push(`L ${x} ${height - sampleList(outline.bottom, x)}`);
-  }
-  if (width % step !== 0) {
-    segments.push(`L 0 ${height - sampleList(outline.bottom, 0)}`);
-  }
-
-  for (let y = height - step; y >= 0; y -= step) {
-    segments.push(`L ${sampleList(outline.left, y)} ${y}`);
-  }
-
-  segments.push("Z");
-  return segments.join(" ");
-}
-
-function appendTextureFilter(defs: SVGDefsElement, id: string, scene: XuanPaperScene): void {
-  const filter = document.createElementNS(SVG_NS, "filter");
-  filter.setAttribute("id", id);
-  filter.setAttribute("x", "0%");
-  filter.setAttribute("y", "0%");
-  filter.setAttribute("width", "100%");
-  filter.setAttribute("height", "100%");
-
-  const turbulence = document.createElementNS(SVG_NS, "feTurbulence");
-  turbulence.setAttribute("type", "fractalNoise");
-  turbulence.setAttribute(
-    "baseFrequency",
-    `${0.018 / scene.profile.grainSoftness} ${0.045 / scene.profile.grainSoftness}`,
-  );
-  turbulence.setAttribute("numOctaves", "4");
-  turbulence.setAttribute("seed", String(scene.seeds.formation));
-  turbulence.setAttribute("result", "grain");
-  filter.appendChild(turbulence);
-
-  const displacement = document.createElementNS(SVG_NS, "feDisplacementMap");
-  displacement.setAttribute("in", "SourceGraphic");
-  displacement.setAttribute("in2", "grain");
-  displacement.setAttribute("scale", String(0.5 + scene.options.textureIntensity * 2.2));
-  displacement.setAttribute("xChannelSelector", "R");
-  displacement.setAttribute("yChannelSelector", "G");
-  displacement.setAttribute("result", "paper");
-  filter.appendChild(displacement);
-
-  const blur = document.createElementNS(SVG_NS, "feGaussianBlur");
-  blur.setAttribute("in", "grain");
-  blur.setAttribute("stdDeviation", String(0.2 + scene.options.textureIntensity * 0.55));
-  blur.setAttribute("result", "softGrain");
-  filter.appendChild(blur);
-
-  const blend = document.createElementNS(SVG_NS, "feBlend");
-  blend.setAttribute("in", "paper");
-  blend.setAttribute("in2", "softGrain");
-  blend.setAttribute("mode", "multiply");
-  filter.appendChild(blend);
-
-  defs.appendChild(filter);
-}
-
-function appendAgingFilter(defs: SVGDefsElement, id: string, scene: XuanPaperScene): void {
-  const filter = document.createElementNS(SVG_NS, "filter");
-  filter.setAttribute("id", id);
-
-  const turbulence = document.createElementNS(SVG_NS, "feTurbulence");
-  turbulence.setAttribute("type", "fractalNoise");
-  turbulence.setAttribute("baseFrequency", "0.015 0.03");
-  turbulence.setAttribute("numOctaves", "3");
-  turbulence.setAttribute("seed", String(scene.seeds.aging));
-  turbulence.setAttribute("result", "agingNoise");
-  filter.appendChild(turbulence);
-
-  const blur = document.createElementNS(SVG_NS, "feGaussianBlur");
-  blur.setAttribute("in", "agingNoise");
-  blur.setAttribute("stdDeviation", "0.6");
-  blur.setAttribute("result", "agingBlur");
-  filter.appendChild(blur);
-
-  defs.appendChild(filter);
-}
-
-function appendPaperLayers(
-  svg: SVGSVGElement,
-  scene: XuanPaperScene,
-  outlinePath: string,
-  clipPathId: string,
-  textureFilterId: string,
-  agingFilterId: string,
-): void {
-  const basePath = document.createElementNS(SVG_NS, "path");
-  basePath.setAttribute("d", outlinePath);
-  basePath.setAttribute("fill", rgb(scene.options.baseColor));
-  svg.appendChild(basePath);
-
-  const toneOverlay = document.createElementNS(SVG_NS, "path");
-  toneOverlay.setAttribute("d", outlinePath);
-  toneOverlay.setAttribute("fill", rgb(adjustColor(scene.options.baseColor, [20, 16, 4])));
-  toneOverlay.setAttribute("filter", `url(#${textureFilterId})`);
-  toneOverlay.setAttribute("opacity", String(0.04 + scene.options.textureIntensity * 0.12));
-  toneOverlay.setAttribute("clip-path", `url(#${clipPathId})`);
-  svg.appendChild(toneOverlay);
-
-  const formationOverlay = document.createElementNS(SVG_NS, "path");
-  formationOverlay.setAttribute("d", outlinePath);
-  formationOverlay.setAttribute("fill", rgb(adjustColor(scene.options.baseColor, [-18, -16, -12])));
-  formationOverlay.setAttribute("filter", `url(#${textureFilterId})`);
-  formationOverlay.setAttribute("opacity", String(0.05 + scene.profile.formationContrast * 0.08));
-  formationOverlay.setAttribute("clip-path", `url(#${clipPathId})`);
-  svg.appendChild(formationOverlay);
-
-  if (scene.options.age > 0) {
-    const agingOverlay = document.createElementNS(SVG_NS, "path");
-    agingOverlay.setAttribute("d", outlinePath);
-    agingOverlay.setAttribute("fill", rgb(adjustColor(scene.options.baseColor, [18, 10, -22])));
-    agingOverlay.setAttribute("filter", `url(#${agingFilterId})`);
-    agingOverlay.setAttribute(
-      "opacity",
-      String(scene.options.age * 0.22 * scene.profile.patinaStrength),
-    );
-    agingOverlay.setAttribute("clip-path", `url(#${clipPathId})`);
-    svg.appendChild(agingOverlay);
-  }
-}
-
-function appendFiberLayer(svg: SVGSVGElement, scene: XuanPaperScene, clipPathId: string): void {
-  const group = document.createElementNS(SVG_NS, "g");
-  group.setAttribute("data-layer", "fibers");
-  group.setAttribute("clip-path", `url(#${clipPathId})`);
-
-  for (const fiber of scene.fibers) {
-    const path = document.createElementNS(SVG_NS, "path");
-    path.setAttribute("d", buildFiberPath(fiber));
-    path.setAttribute("fill", "none");
-    path.setAttribute("stroke", rgba(fiber.color, fiber.alpha));
-    path.setAttribute("stroke-width", String(fiber.width));
-    path.setAttribute("stroke-linecap", "round");
-    path.setAttribute("stroke-linejoin", "round");
-    group.appendChild(path);
-  }
-
-  svg.appendChild(group);
-}
-
-function appendParticleLayer(svg: SVGSVGElement, scene: XuanPaperScene, clipPathId: string): void {
-  const group = document.createElementNS(SVG_NS, "g");
-  group.setAttribute("data-layer", "particles");
-  group.setAttribute("clip-path", `url(#${clipPathId})`);
-
-  for (const particle of scene.particles) {
-    const ellipse = document.createElementNS(SVG_NS, "ellipse");
-    ellipse.setAttribute("cx", String(particle.x));
-    ellipse.setAttribute("cy", String(particle.y));
-    ellipse.setAttribute("rx", String(particle.rx));
-    ellipse.setAttribute("ry", String(particle.ry));
-    ellipse.setAttribute("transform", `rotate(${particle.rotation} ${particle.x} ${particle.y})`);
-    ellipse.setAttribute("fill", rgba(particle.color, particle.alpha));
-    group.appendChild(ellipse);
-  }
-
-  svg.appendChild(group);
-}
-
-function appendGoldLayer(svg: SVGSVGElement, scene: XuanPaperScene, clipPathId: string): void {
-  if (!scene.options.goldFlecks) {
-    return;
-  }
-
-  const group = document.createElementNS(SVG_NS, "g");
-  group.setAttribute("data-layer", "gold-flecks");
-  group.setAttribute("clip-path", `url(#${clipPathId})`);
-
-  for (const fleck of scene.goldFlecks) {
-    for (const copy of fleck.copies) {
-      const path = document.createElementNS(SVG_NS, "path");
-      path.setAttribute(
-        "d",
-        fleck.commands.map((command) => commandToString(command, copy.x, copy.y)).join(" "),
-      );
-      path.setAttribute("fill", rgba(fleck.color, fleck.alpha));
-      group.appendChild(path);
-    }
-  }
-
-  svg.appendChild(group);
-}
-
-function appendDeckleStroke(svg: SVGSVGElement, scene: XuanPaperScene, outlinePath: string): void {
-  if (!scene.deckleOutline) {
-    return;
-  }
-
-  const edgeStroke = document.createElementNS(SVG_NS, "path");
-  edgeStroke.setAttribute("d", outlinePath);
-  edgeStroke.setAttribute("fill", "none");
-  edgeStroke.setAttribute(
-    "stroke",
-    rgba(adjustColor(scene.options.baseColor, [-35, -30, -22]), 0.16),
-  );
-  edgeStroke.setAttribute("stroke-width", String(0.8 + scene.options.deckleRoughness * 0.8));
-  svg.appendChild(edgeStroke);
-}
+// Stride of the embedded low-frequency tone raster (1920×1080 → 120×68 px).
+const TONE_RASTER_STRIDE = 16;
+// Two stitched grain tiles with coprime sizes, so their sum only repeats every
+// 256 × 211 px and no tile seam lines up.
+const GRAIN_TILE_A = 256;
+const GRAIN_TILE_B = 211;
 
 export interface XuanPaperSVGParts {
   defs: string;
   body: string;
 }
 
-function buildTextureFilterString(id: string, scene: XuanPaperScene): string {
-  return `<filter id="${id}" x="0%" y="0%" width="100%" height="100%">
-    <feTurbulence type="fractalNoise" baseFrequency="${0.018 / scene.profile.grainSoftness} ${0.045 / scene.profile.grainSoftness}" numOctaves="4" seed="${scene.seeds.formation}" result="grain"/>
-    <feDisplacementMap in="SourceGraphic" in2="grain" scale="${0.5 + scene.options.textureIntensity * 2.2}" xChannelSelector="R" yChannelSelector="G" result="paper"/>
-    <feGaussianBlur in="grain" stdDeviation="${0.2 + scene.options.textureIntensity * 0.55}" result="softGrain"/>
-    <feBlend in="paper" in2="softGrain" mode="multiply"/>
-  </filter>`;
+/** Round to at most two decimals ("12.5", "3", "-0.25"). */
+function fmt(value: number): string {
+  return String(Math.round(value * 100) / 100);
 }
 
-function buildAgingFilterString(id: string, scene: XuanPaperScene): string {
-  return `<filter id="${id}">
-    <feTurbulence type="fractalNoise" baseFrequency="0.015 0.03" numOctaves="3" seed="${scene.seeds.aging}" result="agingNoise"/>
-    <feGaussianBlur in="agingNoise" stdDeviation="0.6" result="agingBlur"/>
-  </filter>`;
+function rgb(color: readonly [number, number, number]): string {
+  return `rgb(${color[0]},${color[1]},${color[2]})`;
 }
 
-function buildPaperLayersString(
-  scene: XuanPaperScene,
-  outlinePath: string,
-  clipPathId: string,
-  textureFilterId: string,
-  agingFilterId: string,
-): string {
-  let body = `<path d="${outlinePath}" fill="${rgb(scene.options.baseColor)}"/>`;
-  body += `<path d="${outlinePath}" fill="${rgb(adjustColor(scene.options.baseColor, [20, 16, 4]))}" filter="url(#${textureFilterId})" opacity="${0.04 + scene.options.textureIntensity * 0.12}" clip-path="url(#${clipPathId})"/>`;
-  body += `<path d="${outlinePath}" fill="${rgb(adjustColor(scene.options.baseColor, [-18, -16, -12]))}" filter="url(#${textureFilterId})" opacity="${0.05 + scene.profile.formationContrast * 0.08}" clip-path="url(#${clipPathId})"/>`;
-
-  if (scene.options.age > 0) {
-    body += `<path d="${outlinePath}" fill="${rgb(adjustColor(scene.options.baseColor, [18, 10, -22]))}" filter="url(#${agingFilterId})" opacity="${scene.options.age * 0.22 * scene.profile.patinaStrength}" clip-path="url(#${clipPathId})"/>`;
-  }
-
-  return body;
+function clampByte(value: number): number {
+  return Math.min(255, Math.max(0, Math.round(value)));
 }
 
-function buildFiberLayerString(scene: XuanPaperScene, clipPathId: string): string {
-  if (scene.fibers.length === 0) {
-    return "";
-  }
-
-  const paths: string[] = [];
-  for (const fiber of scene.fibers) {
-    const d = buildFiberPath(fiber);
-    if (!d) continue;
-    paths.push(
-      `<path d="${d}" fill="none" stroke="${rgba(fiber.color, fiber.alpha)}" stroke-width="${fiber.width}" stroke-linecap="round" stroke-linejoin="round"/>`,
-    );
-  }
-
-  return `<g data-layer="fibers" clip-path="url(#${clipPathId})">${paths.join("")}</g>`;
+function sampleList(values: number[], index: number): number {
+  return values[Math.max(0, Math.min(values.length - 1, index))] ?? 0;
 }
 
-function buildParticleLayerString(scene: XuanPaperScene, clipPathId: string): string {
-  if (scene.particles.length === 0) {
-    return "";
-  }
+/**
+ * Deckle outline as a closed path. Corners start where the adjacent insets
+ * meet so no sliver of paper pokes out past the torn edge.
+ */
+function buildOutlinePathData(outline: DeckleOutline, width: number, height: number): string {
+  const step = Math.max(1, Math.floor(Math.max(width, height) / 800));
+  const top = (x: number) => sampleList(outline.top, Math.round(x));
+  const bottom = (x: number) => sampleList(outline.bottom, Math.round(x));
+  const left = (y: number) => sampleList(outline.left, Math.round(y));
+  const right = (y: number) => sampleList(outline.right, Math.round(y));
 
-  const particles: string[] = [];
-  for (const particle of scene.particles) {
-    particles.push(
-      `<ellipse cx="${particle.x}" cy="${particle.y}" rx="${particle.rx}" ry="${particle.ry}" transform="rotate(${particle.rotation} ${particle.x} ${particle.y})" fill="${rgba(particle.color, particle.alpha)}"/>`,
-    );
-  }
+  const x0 = Math.min(width / 2, left(top(0)));
+  const x1 = Math.max(width / 2, width - right(top(width)));
+  const y0 = Math.min(height / 2, top(left(0)));
+  const y1 = Math.max(height / 2, height - bottom(left(height)));
 
-  return `<g data-layer="particles" clip-path="url(#${clipPathId})">${particles.join("")}</g>`;
+  const parts: string[] = [`M${fmt(x0)} ${fmt(top(x0))}`];
+  for (let x = Math.ceil(x0 / step) * step; x < x1; x += step) {
+    parts.push(`L${x} ${fmt(top(x))}`);
+  }
+  parts.push(`L${fmt(width - right(y0))} ${fmt(y0)}`);
+  for (let y = Math.ceil(y0 / step) * step; y < y1; y += step) {
+    parts.push(`L${fmt(width - right(y))} ${y}`);
+  }
+  parts.push(`L${fmt(x1)} ${fmt(height - bottom(x1))}`);
+  for (let x = Math.floor(x1 / step) * step; x > x0; x -= step) {
+    parts.push(`L${x} ${fmt(height - bottom(x))}`);
+  }
+  parts.push(`L${fmt(left(y1))} ${fmt(y1)}`);
+  for (let y = Math.floor(y1 / step) * step; y > y0; y -= step) {
+    parts.push(`L${fmt(left(y))} ${y}`);
+  }
+  parts.push("Z");
+  return parts.join("");
 }
 
-function buildGoldLayerString(scene: XuanPaperScene, clipPathId: string): string {
-  if (!scene.options.goldFlecks || scene.goldFlecks.length === 0) {
-    return "";
-  }
-
-  const paths: string[] = [];
-  for (const fleck of scene.goldFlecks) {
-    for (const copy of fleck.copies) {
-      const d = fleck.commands.map((command) => commandToString(command, copy.x, copy.y)).join(" ");
-      paths.push(`<path d="${d}" fill="${rgba(fleck.color, fleck.alpha)}"/>`);
+function goldPathData(commands: GoldPathCommand[], ox: number, oy: number): string {
+  let d = "";
+  for (const c of commands) {
+    switch (c.type) {
+      case "M":
+        d += `M${fmt(c.x + ox)} ${fmt(c.y + oy)}`;
+        break;
+      case "L":
+        d += `L${fmt(c.x + ox)} ${fmt(c.y + oy)}`;
+        break;
+      case "Q":
+        d += `Q${fmt(c.cpx + ox)} ${fmt(c.cpy + oy)} ${fmt(c.x + ox)} ${fmt(c.y + oy)}`;
+        break;
+      case "Z":
+        d += "Z";
+        break;
     }
   }
-
-  return `<g data-layer="gold-flecks" clip-path="url(#${clipPathId})">${paths.join("")}</g>`;
+  return d;
 }
 
-function buildDeckleStrokeString(scene: XuanPaperScene, outlinePath: string): string {
-  if (!scene.deckleOutline) {
-    return "";
-  }
-
-  return `<path d="${outlinePath}" fill="none" stroke="${rgba(adjustColor(scene.options.baseColor, [-35, -30, -22]), 0.16)}" stroke-width="${0.8 + scene.options.deckleRoughness * 0.8}"/>`;
+interface GrainLayer {
+  id: string;
+  tile: number;
+  frequency: number;
+  octaves: number;
+  seed: number;
+  /** Overlay alpha = gain × noise + offset (noise ≈ 0.5 ± 0.1). */
+  gain: number;
+  offset: number;
 }
 
+function grainDefs(layer: GrainLayer, tint: readonly [number, number, number]): string {
+  const [r, g, b] = tint.map((c) => fmt(c / 255));
+  const t = layer.tile;
+  return (
+    `<filter id="${layer.id}-f" x="0" y="0" width="${t}" height="${t}" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">` +
+    `<feTurbulence type="fractalNoise" baseFrequency="${layer.frequency}" numOctaves="${layer.octaves}" seed="${layer.seed}" stitchTiles="stitch"/>` +
+    `<feColorMatrix values="0 0 0 0 ${r} 0 0 0 0 ${g} 0 0 0 0 ${b} ${fmt(layer.gain)} 0 0 0 ${fmt(layer.offset)}"/>` +
+    `</filter>` +
+    `<pattern id="${layer.id}" width="${t}" height="${t}" patternUnits="userSpaceOnUse">` +
+    `<rect width="${t}" height="${t}" filter="url(#${layer.id}-f)"/></pattern>`
+  );
+}
+
+/**
+ * Builds the paper as SVG markup split into `<defs>` content and body.
+ *
+ * Browser cost is kept low on purpose: the smooth tone is a ~120×68 embedded
+ * raster that the browser upsamples, and the fine formation/grain comes from
+ * two small stitched feTurbulence tiles used as patterns (rasterised once per
+ * tile, not once per page). Fibers, particles and gold are one path per paint.
+ */
 export function renderXuanPaperSVGParts(scene: XuanPaperScene): XuanPaperSVGParts {
-  const textureFilterId = `xuan-paper-texture-${scene.options.seed}`;
-  const agingFilterId = `xuan-paper-aging-${scene.options.seed}`;
-  const clipPathId = `xuan-paper-clip-${scene.options.seed}`;
-  const outlinePath = buildOutlinePathData(
-    scene.deckleOutline,
-    scene.options.width,
-    scene.options.height,
+  const { width, height, seed, textureIntensity, grainDensity, baseColor } = scene.options;
+  const { profile } = scene;
+  const idSuffix = String(seed);
+  const clipPathId = `xuan-paper-clip-${idSuffix}`;
+  const outlineId = `xuan-paper-outline-${idSuffix}`;
+  const p = paperToneParams(scene);
+  const shortSeed = (n: number) => Math.abs(n % 100000);
+
+  // Grain tint: the paper colour pulled toward the fibre colour.
+  const tint: [number, number, number] = [
+    clampByte(p.baseR - 70),
+    clampByte(p.baseG - 72),
+    clampByte(p.baseB - 76),
+  ];
+  const textureAlpha = (textureIntensity * profile.formationContrast * 0.19) / 0.3;
+  const grainAlpha = (grainDensity * 0.14) / profile.grainSoftness / 0.5;
+  const layers: GrainLayer[] = [];
+  if (textureAlpha > 0) {
+    layers.push({
+      id: `xuan-paper-formation-${idSuffix}`,
+      tile: GRAIN_TILE_A,
+      frequency: 0.07,
+      octaves: 3,
+      seed: shortSeed(scene.seeds.formation),
+      gain: textureAlpha * 0.9,
+      offset: textureAlpha * (0.12 - 0.45),
+    });
+  }
+  if (grainAlpha > 0) {
+    layers.push({
+      id: `xuan-paper-grain-${idSuffix}`,
+      tile: GRAIN_TILE_B,
+      frequency: 0.45,
+      octaves: 2,
+      seed: shortSeed(scene.seeds.detail),
+      gain: grainAlpha * 0.9,
+      offset: grainAlpha * (0.1 - 0.45),
+    });
+  }
+  // Mean darkening added by the overlays (≈ mean alpha × tint distance),
+  // pre-compensated in the tone raster so the sheet keeps its brightness.
+  const lift = layers.reduce(
+    (sum, l) => sum + Math.max(0, l.gain * 0.5 + l.offset) * (p.baseG - tint[1]),
+    0,
   );
 
-  const defs = [
-    buildTextureFilterString(textureFilterId, scene),
-    buildAgingFilterString(agingFilterId, scene),
-    `<clipPath id="${clipPathId}"><path d="${outlinePath}"/></clipPath>`,
-  ].join("");
+  const tone = renderLowFrequencyTone(scene, TONE_RASTER_STRIDE, lift);
+  const png = bytesToBase64(encodePngRgb(tone.rgb, tone.width, tone.height));
 
-  const body = [
-    buildPaperLayersString(scene, outlinePath, clipPathId, textureFilterId, agingFilterId),
-    buildParticleLayerString(scene, clipPathId),
-    buildFiberLayerString(scene, clipPathId),
-    buildGoldLayerString(scene, clipPathId),
-    buildDeckleStrokeString(scene, outlinePath),
-  ].join("");
+  let defs = "";
+  let body = "";
+  const outline = scene.deckleOutline;
+  if (outline) {
+    defs += `<clipPath id="${clipPathId}"><path id="${outlineId}" d="${buildOutlinePathData(outline, width, height)}"/></clipPath>`;
+    body += `<g clip-path="url(#${clipPathId})">`;
+  }
+  for (const layer of layers) {
+    defs += grainDefs(layer, tint);
+  }
+
+  body +=
+    `<image width="${tone.width * tone.stride}" height="${tone.height * tone.stride}" ` +
+    `preserveAspectRatio="none" href="data:image/png;base64,${png}"/>`;
+  for (const layer of layers) {
+    body += `<rect width="${width}" height="${height}" fill="url(#${layer.id})"/>`;
+  }
+
+  const batches = buildSceneBatches(scene, null);
+
+  if (batches.particles.length > 0) {
+    body += `<g data-layer="particles">`;
+    for (const batch of batches.particles) {
+      let d = "";
+      for (const q of batch.particles) {
+        if (q.rx === q.ry) {
+          const r = fmt(q.rx);
+          const dia = fmt(q.rx * 2);
+          d += `M${fmt(q.x - q.rx)} ${fmt(q.y)}a${r} ${r} 0 1 0 ${dia} 0a${r} ${r} 0 1 0 -${dia} 0`;
+        } else {
+          const rot = (q.rotation * Math.PI) / 180;
+          const cx = q.rx * Math.cos(rot);
+          const cy = q.rx * Math.sin(rot);
+          const arc = `a${fmt(q.rx)} ${fmt(q.ry)} ${fmt(q.rotation)} 1 0`;
+          d += `M${fmt(q.x + cx)} ${fmt(q.y + cy)}${arc} ${fmt(-2 * cx)} ${fmt(-2 * cy)}${arc} ${fmt(2 * cx)} ${fmt(2 * cy)}`;
+        }
+      }
+      body += `<path d="${d}" fill="${rgb(batch.color)}" fill-opacity="${fmt(batch.alpha)}"/>`;
+    }
+    body += `</g>`;
+  }
+
+  if (batches.fibers.length > 0) {
+    body += `<g data-layer="fibers" fill="none" stroke-linecap="round" stroke-linejoin="round">`;
+    for (const batch of batches.fibers) {
+      let d = "";
+      for (const fiber of batch.fibers) {
+        const pts = fiber.points;
+        d += `M${fmt(pts[0]!.x)} ${fmt(pts[0]!.y)}L`;
+        for (let i = 1; i < pts.length; i++) {
+          d += `${i > 1 ? " " : ""}${fmt(pts[i]!.x)} ${fmt(pts[i]!.y)}`;
+        }
+      }
+      body += `<path d="${d}" stroke="${rgb(batch.color)}" stroke-opacity="${fmt(batch.alpha)}" stroke-width="${fmt(batch.width)}"/>`;
+    }
+    body += `</g>`;
+  }
+
+  if (batches.gold.length > 0) {
+    body += `<g data-layer="gold-flecks">`;
+    for (const batch of batches.gold) {
+      let d = "";
+      for (const item of batch.items) {
+        d += goldPathData(item.fleck.commands, item.offset.x, item.offset.y);
+      }
+      body += `<path d="${d}" fill="${rgb(batch.color)}" fill-opacity="${fmt(batch.alpha)}"/>`;
+    }
+    body += `</g>`;
+  }
+
+  if (outline) {
+    body += `</g>`;
+    const edge: [number, number, number] = [
+      clampByte(baseColor[0] - 35),
+      clampByte(baseColor[1] - 30),
+      clampByte(baseColor[2] - 22),
+    ];
+    body += `<use href="#${outlineId}" fill="none" stroke="${rgb(edge)}" stroke-opacity="0.16" stroke-width="${fmt(0.8 + scene.options.deckleRoughness * 0.8)}"/>`;
+  }
 
   return { defs, body };
 }
 
 export function renderXuanPaperSVGString(scene: XuanPaperScene): string {
   const { defs, body } = renderXuanPaperSVGParts(scene);
-  return `<svg width="${scene.options.width}" height="${scene.options.height}" viewBox="0 0 ${scene.options.width} ${scene.options.height}" xmlns="${SVG_NS}"><defs>${defs}</defs>${body}</svg>`;
+  const { width, height } = scene.options;
+  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="${SVG_NS}"><defs>${defs}</defs>${body}</svg>`;
 }
 
+/**
+ * DOM variant of {@link renderXuanPaperSVGString}. It parses the string output
+ * so the two renderers cannot drift apart.
+ */
 export function renderXuanPaperSVG(scene: XuanPaperScene): SVGSVGElement {
-  const svg = document.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("width", String(scene.options.width));
-  svg.setAttribute("height", String(scene.options.height));
-  svg.setAttribute("viewBox", `0 0 ${scene.options.width} ${scene.options.height}`);
-  svg.setAttribute("xmlns", SVG_NS);
-
-  const defs = document.createElementNS(SVG_NS, "defs");
-  const textureFilterId = `xuan-paper-texture-${scene.options.seed}`;
-  const agingFilterId = `xuan-paper-aging-${scene.options.seed}`;
-  const clipPathId = `xuan-paper-clip-${scene.options.seed}`;
-  const outlinePath = buildOutlinePathData(
-    scene.deckleOutline,
-    scene.options.width,
-    scene.options.height,
-  );
-
-  appendTextureFilter(defs, textureFilterId, scene);
-  appendAgingFilter(defs, agingFilterId, scene);
-
-  const clipPath = document.createElementNS(SVG_NS, "clipPath");
-  clipPath.setAttribute("id", clipPathId);
-  const clipShape = document.createElementNS(SVG_NS, "path");
-  clipShape.setAttribute("d", outlinePath);
-  clipPath.appendChild(clipShape);
-  defs.appendChild(clipPath);
-
-  svg.appendChild(defs);
-
-  appendPaperLayers(svg, scene, outlinePath, clipPathId, textureFilterId, agingFilterId);
-  appendParticleLayer(svg, scene, clipPathId);
-  appendFiberLayer(svg, scene, clipPathId);
-  appendGoldLayer(svg, scene, clipPathId);
-  appendDeckleStroke(svg, scene, outlinePath);
-
-  return svg;
+  const markup = renderXuanPaperSVGString(scene);
+  const parsed = new DOMParser().parseFromString(markup, "image/svg+xml");
+  return document.importNode(parsed.documentElement, true) as unknown as SVGSVGElement;
 }

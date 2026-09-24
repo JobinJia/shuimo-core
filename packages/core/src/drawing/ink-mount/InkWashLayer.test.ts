@@ -15,13 +15,13 @@ const layer = generateRidge({
 });
 
 describe("InkWashLayer", () => {
-  it("generates a gradient with increasing opacity from top to bottom", () => {
+  it("generates a gradient that is heaviest at the ridge and thins toward the foot", () => {
     const fill = generateInkFill({ layer, seed: 42, splashCount: 3 });
 
     expect(fill.gradient.length).toBeGreaterThanOrEqual(2);
     const first = fill.gradient[0];
     const last = fill.gradient[fill.gradient.length - 1];
-    expect(last.opacity).toBeGreaterThan(first.opacity);
+    expect(first.opacity).toBeGreaterThan(last.opacity);
   });
 
   it("returns no splash regions (edge-bleed moved to silhouette mask)", () => {

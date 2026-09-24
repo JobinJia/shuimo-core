@@ -3,24 +3,6 @@
 
 export const CWID = 1200;
 
-// ── Composition ──
-export const FLOWER_COUNT_MIN = 2;
-export const FLOWER_COUNT_MAX = 3;
-export const FLOWER_Y_MIN = CWID * 0.1;
-export const FLOWER_Y_MAX = CWID * 0.3;
-export const FLOWER_X_MIN_FRAC = 0.2;
-export const FLOWER_X_MAX_FRAC = 0.8;
-export const FLOWER_X_SPREAD_FRAC = 0.18;
-
-export const LEAF_COUNT_MIN = 4;
-export const LEAF_COUNT_MAX = 7;
-export const LEAF_CLUSTER_Y_MIN = CWID * 0.55;
-export const LEAF_CLUSTER_Y_MAX = CWID * 0.9;
-export const LEAF_X_MIN_FRAC = 0.1;
-export const LEAF_X_MAX_FRAC = 0.92;
-export const LEAF_R_MIN = 90;
-export const LEAF_R_MAX = 230;
-
 // ── Colours ──
 // Petal: rose hue, wash goes near-white at base → saturated rose at tip.
 export const ROSE_H = 345;
@@ -29,15 +11,9 @@ export const PETAL_WASH_BASE_S = 0.04;
 export const PETAL_WASH_BASE_V = 1.0;
 export const PETAL_WASH_TIP_S = 0.62;
 export const PETAL_WASH_TIP_V = 0.9;
-export const PETAL_CONTOUR_S = 0.6;
-export const PETAL_CONTOUR_V = 0.6;
 
 // Leaf: dark ink-green boneless mass.
 export const LEAF_H = 140;
-export const LEAF_S_MIN = 0.15;
-export const LEAF_S_MAX = 0.3;
-export const LEAF_V_MIN = 0.12;
-export const LEAF_V_MAX = 0.26;
 
 // Ink: stems, spurs, splatter.
 export const INK_V = 0.18;
@@ -69,7 +45,6 @@ export const PETAL_CONTOUR_V_LIGHT = 0.88;
 export const PETAL_CONTOUR_V_DEEP = 0.64; // stays a clear rose, never maroon/black
 export const PETAL_CONTOUR_A_LIGHT = 0.32;
 export const PETAL_CONTOUR_A_DEEP = 0.8;
-export const PETAL_CONTOUR_NOISE_FREQ = 3.0;
 export const PETAL_CONTOUR_NOISE_AMP = 0.4; // how much perlin pushes depth
 export const PETAL_CONTOUR_TIP_BIAS = 0.55; // how much the tip deepens depth
 
@@ -121,7 +96,6 @@ export const PETAL_RINGS: PetalRing[] = [
 
 // ── Stem ──
 export const STEM_W = 3.6;
-export const STEM_BOTTOM_OVERSHOOT = 30;
 export const STEM_DRIFT_PX = 90;
 export const STEM_BEND_PX = 90;
 export const STEM_SPUR_MAX = 7; // 0..6 spurs per stem
@@ -130,7 +104,9 @@ export const STEM_SPUR_MAX = 7; // 0..6 spurs per stem
 export const SPLATTER_COUNT_MIN = 6;
 export const SPLATTER_COUNT_MAX = 16;
 export const SPLATTER_SPREAD_X = 220;
-export const SPLATTER_SPREAD_Y = 160;
+export const SPLATTER_SPREAD_Y = 110;
+// Cluster sits at the foot of the leaf mass, just above the waterline.
+export const SPLATTER_Y_ABOVE_WATER = 40;
 
 // ── Scene composition (atmospheric pond, tall vertical) ──
 // A waterline divides plants (above) from their reflections (below). Each
@@ -162,17 +138,29 @@ export const LEAF_FAR_V = 0.46; // grey misty back
 export const LEAF_NEUTRAL_S = 0.06; // near-neutral (faint green)
 export const LEAF_TILT_CHANCE = 0.4; // chance a pad is seen edge-on
 export const LEAF_TILT_MIN = 0.45; // y-squash for a tilted pad
-export const LEAF_VEIN_COUNT_MIN = 9;
-export const LEAF_VEIN_COUNT_MAX = 15;
 
 // Flowers are small in this scene (the bloom is a detail, not the subject).
 export const FLOWER_SCENE_SCALE_MIN = 0.3;
 export const FLOWER_SCENE_SCALE_MAX = 0.46;
 
 // Water reflection (flipped, squashed, faded, blurred copy below the waterline).
+// The reflection repaints the SAME precomputed plants under a mirror transform
+// at a lower level of detail (no veins / contour pooling / spurs — invisible
+// under the blur anyway), so it always matches the plants above the water.
 export const REFLECT_SQUASH = 0.55;
 export const REFLECT_ALPHA = 0.2;
-export const REFLECT_BLUR = 2.5;
+
+// ── Soft wet edges (ctx.filter blur) ──
+// All radii are in SCENE units (the 1200-wide scene box) and are converted to
+// device pixels with the fit-transform scale, so the look does not change with
+// the output size. After conversion they are floored to 0.5 px steps and
+// dropped when below half a pixel: each filtered draw call costs the browser
+// an offscreen blur pass, and sub-half-pixel blurs are not visible.
+export const REFLECT_BLUR = 5.5;
+export const LEAF_EDGE_BLUR_MIN = 3.2;
+export const LEAF_EDGE_BLUR_FRAC = 0.044; // × leaf radius
+export const STEM_BLUR = 0.5; // engages only above ~1300 px output
+export const SPLATTER_BLUR = 1.2;
 
 // Falling petals (drifting pink dabs).
 export const FALL_PETAL_COUNT_MIN = 5;
