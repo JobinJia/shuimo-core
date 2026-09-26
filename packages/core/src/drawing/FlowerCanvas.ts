@@ -1008,6 +1008,50 @@ interface LayerContext {
   ctx: CanvasRenderingContext2D;
 }
 
+/**
+ * Bounding box of pixels with non-zero alpha in RGBA data of size w×h.
+ * Empty input returns `{ xmin: w, xmax: 0, ymin: h, ymax: 0 }`, matching the
+ * historical `Layer.bound` result. Rows are scanned inward from the top and
+ * bottom, then each remaining row only from its ends toward the current
+ * horizontal extent, so sparse layers touch a small part of the buffer.
+ */
+function alphaBounds(
+  pix: Uint8ClampedArray,
+  w: number,
+  h: number,
+): { xmin: number; xmax: number; ymin: number; ymax: number } {
+  const rowHasInk = (y: number): boolean => {
+    for (let i = y * w * 4 + 3, end = (y + 1) * w * 4; i < end; i += 4) {
+      if (pix[i] !== 0) return true;
+    }
+    return false;
+  };
+  let ymin = 0;
+  while (ymin < h && !rowHasInk(ymin)) ymin++;
+  if (ymin === h) return { xmin: w, xmax: 0, ymin: h, ymax: 0 };
+  let ymax = h - 1;
+  while (ymax > ymin && !rowHasInk(ymax)) ymax--;
+
+  let xmin = w;
+  let xmax = -1;
+  for (let y = ymin; y <= ymax; y++) {
+    const row = y * w * 4 + 3;
+    for (let x = 0; x < xmin; x++) {
+      if (pix[row + x * 4] !== 0) {
+        xmin = x;
+        break;
+      }
+    }
+    for (let x = w - 1; x > xmax; x--) {
+      if (pix[row + x * 4] !== 0) {
+        xmax = x;
+        break;
+      }
+    }
+  }
+  return { xmin, xmax, ymin, ymax };
+}
+
 /** @internal */
 export const Layer = {
   empty(w: number = 600, h: number = w): LayerContext {
@@ -1030,6 +1074,17 @@ export const Layer = {
     ctx0.drawImage(ctx1.canvas, xof, yof);
   },
 
+  /**
+   * Apply a per-pixel filter and return the alpha bounds of the result (same
+   * shape as `Layer.bound`).
+   *
+   * Only non-transparent pixels inside the content's bounding box are visited.
+   * A fully transparent pixel reads back as (0,0,0,0) from a canvas, and every
+   * filter here only scales channels, so it would stay (0,0,0,0) — skipping it
+   * leaves the output bit-identical. On the 1200² plant layers the content
+   * usually covers a small fraction of the canvas, so this removes most of the
+   * per-pixel noise evaluations. Only the content rect is written back.
+   */
   filter(
     ctx: CanvasRenderingContext2D,
     f: (
@@ -1040,20 +1095,44 @@ export const Layer = {
       b: number,
       a: number,
     ) => [number, number, number, number],
-  ) {
-    const imgd = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ): { xmin: number; xmax: number; ymin: number; ymax: number } {
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+    const imgd = ctx.getImageData(0, 0, w, h);
     const pix = imgd.data;
-    for (let i = 0, n = pix.length; i < n; i += 4) {
-      const [r, g, b, a] = [pix[i], pix[i + 1], pix[i + 2], pix[i + 3]];
-      const x = (i / 4) % ctx.canvas.width;
-      const y = Math.floor(i / 4 / ctx.canvas.width);
-      const [r1, g1, b1, a1] = f(x, y, r, g, b, a);
-      pix[i] = r1;
-      pix[i + 1] = g1;
-      pix[i + 2] = b1;
-      pix[i + 3] = a1;
+    const src = alphaBounds(pix, w, h);
+    const out = { xmin: w, xmax: 0, ymin: h, ymax: 0 };
+    if (src.xmax < src.xmin) return out;
+
+    for (let y = src.ymin; y <= src.ymax; y++) {
+      let i = (y * w + src.xmin) * 4;
+      for (let x = src.xmin; x <= src.xmax; x++, i += 4) {
+        const a = pix[i + 3];
+        if (a === 0) continue;
+        const res = f(x, y, pix[i], pix[i + 1], pix[i + 2], a);
+        pix[i] = res[0];
+        pix[i + 1] = res[1];
+        pix[i + 2] = res[2];
+        pix[i + 3] = res[3];
+        // Bounds use the stored (clamped/rounded) alpha, exactly as `bound` would.
+        if (pix[i + 3] !== 0) {
+          if (x < out.xmin) out.xmin = x;
+          if (x > out.xmax) out.xmax = x;
+          if (y < out.ymin) out.ymin = y;
+          if (y > out.ymax) out.ymax = y;
+        }
+      }
     }
-    ctx.putImageData(imgd, 0, 0);
+    ctx.putImageData(
+      imgd,
+      0,
+      0,
+      src.xmin,
+      src.ymin,
+      src.xmax - src.xmin + 1,
+      src.ymax - src.ymin + 1,
+    );
+    return out;
   },
 
   /**
@@ -1089,24 +1168,9 @@ export const Layer = {
   },
 
   bound(ctx: CanvasRenderingContext2D) {
-    let xmin = ctx.canvas.width;
-    let xmax = 0;
-    let ymin = ctx.canvas.height;
-    let ymax = 0;
-    const imgd = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
-    const pix = imgd.data;
-    for (let i = 0, n = pix.length; i < n; i += 4) {
-      const a = pix[i + 3];
-      const x = (i / 4) % ctx.canvas.width;
-      const y = Math.floor(i / 4 / ctx.canvas.width);
-      if (a > 0.001) {
-        if (x < xmin) xmin = x;
-        if (x > xmax) xmax = x;
-        if (y < ymin) ymin = y;
-        if (y > ymax) ymax = y;
-      }
-    }
-    return { xmin, xmax, ymin, ymax };
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+    return alphaBounds(ctx.getImageData(0, 0, w, h).data, w, h);
   },
 };
 
@@ -1249,8 +1313,10 @@ function woody(args: WoodyArgs = {}): void {
   }
 
   Layer.filter(lay0.ctx, Filter.fade);
-  Layer.filter(lay0.ctx, Filter.wispy);
-  Layer.filter(lay1.ctx, Filter.wispy);
+  // The last pass over each layer also yields its content bounds, saving two
+  // full-canvas readbacks in the fit step below.
+  const b1 = Layer.filter(lay0.ctx, Filter.wispy);
+  const b2 = Layer.filter(lay1.ctx, Filter.wispy);
 
   let xref: number;
   let yref: number;
@@ -1263,8 +1329,6 @@ function woody(args: WoodyArgs = {}): void {
     Layer.blit(args.ctx!, lay1.ctx, { ble: "normal", xof: xref, yof: yref });
     args.ctx!.restore();
   } else {
-    const b1 = Layer.bound(lay0.ctx);
-    const b2 = Layer.bound(lay1.ctx);
     const bd = {
       xmin: Math.min(b1.xmin, b2.xmin),
       xmax: Math.max(b1.xmax, b2.xmax),
@@ -1437,8 +1501,10 @@ function herbal(args: HerbalArgs = {}): void {
   }
 
   Layer.filter(lay0.ctx, Filter.fade);
-  Layer.filter(lay0.ctx, Filter.wispy);
-  Layer.filter(lay1.ctx, Filter.wispy);
+  // The last pass over each layer also yields its content bounds, saving two
+  // full-canvas readbacks in the fit step below.
+  const b1 = Layer.filter(lay0.ctx, Filter.wispy);
+  const b2 = Layer.filter(lay1.ctx, Filter.wispy);
 
   let xref: number;
   let yref: number;
@@ -1451,8 +1517,6 @@ function herbal(args: HerbalArgs = {}): void {
     Layer.blit(args.ctx!, lay1.ctx, { ble: "normal", xof: xref, yof: yref });
     args.ctx!.restore();
   } else {
-    const b1 = Layer.bound(lay0.ctx);
-    const b2 = Layer.bound(lay1.ctx);
     const bd = {
       xmin: Math.min(b1.xmin, b2.xmin),
       xmax: Math.max(b1.xmax, b2.xmax),
