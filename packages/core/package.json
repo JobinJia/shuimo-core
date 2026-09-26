@@ -1,6 +1,6 @@
 {
   "name": "@jobinjia/shuimo-core",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Core library for procedural Chinese landscape painting generation",
   "files": [
     "dist"
