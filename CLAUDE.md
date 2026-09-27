@@ -38,7 +38,7 @@ pnpm --filter @jobinjia/shuimo-core test:coverage
 pnpm --filter @jobinjia/shuimo-core test:ui
 pnpm --filter @jobinjia/shuimo-core bench            # *.bench.ts (e.g. stampV2/stamp-v1-vs-v2.bench.ts)
 pnpm --filter @jobinjia/shuimo-core build:wasm-data  # re-embed shuimo-noise .wasm as base64 TS
-pnpm --filter @jobinjia/shuimo-core build:copy-wasm  # copy .wasm files to dist/wasm (not part of `build`)
+pnpm --filter @jobinjia/shuimo-core build:copy-wasm  # copy .wasm files to dist/wasm (not part of `build`; runs automatically on `prepack`, so every publish ships them)
 ```
 
 CI (`.github/workflows/ci.yml`): `vp check` runs with `continue-on-error` because it SIGABRTs on CI runners; tests + build run on Node 22 and 24 via `pnpm test -- --run` and `pnpm build`.
@@ -47,10 +47,10 @@ CI (`.github/workflows/ci.yml`): `vp check` runs with `continue-on-error` becaus
 
 pnpm workspaces: `packages/*`, `playground`, `examples/*`.
 
-| Path            | Package                 | Notes                                                                 |
-| --------------- | ----------------------- | --------------------------------------------------------------------- |
-| `packages/core` | `@jobinjia/shuimo-core` | The library. ESM-only (`.mjs` / `.d.mts`), `uuid` is never bundled     |
-| `playground`    | `@shuimo/playground`    | Vue 3 + Vue Router demo, one `src/demos/*.vue` per feature            |
+| Path            | Package                 | Notes                                                              |
+| --------------- | ----------------------- | ------------------------------------------------------------------ |
+| `packages/core` | `@jobinjia/shuimo-core` | The library. ESM-only (`.mjs` / `.d.mts`), `uuid` is never bundled |
+| `playground`    | `@shuimo/playground`    | Vue 3 + Vue Router demo, one `src/demos/*.vue` per feature         |
 
 **Playground aliasing** (`playground/vite.config.ts`): in dev mode `@jobinjia/shuimo-core` and `/stamp-v2` resolve to `packages/core/src/**` directly, so no core build is needed to see changes; in production mode they resolve to `packages/core/dist/*.mjs`. `@jobinjia/shuimo-core/wasm/*` resolves to `packages/core/wasm/harfbuzz/` in both modes.
 
@@ -58,18 +58,18 @@ pnpm workspaces: `packages/*`, `playground`, `examples/*`.
 
 All map 1:1 to `pack.entry` in `packages/core/vite.config.ts` and `exports` in `packages/core/package.json`:
 
-| Import path                     | Source                                                    |
-| ------------------------------- | --------------------------------------------------------- |
-| `.`                             | `src/index.ts` (re-exports foundation, utils, drawing, elements, composition) |
-| `./foundation`                  | `src/foundation/index.ts`                                 |
-| `./drawing`                     | `src/drawing/index.ts`                                    |
-| `./elements`                    | `src/elements/index.ts`                                   |
-| `./stamp-v2`                    | `src/drawing/stampV2/index.ts` (not re-exported from `.`) |
-| `./xuan-paper/worker`           | `src/elements/natural/xuan-paper/worker.ts`               |
-| `./xuan-paper/worker-protocol`  | `src/elements/natural/xuan-paper/worker-protocol.ts`      |
-| `./stamp/font-worker`           | `src/drawing/internal/glyphFontWorker.ts`                 |
-| `./stamp/font-worker-protocol`  | `src/drawing/internal/glyphFontWorker-protocol.ts`        |
-| `./wasm/*`                      | `dist/wasm/*` (populated only by `build:copy-wasm`)       |
+| Import path                    | Source                                                                        |
+| ------------------------------ | ----------------------------------------------------------------------------- |
+| `.`                            | `src/index.ts` (re-exports foundation, utils, drawing, elements, composition) |
+| `./foundation`                 | `src/foundation/index.ts`                                                     |
+| `./drawing`                    | `src/drawing/index.ts`                                                        |
+| `./elements`                   | `src/elements/index.ts`                                                       |
+| `./stamp-v2`                   | `src/drawing/stampV2/index.ts` (not re-exported from `.`)                     |
+| `./xuan-paper/worker`          | `src/elements/natural/xuan-paper/worker.ts`                                   |
+| `./xuan-paper/worker-protocol` | `src/elements/natural/xuan-paper/worker-protocol.ts`                          |
+| `./stamp/font-worker`          | `src/drawing/internal/glyphFontWorker.ts`                                     |
+| `./stamp/font-worker-protocol` | `src/drawing/internal/glyphFontWorker-protocol.ts`                            |
+| `./wasm/*`                     | `dist/wasm/*` (filled by `build:copy-wasm`, run on `prepack`)                 |
 
 Adding a new entry point means editing both `pack.entry` and `exports`, plus the playground alias list if the playground should import it from source.
 
@@ -97,11 +97,11 @@ Two off-main-thread pipelines follow the same pattern: a `worker.ts` entry, a `*
 
 Three Rust crates under `packages/core/wasm/` (Rust + `wasm-pack` needed only to rebuild; `pkg/` output for shuimo-noise is committed):
 
-| Crate             | How it ships                                                                                   |
-| ----------------- | ---------------------------------------------------------------------------------------------- |
+| Crate             | How it ships                                                                                                                                                                      |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `shuimo-noise`    | Base64 in `src/foundation/noise/wasm-noise-data.ts`, sync init. Regenerate: `wasm-pack build --target web --out-dir pkg --release` in the crate dir, then `pnpm build:wasm-data`. |
-| `xuan-paper-tone` | Base64 inline in `src/elements/natural/xuan-paper/paper-tone-wasm.ts`.                        |
-| `harfbuzz`        | Prebuilt `harfbuzz-subset.wasm`, served as a file via the `./wasm/*` export; consumers pass its URL through `harfbuzzSubsetWasmUrl` / `configureFontSubsetWasm`. |
+| `xuan-paper-tone` | Base64 inline in `src/elements/natural/xuan-paper/paper-tone-wasm.ts`.                                                                                                            |
+| `harfbuzz`        | Prebuilt `harfbuzz-subset.wasm`, served as a file via the `./wasm/*` export; consumers pass its URL through `harfbuzzSubsetWasmUrl` / `configureFontSubsetWasm`.                  |
 
 Rust-side caveat: `f64 as i32` saturates in Rust while JS `ToInt32` wraps, so seeds derived from large numbers (e.g. `Date.now()`) must be reduced before crossing the boundary.
 
