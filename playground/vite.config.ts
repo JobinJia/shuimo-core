@@ -14,6 +14,13 @@ export default defineConfig(({ mode }) => ({
         replacement: path.resolve(__dirname, "../packages/core/wasm/harfbuzz/$1"),
       },
       {
+        find: /^@jobinjia\/shuimo-core\/xuan-paper\/worker$/,
+        replacement:
+          mode === "production"
+            ? path.resolve(__dirname, "../packages/core/dist/xuan-paper-worker.mjs")
+            : path.resolve(__dirname, "../packages/core/src/elements/natural/xuan-paper/worker.ts"),
+      },
+      {
         find: "@jobinjia/shuimo-core/stamp-v2",
         replacement:
           mode === "production"

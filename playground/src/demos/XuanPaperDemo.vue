@@ -5,7 +5,11 @@ import {
   GoldFleckColors,
   type XuanPaperOptions,
 } from "@jobinjia/shuimo-core";
-import { computed, onMounted, reactive, useTemplateRef, watch } from "vue";
+import type {
+  XuanPaperWorkerRequest,
+  XuanPaperWorkerResponse,
+} from "@jobinjia/shuimo-core/xuan-paper/worker-protocol";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, useTemplateRef, watch } from "vue";
 
 const canvasContainer = useTemplateRef<HTMLDivElement>("canvasContainer");
 const svgContainer = useTemplateRef<HTMLDivElement>("svgContainer");
@@ -22,7 +26,7 @@ const state = reactive({
   deckleEdge: false,
   deckleRoughness: 0.5,
   colorPreset: "processed" as keyof typeof XuanPaperColors,
-  renderMode: "canvas" as "canvas" | "svg",
+  renderMode: "canvas" as "canvas" | "svg" | "worker",
   goldFlecks: false,
   goldDensity: 0.5,
   goldSizeMin: 2,
@@ -68,7 +72,54 @@ const currentOptions = computed<XuanPaperOptions>(() => ({
   goldClustering: state.goldClustering,
 }));
 
+// Worker mode: the same paper rendered off the main thread through the
+// `xuan-paper/worker` entry. The response carries a transferred ImageBitmap.
+let paperWorker: Worker | null = null;
+let latestRequestId = 0;
+const workerStatus = ref("");
+
+function getPaperWorker(): Worker {
+  if (!paperWorker) {
+    paperWorker = new Worker(new URL("@jobinjia/shuimo-core/xuan-paper/worker", import.meta.url), {
+      type: "module",
+    });
+  }
+  return paperWorker;
+}
+
+function generateInWorker() {
+  const id = ++latestRequestId;
+  const startedAt = performance.now();
+  const worker = getPaperWorker();
+  workerStatus.value = "生成中…";
+  worker.onmessage = (event: MessageEvent<XuanPaperWorkerResponse>) => {
+    const response = event.data;
+    // A newer request superseded this one: drop the stale bitmap.
+    if (response.id !== latestRequestId || !canvasContainer.value) {
+      if ("bitmap" in response) response.bitmap.close();
+      return;
+    }
+    if ("error" in response) {
+      workerStatus.value = `失败：${response.error}`;
+      return;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = response.bitmap.width;
+    canvas.height = response.bitmap.height;
+    canvas.getContext("bitmaprenderer")?.transferFromImageBitmap(response.bitmap);
+    canvasContainer.value.innerHTML = "";
+    canvasContainer.value.appendChild(canvas);
+    workerStatus.value = `Worker 用时 ${Math.round(performance.now() - startedAt)} ms（主线程不阻塞）`;
+  };
+  const request: XuanPaperWorkerRequest = { id, options: currentOptions.value };
+  worker.postMessage(request);
+}
+
 function generate() {
+  if (state.renderMode === "worker") {
+    generateInWorker();
+    return;
+  }
   if (state.renderMode === "canvas" && canvasContainer.value) {
     canvasContainer.value.innerHTML = "";
     const canvas = XuanPaper.generate(currentOptions.value);
@@ -94,6 +145,11 @@ function downloadPaper() {
 }
 
 onMounted(generate);
+
+onBeforeUnmount(() => {
+  paperWorker?.terminate();
+  paperWorker = null;
+});
 
 watch([currentOptions, () => state.renderMode], generate);
 </script>
@@ -121,7 +177,14 @@ watch([currentOptions, () => state.renderMode], generate);
                 <input v-model="state.renderMode" type="radio" value="svg" />
                 SVG
               </label>
+              <label class="radio-label">
+                <input v-model="state.renderMode" type="radio" value="worker" />
+                Worker
+              </label>
             </div>
+            <p v-if="state.renderMode === 'worker' && workerStatus" class="worker-status">
+              {{ workerStatus }}
+            </p>
           </div>
 
           <div class="control-row">
@@ -302,7 +365,7 @@ watch([currentOptions, () => state.renderMode], generate);
       </div>
 
       <div class="preview">
-        <div v-show="state.renderMode === 'canvas'" ref="canvasContainer" class="paper-display" />
+        <div v-show="state.renderMode !== 'svg'" ref="canvasContainer" class="paper-display" />
         <div v-show="state.renderMode === 'svg'" ref="svgContainer" class="paper-display" />
       </div>
     </div>
@@ -586,6 +649,12 @@ const canvas = XuanPaper.generate({
   justify-content: stretch;
   align-items: flex-start;
   min-width: 0;
+}
+
+.worker-status {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: #666;
 }
 
 .paper-display {

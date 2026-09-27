@@ -53,7 +53,7 @@ const controls = reactive({
   cellHeightMode: "uniform" as "uniform" | "fit",
   shortColumn: "spread" as "spread" | "top",
   variation: 1,
-  roughness: 0.2,
+  roughness: 0.25,
   carvingIntensity: 1.0,
   bleed: 1.0,
   offsetX: 0,
@@ -74,7 +74,7 @@ function toggleModePreset() {
     controls.mode = "yang";
     controls.shape = "auto";
     controls.borderThickness = 4;
-    controls.roughness = 0.2;
+    controls.roughness = 0.25;
     controls.carvingIntensity = 1.0;
     controls.bleed = 1.0;
   }
@@ -82,7 +82,7 @@ function toggleModePreset() {
 }
 
 
-const savedTexture = reactive({ roughness: 0.2, carvingIntensity: 1.0, bleed: 1.0 });
+const savedTexture = reactive({ roughness: 0.25, carvingIntensity: 1.0, bleed: 1.0 });
 const textureOn = ref(true);
 
 function toggleTexture() {
