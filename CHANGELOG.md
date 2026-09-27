@@ -2,6 +2,15 @@
 
 All notable changes to `@jobinjia/shuimo-core`. Releases before 3.0.0 are recorded in the git history only.
 
+## 3.0.2 — 2026-09-28
+
+### Fixed
+
+- The published package now contains the WebAssembly files behind the `./wasm/*` export (`harfbuzz-subset.wasm`, `shuimo_noise.js`, `shuimo_noise_bg.wasm`). Earlier releases declared the export but shipped no files.
+- The npm package page has a README.
+
+No code changes; output is identical to 3.0.1.
+
 ## 3.0.1 — 2026-09-27
 
 ### Performance
